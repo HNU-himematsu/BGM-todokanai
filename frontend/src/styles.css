@@ -189,6 +189,26 @@ p {
   font-style: normal;
 }
 
+.join-note {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 28px;
+  padding-top: 17px;
+  border-top: 1px solid var(--line);
+  color: #929292;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--green);
+}
+
 .play-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 310px;

@@ -41,6 +41,9 @@ async function handleJoin() {
     </div>
 
     <a-card class="join-panel" :bordered="true">
+      <div class="panel-kicker">准备入场</div>
+      <h2 class="panel-title">先给自己起个名字</h2>
+      <p class="muted">最终排行榜会显示这个昵称。别害羞，名字越有记忆点越好。</p>
       <form @submit.prevent="handleJoin">
         <div class="field-label">你的昵称</div>
         <a-input
@@ -63,6 +66,10 @@ async function handleJoin() {
         </a-button>
       </form>
       <a-alert v-if="error" class="form-alert" type="error" :message="error" show-icon />
+      <div class="join-note">
+        <span class="status-dot"></span>
+        <span>等待主持人开始后，所有人会同时进入答题</span>
+      </div>
     </a-card>
   </section>
 </template>
