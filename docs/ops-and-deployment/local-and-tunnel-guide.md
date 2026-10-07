@@ -24,6 +24,12 @@
   npm run build
   ```
 
+### 1.3 数据与音频准备
+1. 将编排文件放置为 `backend/data/timeline.json`，将完整音频文件放置到编排文件同目录（默认 `backend/data/`）。
+2. 音频文件名需与编排文件 `audioFile` 字段一致。
+3. 启动时 `TimelineStore` 自动加载并校验编排文件，校验失败会在日志中输出具体条目位置。
+4. 音频由后端接口 `GET /api/events/{eventId}/audio` 输出，主持人控制台直接引用；通过 Nginx 部署时音频随 `/api/` 代理转发，无需额外静态配置。
+
 ---
 
 ## 2. 现场内网穿透方案 (Cloudflare Quick Tunnel)
@@ -62,7 +68,7 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
-    # REST API 代理至后端 8080
+    # REST API 与音频流代理至后端 8080
     location /api/ {
         proxy_pass http://127.0.0.1:8080;
         proxy_set_header Host $host;
