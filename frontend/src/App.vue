@@ -1,6 +1,11 @@
 <script setup>
 import zhCN from 'ant-design-vue/es/locale/zh_CN'
 import { Headphones, ShieldCheck } from 'lucide-vue-next'
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+const showHeader = computed(() => route.path !== '/')
 
 const themeConfig = {
   token: {
@@ -16,7 +21,7 @@ const themeConfig = {
 <template>
   <a-config-provider :locale="zhCN" :theme="themeConfig">
     <div class="app-shell">
-      <header class="site-header">
+      <header v-if="showHeader" class="site-header">
         <router-link class="brand" to="/">
           <span class="brand-mark"><Headphones :size="18" /></span>
           <span>
