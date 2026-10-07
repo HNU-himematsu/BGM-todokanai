@@ -932,7 +932,7 @@ p {
   }
 
   .join-copy h1 {
-    font-size: 48px;
+    font-size: clamp(48px, 8vw, 96px);
   }
 
   .play-layout {
@@ -981,8 +981,17 @@ p {
     gap: 7px;
   }
 
+  .join-copy {
+    min-height: 47vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
   .join-copy h1 {
-    font-size: 43px;
+    font-size: clamp(40px, 14vw, 96px);
+    margin-bottom: 0;
+    line-height: 1.04;
   }
 
   .topline h1,
