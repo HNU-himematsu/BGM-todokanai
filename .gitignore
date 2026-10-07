@@ -43,3 +43,7 @@ ENV/
 *.log
 backend/data/*.json
 backend/data/*.txt
+
+# ========== Local Build Cache ==========
+# Maven local repository configured in backend/maven-settings.xml
+work/
