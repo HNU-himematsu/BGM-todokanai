@@ -42,6 +42,13 @@ export async function hostLogout(token) {
   })
 }
 
+export async function getHostState(eventId, token) {
+  const { data } = await api.get(`/events/${eventId}/host/state`, {
+    headers: { 'X-Host-Token': token },
+  })
+  return data.data
+}
+
 export async function hostAction(eventId, action, token, params = {}) {
   const { data } = await api.post(`/events/${eventId}/host/${action}`, null, {
     headers: { 'X-Host-Token': token },

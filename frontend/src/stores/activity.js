@@ -4,21 +4,21 @@ import { getEventState } from '../services/api'
 
 export const useActivityStore = defineStore('activity', () => {
   const eventId = ref('demo')
-  const playerId = ref(localStorage.getItem('bgm-player-id') || '')
-  const nickname = ref(localStorage.getItem('bgm-nickname') || '')
+  const playerId = ref(sessionStorage.getItem('bgm-player-id') || '')
+  const nickname = ref(sessionStorage.getItem('bgm-nickname') || '')
   const state = ref(null)
   const loading = ref(false)
   const error = ref('')
 
   const isParticipant = computed(() => Boolean(playerId.value))
-  const currentQuestion = computed(() => state.value?.currentQuestion)
+  const currentQuestion = computed(() => state.value?.question)
 
   function setPlayer(payload) {
     eventId.value = payload.eventId
     playerId.value = payload.playerId
     nickname.value = payload.nickname
-    localStorage.setItem('bgm-player-id', payload.playerId)
-    localStorage.setItem('bgm-nickname', payload.nickname)
+    sessionStorage.setItem('bgm-player-id', payload.playerId)
+    sessionStorage.setItem('bgm-nickname', payload.nickname)
   }
 
   async function refresh() {
@@ -37,8 +37,8 @@ export const useActivityStore = defineStore('activity', () => {
     playerId.value = ''
     nickname.value = ''
     state.value = null
-    localStorage.removeItem('bgm-player-id')
-    localStorage.removeItem('bgm-nickname')
+    sessionStorage.removeItem('bgm-player-id')
+    sessionStorage.removeItem('bgm-nickname')
   }
 
   return {

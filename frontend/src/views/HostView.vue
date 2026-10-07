@@ -1,9 +1,11 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import {
+  Check,
   ChevronRight,
   CircleStop,
   Copy,
+  Eye,
   KeyRound,
   ListRestart,
   LockKeyhole,
@@ -12,12 +14,11 @@ import {
   Play,
   Radio,
   RefreshCw,
-  Sparkles,
   UsersRound,
 } from 'lucide-vue-next'
 import { message } from 'ant-design-vue'
 import QRCode from 'qrcode'
-import { getEventState, hostAction, hostLogin, hostLogout } from '../services/api'
+import { getHostState, hostAction, hostLogin, hostLogout } from '../services/api'
 import { createActivitySocket } from '../services/socket'
 
 const eventId = 'demo'
@@ -25,25 +26,27 @@ const hostToken = ref(sessionStorage.getItem('bgm-host-token') || '')
 const authenticated = ref(Boolean(hostToken.value))
 const password = ref('')
 const state = ref(null)
+const players = ref([])
 const error = ref('')
 const busy = ref(false)
 const socket = ref(null)
 const qrCanvas = ref(null)
 
-const question = computed(() => state.value?.currentQuestion)
+const question = computed(() => state.value?.question)
 const publicBaseUrl = (import.meta.env.VITE_PUBLIC_BASE_URL || window.location.origin).replace(/\/+$/, '')
-const joinUrl = computed(() => `${publicBaseUrl}/join?event=${eventId}`)
+const joinUrl = computed(() => `${publicBaseUrl}/?event=${eventId}`)
 const summaryTxtUrl = computed(() => `${publicBaseUrl}/api/events/${eventId}/leaderboard/summary-txt`)
+const displayQuestionNo = computed(() => Math.max(0, (state.value?.currentQuestionIndex ?? -1) + 1))
 const statusLabel = computed(() => ({
   WAITING: '等待开始',
   ANSWERING: '答题中',
-  REVEALING: '答案揭晓',
+  ANSWER_REVEALED: '答案揭晓',
   FINISHED: '活动结束',
 }[state.value?.status] || '连接中'))
 const statusColor = computed(() => ({
   WAITING: 'default',
   ANSWERING: 'processing',
-  REVEALING: 'warning',
+  ANSWER_REVEALED: 'warning',
   FINISHED: 'success',
 }[state.value?.status] || 'default'))
 const emptyPreviewTitle = computed(() => state.value?.status === 'FINISHED' ? '本轮活动已结束' : '活动尚未开始')
@@ -73,7 +76,9 @@ async function openConsole() {
 
 async function refresh() {
   try {
-    state.value = await getEventState(eventId)
+    const snapshot = await getHostState(eventId, hostToken.value)
+    state.value = snapshot?.state ?? null
+    players.value = snapshot?.players ?? []
     error.value = ''
   } catch {
     error.value = '无法连接后端，请确认 Spring Boot 已启动'
@@ -111,6 +116,7 @@ async function logout() {
   sessionStorage.removeItem('bgm-host-token')
   authenticated.value = false
   state.value = null
+  players.value = []
   password.value = ''
 }
 
@@ -118,7 +124,8 @@ async function action(name, params = {}) {
   busy.value = true
   error.value = ''
   try {
-    state.value = await hostAction(eventId, name, hostToken.value, params)
+    await hostAction(eventId, name, hostToken.value, params)
+    await refresh()
   } catch (err) {
     const text = err.response?.data?.message || '操作失败'
     if (text.includes('主持人登录') || err.response?.status === 401) {
@@ -158,7 +165,6 @@ async function copyJoinUrl() {
     <a-card class="host-login-panel">
       <div class="state-center">
         <div class="login-mark"><LockKeyhole :size="25" /></div>
-        <p class="eyebrow">HOST CONTROL / PRIVATE ENTRY</p>
         <h1 class="panel-title-lg">主持人登录</h1>
         <p class="muted">请输入主持人密码进入活动控制台。参与者无需输入密码。</p>
       </div>
@@ -189,12 +195,11 @@ async function copyJoinUrl() {
   <section v-else class="host-page">
     <div class="host-header">
       <div>
-        <p class="eyebrow">HOST CONTROL / DEMO ROOM</p>
         <h1>主持人控制台</h1>
         <p class="muted">现场音响播放 BGM，主持人在这里推进题目和公布答案。</p>
       </div>
       <a-space class="host-stats" :size="22">
-        <span class="stat-card"><UsersRound :size="17" /><strong>{{ state?.onlinePlayers || 0 }}</strong><small>人在线</small></span>
+        <span class="stat-card"><UsersRound :size="17" /><strong>{{ state?.playerCount || 0 }}</strong><small>人在线</small></span>
         <a-tag v-if="state?.autoMode" color="cyan">自动轮转模式</a-tag>
         <a-badge :status="statusColor" :text="statusLabel" />
         <a-button size="small" title="退出主持人登录" @click="logout">
@@ -211,7 +216,7 @@ async function copyJoinUrl() {
         </div>
         <div class="host-progress">
           <a-statistic
-            :value="state.currentQuestionNo || 0"
+            :value="displayQuestionNo"
             :value-style="{ color: '#ec5c3c', fontSize: '53px', fontWeight: 800, lineHeight: 1 }"
           />
           <div>
@@ -220,7 +225,7 @@ async function copyJoinUrl() {
           </div>
         </div>
         <div style="margin-top: 14px; display: flex; align-items: center; justify-content: space-between;">
-          <span class="muted" style="font-size: 12px;">自动轮转（20s答题 + 6s公布自动切题）</span>
+          <span class="muted" style="font-size: 12px;">自动轮转（20 秒答题 + 6 秒公布自动切题）</span>
           <a-switch :checked="Boolean(state.autoMode)" size="small" @change="toggleAutoMode" />
         </div>
         <div class="control-actions">
@@ -238,7 +243,7 @@ async function copyJoinUrl() {
               <CircleStop :size="18" /> {{ state.autoMode ? '提前公布答案' : '结束答题' }}
             </a-button>
           </template>
-          <template v-if="state.status === 'REVEALING'">
+          <template v-if="state.status === 'ANSWER_REVEALED'">
             <a-button v-if="state.autoMode" type="default" size="large" :loading="busy" @click="action('pause')">
               <Pause :size="18" /> 暂停轮转
             </a-button>
@@ -246,7 +251,7 @@ async function copyJoinUrl() {
               <Play :size="18" /> 恢复自动
             </a-button>
             <a-button size="large" :loading="busy" @click="action('next')">
-              {{ state.currentQuestionNo === state.totalQuestions ? '结束本轮' : '立即下一题' }}
+              {{ state.currentQuestionIndex === state.totalQuestions - 1 ? '结束本轮' : '立即下一题' }}
               <ChevronRight :size="18" />
             </a-button>
           </template>
@@ -254,11 +259,16 @@ async function copyJoinUrl() {
             <ListRestart :size="18" /> 重置活动
           </a-button>
         </div>
-        <p class="host-tip">
-          <Radio :size="15" />
-          <span v-if="question?.audioCode">当前放音：<strong style="color: var(--accent);">{{ question.audioCode }}</strong>（现场音箱请播放此曲）</span>
-          <span v-else>每题开始前，请先在音响端准备好对应 BGM。</span>
-        </p>
+        <div class="audio-board">
+          <div class="audio-board-main">
+            <span class="audio-board-label"><Radio :size="16" /> 当前放音</span>
+            <strong class="audio-board-code">{{ question?.audioCode || '待开始' }}</strong>
+          </div>
+          <p class="audio-board-meta">
+            建议播放区间 15~25 秒
+            <template v-if="question?.workName"> · 作品提示：{{ question.workName }}</template>
+          </p>
+        </div>
       </a-card>
 
       <a-card class="host-join" :bordered="true">
@@ -287,7 +297,7 @@ async function copyJoinUrl() {
         </div>
         <template v-if="question">
           <div class="preview-meta">
-            <span>第 {{ state.currentQuestionNo }} 题</span>
+            <span>第 {{ displayQuestionNo }} 题</span>
             <span>{{ question.difficulty === 'EASY' ? '简单' : question.difficulty === 'MEDIUM' ? '中等' : '困难' }}</span>
           </div>
           <h2 class="question-title preview-title">{{ question.prompt }}</h2>
@@ -297,11 +307,11 @@ async function copyJoinUrl() {
             </div>
           </div>
           <a-alert
-            v-if="state.answerRevealed && question.correctOption !== null"
+            v-if="state.answerRevealed && question.answerIndex !== null"
             class="explanation-alert"
             type="success"
             show-icon
-            :message="`正确答案：${String.fromCharCode(65 + question.correctOption)} · ${question.workName}`"
+            :message="`正确答案：${String.fromCharCode(65 + question.answerIndex)} · ${question.workName}`"
           />
         </template>
         <a-empty v-else class="empty-preview" :description="emptyPreviewTitle">
@@ -310,6 +320,26 @@ async function copyJoinUrl() {
           </template>
           <p class="muted">{{ emptyPreviewCopy }}</p>
         </a-empty>
+      </a-card>
+
+      <a-card class="host-players" :bordered="true">
+        <div class="section-title">
+          <span>现场作答进度</span>
+          <span class="muted">已作答 {{ state.answeredCount || 0 }} / {{ state.playerCount || 0 }} 人</span>
+        </div>
+        <div v-if="players.length" class="player-wall">
+          <div
+            v-for="player in players"
+            :key="player.playerId"
+            class="player-card"
+            :class="{ 'is-answered': player.answered, 'is-spectator': player.spectator }"
+          >
+            <span class="player-name">{{ player.nickname }}</span>
+            <Check v-if="player.answered" :size="14" />
+            <Eye v-else-if="player.spectator" :size="13" />
+          </div>
+        </div>
+        <a-empty v-else description="还没有玩家在线" :image-style="{ height: '48px' }" />
       </a-card>
 
       <a-card class="host-leaderboard" :bordered="true">

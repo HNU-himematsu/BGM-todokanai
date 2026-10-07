@@ -1,6 +1,6 @@
 <script setup>
 import zhCN from 'ant-design-vue/es/locale/zh_CN'
-import { Headphones, Radio, ShieldCheck } from 'lucide-vue-next'
+import { Headphones, ShieldCheck } from 'lucide-vue-next'
 
 const themeConfig = {
   token: {
@@ -17,7 +17,7 @@ const themeConfig = {
   <a-config-provider :locale="zhCN" :theme="themeConfig">
     <div class="app-shell">
       <header class="site-header">
-        <router-link class="brand" to="/join">
+        <router-link class="brand" to="/">
           <span class="brand-mark"><Headphones :size="18" /></span>
           <span>
             <strong>姬松</strong>
@@ -26,8 +26,7 @@ const themeConfig = {
         </router-link>
         <nav class="header-nav">
           <a-space :size="22">
-            <router-link to="/join">参与者</router-link>
-            <router-link to="/host"><Radio :size="15" />主持人</router-link>
+            <router-link to="/">参与者</router-link>
           </a-space>
         </nav>
       </header>

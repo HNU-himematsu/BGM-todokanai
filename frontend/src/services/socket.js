@@ -25,7 +25,7 @@ export function createActivitySocket(eventId, onMessage) {
       try {
         onMessage(JSON.parse(message.body))
       } catch {
-        onMessage({ type: 'ACTIVITY_STATE_CHANGED' })
+        onMessage({ type: 'QUESTION_STARTED' })
       }
     })
   }

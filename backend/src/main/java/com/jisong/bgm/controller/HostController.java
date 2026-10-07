@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -35,6 +36,15 @@ public class HostController {
     public ApiResponse<Void> logout(@RequestHeader(value = "X-Host-Token", required = false) String token) {
         hostAuthService.logout(token);
         return ApiResponse.ok();
+    }
+
+    @GetMapping("/events/{eventId}/host/state")
+    public ApiResponse<ActivityService.HostRoomState> state(
+            @PathVariable String eventId,
+            @RequestHeader(value = "X-Host-Token", required = false) String token
+    ) {
+        hostAuthService.requireValid(token);
+        return ApiResponse.ok(activityService.getHostState(eventId));
     }
 
     @PostMapping("/events/{eventId}/host/start")

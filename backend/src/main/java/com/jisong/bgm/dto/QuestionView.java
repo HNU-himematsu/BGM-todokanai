@@ -13,7 +13,7 @@ public record QuestionView(
         Difficulty difficulty,
         List<String> options,
         String workName,
-        String explanation,
-        Integer correctOption
+        String analysis,
+        Integer answerIndex
 ) {
 }

@@ -2,20 +2,30 @@ package com.jisong.bgm.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jisong.bgm.model.Difficulty;
 import com.jisong.bgm.model.Question;
 import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 @Service
 public class QuestionBank {
+    private static final Logger log = LoggerFactory.getLogger(QuestionBank.class);
+    private static final int ROUND_SIZE = 6;
+    private static final int ROUND_EASY = 3;
+    private static final int ROUND_MEDIUM = 2;
+    private static final int ROUND_HARD = 1;
+
     private final ObjectMapper objectMapper;
     private final Path filePath;
     private List<Question> questions = List.of();
@@ -40,14 +50,46 @@ public class QuestionBank {
                     }
             ));
         } catch (IOException exception) {
-            throw new IllegalStateException("题库文件读取失败：" + filePath.toAbsolutePath()
-                    + "，请检查 JSON 格式", exception);
+            log.warn("题库文件读取失败，改用内置兜底题目启动：{}", filePath.toAbsolutePath(), exception);
+            questions = builtInQuestions();
         }
         validate();
     }
 
     public List<Question> questions() {
         return questions;
+    }
+
+    public List<Question> roundQuestions() {
+        if (questions.size() <= ROUND_SIZE) {
+            return questions;
+        }
+        List<Question> round = new ArrayList<>(ROUND_SIZE);
+        appendUpTo(round, Difficulty.EASY, ROUND_EASY);
+        appendUpTo(round, Difficulty.MEDIUM, ROUND_MEDIUM);
+        appendUpTo(round, Difficulty.HARD, ROUND_HARD);
+        for (Question question : questions) {
+            if (round.size() >= ROUND_SIZE) {
+                break;
+            }
+            if (!round.contains(question)) {
+                round.add(question);
+            }
+        }
+        return List.copyOf(round);
+    }
+
+    private void appendUpTo(List<Question> round, Difficulty difficulty, int limit) {
+        int count = 0;
+        for (Question question : questions) {
+            if (count >= limit) {
+                return;
+            }
+            if (question.difficulty() == difficulty) {
+                round.add(question);
+                count++;
+            }
+        }
     }
 
     private void validate() {
@@ -59,8 +101,8 @@ public class QuestionBank {
             if (!ids.add(question.id())) {
                 throw new IllegalStateException("题库中存在重复的题目 id：" + question.id());
             }
-            if (question.options().isEmpty()) {
-                throw new IllegalStateException("题目 " + question.id() + " 没有配置选项");
+            if (question.options().size() != 4) {
+                throw new IllegalStateException("题目 " + question.id() + " 的选项数量必须为 4");
             }
             if (question.correctOption() < 0 || question.correctOption() >= question.options().size()) {
                 throw new IllegalStateException("题目 " + question.id() + " 的正确答案下标越界");
@@ -69,7 +111,19 @@ public class QuestionBank {
     }
 
     private void seedDefaultQuestions() {
-        List<Question> defaults = List.of(
+        try {
+            Path parent = filePath.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+            objectMapper.writerWithDefaultPrettyPrinter().writeValue(filePath.toFile(), builtInQuestions());
+        } catch (IOException exception) {
+            throw new IllegalStateException("默认题库初始化失败：" + filePath.toAbsolutePath(), exception);
+        }
+    }
+
+    private List<Question> builtInQuestions() {
+        return List.of(
                 new Question(
                         "q-01",
                         "TRACK-01",
@@ -137,14 +191,5 @@ public class QuestionBank {
                         "困难题示例，正式活动中替换为来源明确的原声片段。"
                 )
         );
-        try {
-            Path parent = filePath.getParent();
-            if (parent != null) {
-                Files.createDirectories(parent);
-            }
-            objectMapper.writerWithDefaultPrettyPrinter().writeValue(filePath.toFile(), defaults);
-        } catch (IOException exception) {
-            throw new IllegalStateException("默认题库初始化失败：" + filePath.toAbsolutePath(), exception);
-        }
     }
 }

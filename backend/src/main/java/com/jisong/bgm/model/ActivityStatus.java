@@ -3,6 +3,6 @@ package com.jisong.bgm.model;
 public enum ActivityStatus {
     WAITING,
     ANSWERING,
-    REVEALING,
+    ANSWER_REVEALED,
     FINISHED
 }

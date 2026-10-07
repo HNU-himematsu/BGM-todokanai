@@ -6,8 +6,7 @@ import HostView from '../views/HostView.vue'
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', redirect: '/join' },
-    { path: '/join', component: JoinView },
+    { path: '/', component: JoinView },
     { path: '/play', component: PlayView },
     { path: '/host', component: HostView },
   ],

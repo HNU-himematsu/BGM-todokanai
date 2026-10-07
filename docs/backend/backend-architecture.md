@@ -30,7 +30,7 @@ backend/
     ├── model/                              # 领域实体
     │   ├── ActivityStatus.java             # WAITING / ANSWERING / ANSWER_REVEALED / FINISHED
     │   ├── Difficulty.java                 # EASY / MEDIUM / HARD
-    │   ├── QuestionType.java               # WORK / MOOD
+    │   ├── QuestionType.java               # WORK / ATMOSPHERE
     │   ├── Question.java                   # 题库原始实体
     │   └── Player.java                     # 玩家会话与答题明细
     └── service/
@@ -47,6 +47,7 @@ backend/
 - **并发安全管理**：活动状态切换与玩家答题提交采用同步保护与原子校验，确保高并发作答时得分统计无冲突。
 - **竞速耗时计算**：当参与者提交答案时，记录系统当前时间戳与题目开始时间戳之差；超时未答题目统一按 20000 毫秒计入。
 - **自动调度器**：初始化单线程池 `bgm-scheduler`。进入作答阶段挂载 20 秒超时任务；进入揭晓阶段挂载 6 秒切题任务。
+- **主持人专用快照**：`getHostState` 返回完整的 `EventState` 与在线玩家名册（`playerId` / `nickname` / `answered` / `spectator`），题目中的作品名不做脱敏，供控制台现场作答进度监控墙与放音协同指示看板使用；参与者接口的快照保持脱敏。
 
 ### 2.2 `LeaderboardStore`（排行榜持久化与格式化）
 - **双格式同步写入**：活动进入 `FINISHED` 状态时，向 `leaderboards.json` 追加包含轮次时间戳、参与人数和排名详情的快照对象，并同时刷新生成纯文本格式的 `leaderboard_summary.txt`。

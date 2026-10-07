@@ -39,26 +39,41 @@
   ```json
   {
     "eventId": "demo",
-    "eventName": "百团大战猜歌活动",
+    "eventName": "旮旯原声之届不到的 BGM",
     "status": "ANSWERING",
     "currentQuestionIndex": 0,
     "totalQuestions": 6,
     "deadlineEpochMs": 1791358945000,
+    "answerRevealed": false,
+    "canAnswer": true,
     "question": {
-      "id": "q1",
+      "id": "q-01",
       "prompt": "【简单·作品题】这首充满治愈感的钢琴曲出自哪部作品？",
       "audioCode": "TRACK-01",
       "difficulty": "EASY",
       "type": "WORK",
       "options": ["《CLANNAD》", "《白色相簿2》", "《命运石之门》", "《千恋＊万花》"],
-      "analysis": null
+      "workName": null,
+      "analysis": null,
+      "answerIndex": null
     },
-    "autoMode": true,
+    "hasAnswered": false,
+    "selectedOption": null,
+    "playerScore": 0,
+    "playerDurationMs": 2340,
+    "playerRank": 0,
     "playerCount": 12,
     "answeredCount": 8,
-    "playerDurationMs": 2340
+    "autoMode": true,
+    "leaderboard": []
   }
   ```
+- **关键字段说明**：
+  - `currentQuestionIndex`：当前题目下标（从 0 开始计数）；活动未开始时为 `-1`。
+  - `deadlineEpochMs`：作答截止毫秒时间戳，非作答状态为 `null`。
+  - `answeredCount`：当前题目已提交答案的人数。
+  - `question.workName` / `question.analysis` / `question.answerIndex`：仅在 `ANSWER_REVEALED` 与 `FINISHED` 状态下发，作答阶段为 `null`，杜绝客户端提前获取答案。
+  - `playerScore` / `playerRank`：仅在 `FINISHED` 状态下发个人得分与名次，作答过程中为 `0`。
 
 ### 2.3 提交答案
 - **方法与路径**：`POST /api/events/{eventId}/answers`
@@ -87,6 +102,7 @@
 | :--- | :--- | :--- | :--- |
 | `/api/host/login` | POST | `{"password": "..."}` | 登录验证，返回有效 Token |
 | `/api/host/logout` | POST | 无 | 注销当前 Token 会话 |
+| `/api/events/{eventId}/host/state` | GET | 无（Header 携带 `X-Host-Token`） | 主持人专用状态快照，返回 `state`（EventState，题目额外包含作品名 `workName`）与 `players` 在线玩家名册 |
 | `/api/events/{eventId}/host/start` | POST | 无 | 手动开启当前题目作答 |
 | `/api/events/{eventId}/host/end` | POST | 无 | 提前截动作答，进入锁卷 |
 | `/api/events/{eventId}/host/reveal` | POST | 无 | 提前揭晓正确答案与解析 |
@@ -95,6 +111,26 @@
 | `/api/events/{eventId}/host/pause` | POST | 无 | 暂停当前调度器自动轮转 |
 | `/api/events/{eventId}/host/resume` | POST | 无 | 恢复当前调度器自动轮转 |
 | `/api/events/{eventId}/host/toggle-auto`| POST | `enabled=true/false` (Query) | 开启或关闭全自动轮转模式 |
+
+主持人专用状态接口 `GET /api/events/{eventId}/host/state` 的响应数据 (`data`) 结构：
+
+```json
+{
+  "state": { "...EventState 完整字段": "同 2.2，question 额外包含作品名 workName" },
+  "players": [
+    {
+      "playerId": "4b6c8e31-8f92-4d22-92ab-52cb2da9c011",
+      "nickname": "风见幽香",
+      "answered": true,
+      "spectator": false
+    }
+  ]
+}
+```
+
+- `state`：与参与者接口同构的 `EventState` 快照，题目中的 `workName` 不做脱敏，供主持人放音协同看板展示作品提示。
+- `players[].answered`：该玩家是否已提交当前题目答案。
+- `players[].spectator`：该玩家是否为答题开始后加入的旁听玩家（本轮不可作答）。
 
 ---
 

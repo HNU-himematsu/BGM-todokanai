@@ -6,7 +6,6 @@ import com.jisong.bgm.dto.LeaderboardEntry;
 import com.jisong.bgm.dto.QuestionView;
 import com.jisong.bgm.dto.SubmitAnswerRequest;
 import com.jisong.bgm.model.ActivityStatus;
-import com.jisong.bgm.model.Difficulty;
 import com.jisong.bgm.model.Player;
 import com.jisong.bgm.model.Question;
 import jakarta.annotation.PreDestroy;
@@ -32,6 +31,7 @@ public class ActivityService {
     private static final String DEMO_EVENT_NAME = "旮旯原声之届不到的 BGM";
     private static final int QUESTION_SECONDS = 20;
     private static final int REVEAL_SECONDS = 6;
+    private static final int POINTS_PER_CORRECT = 10;
 
     private final SimpMessagingTemplate messagingTemplate;
     private final LeaderboardStore leaderboardStore;
@@ -51,7 +51,7 @@ public class ActivityService {
         this.messagingTemplate = messagingTemplate;
         this.leaderboardStore = leaderboardStore;
         this.questionBank = questionBank;
-        activities.put(DEMO_EVENT_ID, new Activity(DEMO_EVENT_ID, DEMO_EVENT_NAME, questionBank.questions()));
+        activities.put(DEMO_EVENT_ID, new Activity(DEMO_EVENT_ID, DEMO_EVENT_NAME, questionBank.roundQuestions()));
     }
 
     @PreDestroy
@@ -98,7 +98,22 @@ public class ActivityService {
                 ? null
                 : activity.answers.get(answerKey(player.getId(), question.id()));
 
-        return toState(activity, player, question, answer);
+        return toState(activity, player, question, answer, false);
+    }
+
+    public synchronized HostRoomState getHostState(String eventId) {
+        Activity activity = getActivity(eventId);
+        Question question = currentQuestion(activity);
+        EventState state = toState(activity, null, question, null, true);
+        List<HostPlayerView> players = activity.players.values().stream()
+                .map(player -> new HostPlayerView(
+                        player.getId(),
+                        player.getNickname(),
+                        hasSubmitted(activity, player.getId(), question),
+                        !player.canAnswer()
+                ))
+                .toList();
+        return new HostRoomState(state, players);
     }
 
     public synchronized EventState submitAnswer(String eventId, SubmitAnswerRequest request) {
@@ -127,11 +142,11 @@ public class ActivityService {
         long now = Instant.now().toEpochMilli();
         long duration = Math.max(0, now - activity.questionStartTime);
         boolean correct = question.correctOption() == request.optionIndex();
-        int points = correct ? pointsFor(question.difficulty()) : 0;
+        int points = correct ? POINTS_PER_CORRECT : 0;
         activity.answers.put(key, new AnswerRecord(request.optionIndex(), correct, points, duration));
         player.addScore(points);
         player.addDuration(duration);
-        broadcast(activity, "LEADERBOARD_UPDATED");
+        broadcast(activity, "PLAYER_ANSWERED");
         return getState(eventId, player.getId());
     }
 
@@ -181,7 +196,7 @@ public class ActivityService {
         if (question != null) {
             recordTimeoutsForCurrentQuestion(activity, question);
         }
-        activity.status = ActivityStatus.REVEALING;
+        activity.status = ActivityStatus.ANSWER_REVEALED;
         activity.answerRevealed = true;
         activity.deadline = null;
 
@@ -198,7 +213,7 @@ public class ActivityService {
 
     public synchronized void handleRevealTimeout(String eventId, int expectedIndex) {
         Activity activity = activities.get(eventId);
-        if (activity == null || activity.status != ActivityStatus.REVEALING || activity.currentQuestionIndex != expectedIndex) {
+        if (activity == null || activity.status != ActivityStatus.ANSWER_REVEALED || activity.currentQuestionIndex != expectedIndex) {
             return;
         }
         cancelTimer(activity);
@@ -222,7 +237,7 @@ public class ActivityService {
         if (question != null) {
             recordTimeoutsForCurrentQuestion(activity, question);
         }
-        activity.status = ActivityStatus.REVEALING;
+        activity.status = ActivityStatus.ANSWER_REVEALED;
         activity.deadline = null;
         activity.answerRevealed = true;
 
@@ -240,7 +255,7 @@ public class ActivityService {
 
     public synchronized EventState reveal(String eventId) {
         Activity activity = getActivity(eventId);
-        requireStatus(activity, ActivityStatus.REVEALING);
+        requireStatus(activity, ActivityStatus.ANSWER_REVEALED);
         activity.answerRevealed = true;
         cancelTimer(activity);
         if (activity.autoMode) {
@@ -257,7 +272,7 @@ public class ActivityService {
 
     public synchronized EventState nextQuestion(String eventId) {
         Activity activity = getActivity(eventId);
-        if (activity.status != ActivityStatus.REVEALING && activity.status != ActivityStatus.WAITING) {
+        if (activity.status != ActivityStatus.ANSWER_REVEALED && activity.status != ActivityStatus.WAITING) {
             throw new IllegalStateException("请先结束当前题目");
         }
 
@@ -273,7 +288,7 @@ public class ActivityService {
                 activity.status = ActivityStatus.WAITING;
                 activity.answerRevealed = false;
                 activity.deadline = null;
-                broadcast(activity, "ACTIVITY_STATE_CHANGED");
+                broadcast(activity, "QUESTION_NEXT");
             }
         }
         return getState(eventId, null);
@@ -283,7 +298,7 @@ public class ActivityService {
         Activity activity = getActivity(eventId);
         activity.autoMode = false;
         cancelTimer(activity);
-        broadcast(activity, "ACTIVITY_STATE_CHANGED");
+        broadcast(activity, "ACTIVITY_PAUSED");
         return getState(eventId, null);
     }
 
@@ -310,7 +325,7 @@ public class ActivityService {
                         TimeUnit.MILLISECONDS
                 );
             }
-        } else if (activity.status == ActivityStatus.REVEALING) {
+        } else if (activity.status == ActivityStatus.ANSWER_REVEALED) {
             final int nextIndex = activity.currentQuestionIndex;
             activity.currentScheduledTask = scheduler.schedule(
                     () -> handleRevealTimeout(eventId, nextIndex),
@@ -318,7 +333,7 @@ public class ActivityService {
                     TimeUnit.SECONDS
             );
         }
-        broadcast(activity, "ACTIVITY_STATE_CHANGED");
+        broadcast(activity, "ACTIVITY_RESUMED");
         return getState(eventId, null);
     }
 
@@ -338,7 +353,7 @@ public class ActivityService {
         activity.autoMode = true;
         activity.answers.clear();
         activity.players.clear();
-        broadcast(activity, "ACTIVITY_STATE_CHANGED");
+        broadcast(activity, "ACTIVITY_RESET");
         return getState(eventId, null);
     }
 
@@ -346,7 +361,7 @@ public class ActivityService {
         return new ActivitySummary(activity.id, activity.name, activity.questions.size(), activity.status);
     }
 
-    private EventState toState(Activity activity, Player player, Question question, AnswerRecord answer) {
+    private EventState toState(Activity activity, Player player, Question question, AnswerRecord answer, boolean hostView) {
         boolean showLeaderboard = activity.status == ActivityStatus.FINISHED;
         List<LeaderboardEntry> leaderboard = showLeaderboard ? leaderboard(activity) : List.of();
         int playerRank = !showLeaderboard || player == null ? 0 : leaderboard.stream()
@@ -356,9 +371,9 @@ public class ActivityService {
                 .orElse(0);
 
         boolean revealAnswer = activity.answerRevealed;
-        int currentQuestionNo = activity.status == ActivityStatus.FINISHED
-                ? activity.questions.size()
-                : activity.currentQuestionIndex < 0 ? 0 : activity.currentQuestionIndex + 1;
+        boolean hostQuestionView = hostView || revealAnswer;
+        int currentQuestionIndex = Math.min(activity.currentQuestionIndex, activity.questions.size() - 1);
+        boolean submitted = answer != null && answer.optionIndex() >= 0;
         QuestionView questionView = question == null ? null : new QuestionView(
                 question.id(),
                 question.audioCode(),
@@ -366,7 +381,7 @@ public class ActivityService {
                 question.type(),
                 question.difficulty(),
                 question.options(),
-                revealAnswer ? question.workName() : null,
+                hostQuestionView ? question.workName() : null,
                 revealAnswer ? question.explanation() : null,
                 revealAnswer ? question.correctOption() : null
         );
@@ -375,21 +390,43 @@ public class ActivityService {
                 activity.id,
                 activity.name,
                 activity.status,
-                currentQuestionNo,
+                currentQuestionIndex,
                 activity.questions.size(),
                 activity.deadline,
                 activity.answerRevealed,
                 player != null && player.canAnswer(),
                 questionView,
-                answer != null,
-                answer == null ? null : answer.optionIndex(),
+                submitted,
+                submitted ? answer.optionIndex() : null,
                 showLeaderboard && player != null ? player.getScore() : 0,
                 player != null ? player.getTotalDurationMs() : 0L,
                 playerRank,
                 activity.players.size(),
+                submittedCountForCurrentQuestion(activity, question),
                 activity.autoMode,
                 leaderboard
         );
+    }
+
+    private boolean hasSubmitted(Activity activity, String playerId, Question question) {
+        if (question == null) {
+            return false;
+        }
+        AnswerRecord answer = activity.answers.get(answerKey(playerId, question.id()));
+        return answer != null && answer.optionIndex() >= 0;
+    }
+
+    private int submittedCountForCurrentQuestion(Activity activity, Question question) {
+        if (question == null) {
+            return 0;
+        }
+        int count = 0;
+        for (Player player : activity.players.values()) {
+            if (hasSubmitted(activity, player.getId(), question)) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private void finishActivity(Activity activity) {
@@ -462,14 +499,6 @@ public class ActivityService {
         return activity.questions.get(activity.currentQuestionIndex);
     }
 
-    private static int pointsFor(Difficulty difficulty) {
-        return switch (difficulty) {
-            case EASY -> 10;
-            case MEDIUM -> 20;
-            case HARD -> 30;
-        };
-    }
-
     private static String answerKey(String playerId, String questionId) {
         return playerId + ":" + questionId;
     }
@@ -495,6 +524,12 @@ public class ActivityService {
     }
 
     public record ActivitySummary(String id, String name, int totalQuestions, ActivityStatus status) {
+    }
+
+    public record HostRoomState(EventState state, List<HostPlayerView> players) {
+    }
+
+    public record HostPlayerView(String playerId, String nickname, boolean answered, boolean spectator) {
     }
 
     private static final class Activity {

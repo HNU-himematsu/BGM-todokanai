@@ -16,31 +16,36 @@ const now = ref(Date.now())
 let timer
 
 const state = computed(() => store.state)
-const question = computed(() => state.value?.currentQuestion)
+const question = computed(() => state.value?.question)
 const isAnswering = computed(() => state.value?.status === 'ANSWERING')
-const isRevealing = computed(() => state.value?.status === 'REVEALING')
+const isRevealing = computed(() => state.value?.status === 'ANSWER_REVEALED')
 const isFinished = computed(() => state.value?.status === 'FINISHED')
 const isSpectator = computed(() => state.value && !state.value.canAnswer)
 const secondsLeft = computed(() => {
-  if (!state.value?.deadline) return 0
-  return Math.max(0, Math.ceil((state.value.deadline - now.value) / 1000))
+  if (!state.value?.deadlineEpochMs) return 0
+  return Math.max(0, Math.ceil((state.value.deadlineEpochMs - now.value) / 1000))
+})
+const countdownPercent = computed(() => {
+  if (!isAnswering.value || !state.value?.deadlineEpochMs) return 0
+  return Math.max(0, Math.min(100, ((state.value.deadlineEpochMs - now.value) / 20000) * 100))
 })
 const selectedLetter = computed(() => selected.value === null ? '' : String.fromCharCode(65 + selected.value))
+const displayQuestionNo = computed(() => Math.max(0, (state.value?.currentQuestionIndex ?? -1) + 1))
 const progressPercent = computed(() => {
   if (!state.value?.totalQuestions) return 0
-  return Math.round(((state.value.currentQuestionNo || 0) / state.value.totalQuestions) * 100)
+  return Math.round((displayQuestionNo.value / state.value.totalQuestions) * 100)
 })
 
 onMounted(async () => {
   if (!store.isParticipant) {
-    await router.replace('/join')
+    await router.replace('/')
     return
   }
   await store.refresh()
   socket.value = createActivitySocket(store.eventId, async () => {
     const previousQuestionId = question.value?.id
     await store.refresh()
-    if (store.state?.currentQuestion?.id !== previousQuestionId) {
+    if (store.state?.question?.id !== previousQuestionId) {
       selected.value = null
     }
     if (store.state?.hasAnswered) {
@@ -80,7 +85,7 @@ async function handleSubmit() {
 
 function leave() {
   store.clearPlayer()
-  router.push('/join')
+  router.push('/')
 }
 </script>
 
@@ -89,7 +94,6 @@ function leave() {
     <div class="play-main">
       <div class="topline">
         <div>
-          <p class="eyebrow">LIVE SESSION / {{ store.nickname }}</p>
           <h1>{{ state.eventName }}</h1>
         </div>
         <a-button title="退出本次参与" @click="leave">
@@ -99,7 +103,7 @@ function leave() {
       </div>
 
       <div class="progress-row">
-        <span>第 {{ state.currentQuestionNo || 0 }} / {{ state.totalQuestions }} 题</span>
+        <span>第 {{ displayQuestionNo }} / {{ state.totalQuestions }} 题</span>
         <a-progress
           :percent="progressPercent"
           :show-info="false"
@@ -112,13 +116,17 @@ function leave() {
       <a-card v-if="state.status === 'WAITING'" class="state-card">
         <div class="state-center">
           <div class="waiting-mark"><Radio :size="28" /></div>
-          <p class="eyebrow">READY WHEN YOU ARE</p>
-          <h2 class="panel-title">{{ state.currentQuestionNo ? `下一题：第 ${state.currentQuestionNo} 题` : '耳朵准备好了吗？' }}</h2>
+          <a-tag class="waiting-badge" color="processing">等待主持人发题...</a-tag>
+          <h2 class="panel-title">{{ state.currentQuestionIndex >= 0 ? `下一题：第 ${displayQuestionNo} 题` : '耳朵准备好了吗？' }}</h2>
           <p class="muted">现场音响播放旋律后，主持人会开启答题。保持这个页面打开即可。</p>
+          <p class="muted waiting-meta">已登记昵称：{{ store.nickname }} · 当前在线 {{ state.playerCount }} 人</p>
         </div>
       </a-card>
 
       <a-card v-else-if="question && !isFinished" class="question-card">
+        <div v-if="isAnswering && countdownPercent > 0" class="countdown-track">
+          <div class="countdown-fill" :style="{ width: `${countdownPercent}%` }"></div>
+        </div>
         <div class="question-heading">
           <a-space :size="6">
             <a-tag v-if="question.audioCode" color="purple">音频 {{ question.audioCode }}</a-tag>
@@ -138,15 +146,15 @@ function leave() {
             class="option-button"
             :class="{
               selected: selected === index,
-              correct: state.answerRevealed && question.correctOption === index,
-              wrong: state.answerRevealed && selected === index && question.correctOption !== index,
+              correct: state.answerRevealed && question.answerIndex === index,
+              wrong: state.answerRevealed && selected === index && question.answerIndex !== index,
             }"
             :disabled="!isAnswering || state.hasAnswered || secondsLeft <= 0"
             @click="chooseOption(index)"
           >
             <span class="option-letter">{{ String.fromCharCode(65 + index) }}</span>
             <span>{{ option }}</span>
-            <Check v-if="isRevealing && question.correctOption === index" :size="18" />
+            <Check v-if="isRevealing && question.answerIndex === index" :size="18" />
           </button>
         </div>
         <div class="question-actions">
@@ -169,18 +177,18 @@ function leave() {
           </a-button>
         </div>
         <a-alert
-          v-if="state.answerRevealed && question.explanation"
+          v-if="state.answerRevealed && question.analysis"
           class="explanation-alert"
           type="info"
           show-icon
         >
           <template #message><strong>{{ question.workName }}</strong></template>
-          <template #description>{{ question.explanation }}</template>
+          <template #description>{{ question.analysis }}</template>
         </a-alert>
       </a-card>
 
       <a-card v-else-if="isFinished" class="state-card">
-        <a-result title="这一轮的旋律，到这里结束" sub-title="感谢参与，最终成绩如下。">
+        <a-result title="本轮挑战完成" sub-title="感谢参与，最终成绩如下。">
           <template #icon><Trophy :size="28" style="color: #ec5c3c" /></template>
           <template #extra>
             <div class="final-result">
@@ -203,7 +211,7 @@ function leave() {
         </div>
         <div class="leaderboard-heading">
           <span><Trophy :size="17" /> 最终排行榜</span>
-          <span class="muted">{{ state.onlinePlayers }} 人完成</span>
+          <span class="muted">{{ state.playerCount }} 人完成</span>
         </div>
         <a-list
           :data-source="state.leaderboard"
