@@ -21,11 +21,12 @@ export function createActivitySocket(eventId, onMessage) {
   })
 
   client.onConnect = () => {
+    onMessage({ type: 'SOCKET_CONNECTED' })
     client.subscribe(`/topic/events/${eventId}`, (message) => {
       try {
         onMessage(JSON.parse(message.body))
       } catch {
-        onMessage({ type: 'QUESTION_STARTED' })
+        onMessage({ type: 'SOCKET_ERROR' })
       }
     })
   }

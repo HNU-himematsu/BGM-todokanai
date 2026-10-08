@@ -42,6 +42,30 @@ export async function hostLogout(token) {
   })
 }
 
+export function getAudioUrl(eventId) {
+  const base = (import.meta.env.VITE_API_BASE || '/api').replace(/\/$/, '')
+  return `${base}/events/${encodeURIComponent(eventId)}/audio`
+}
+
+export async function getLeaderboard(eventId) {
+  const { data } = await api.get(`/events/${eventId}/leaderboard`)
+  return data.data
+}
+
+export async function getHostRounds(eventId, token) {
+  const { data } = await api.get(`/events/${eventId}/host/rounds`, {
+    headers: { 'X-Host-Token': token },
+  })
+  return data.data
+}
+
+export async function selectHostRound(eventId, roundId, token) {
+  const { data } = await api.post(`/events/${eventId}/host/round`, { roundId }, {
+    headers: { 'X-Host-Token': token },
+  })
+  return data.data
+}
+
 export async function getHostState(eventId, token) {
   const { data } = await api.get(`/events/${eventId}/host/state`, {
     headers: { 'X-Host-Token': token },
@@ -49,10 +73,9 @@ export async function getHostState(eventId, token) {
   return data.data
 }
 
-export async function hostAction(eventId, action, token, params = {}) {
+export async function hostAction(eventId, action, token) {
   const { data } = await api.post(`/events/${eventId}/host/${action}`, null, {
     headers: { 'X-Host-Token': token },
-    params,
   })
   return data.data
 }

@@ -3,15 +3,16 @@ import zhCN from 'ant-design-vue/es/locale/zh_CN'
 import { Headphones, ShieldCheck } from 'lucide-vue-next'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { ACCENT } from './theme'
 
 const route = useRoute()
-const showHeader = computed(() => route.path !== '/')
+const showChrome = computed(() => route.path === '/play')
 
 const themeConfig = {
   token: {
-    colorPrimary: '#ec5c3c',
-    colorInfo: '#ec5c3c',
-    colorLink: '#ec5c3c',
+    colorPrimary: ACCENT,
+    colorInfo: ACCENT,
+    colorLink: ACCENT,
     borderRadius: 2,
     fontFamily: 'Inter, "PingFang SC", "Microsoft YaHei", sans-serif',
   },
@@ -21,7 +22,7 @@ const themeConfig = {
 <template>
   <a-config-provider :locale="zhCN" :theme="themeConfig">
     <div class="app-shell">
-      <header v-if="showHeader" class="site-header">
+      <header v-if="showChrome" class="site-header">
         <router-link class="brand" to="/">
           <span class="brand-mark"><Headphones :size="18" /></span>
           <span>
@@ -40,7 +41,7 @@ const themeConfig = {
         <router-view />
       </main>
 
-      <footer class="site-footer">
+      <footer v-if="showChrome" class="site-footer">
         <span><ShieldCheck :size="14" /> 本轮活动仅记录昵称与答题结果</span>
         <span>现场音响统一播放 BGM</span>
       </footer>

@@ -18,8 +18,8 @@
 - [`api-spec.md`](backend/api-spec.md)：接口规范与协议文档，详细定义 RESTful API 端点与 STOMP 消息格式。
 
 ### 4. 前端工程篇 (`frontend/`)
-- [`frontend-architecture.md`](frontend/frontend-architecture.md)：Vue 3 前端架构设计，说明组件结构、路由配置与状态管理。
-- [`views-and-ui.md`](frontend/views-and-ui.md)：页面视图与交互规范，包含移动端答题界面与主持人控制台交互逻辑。
+- [`frontend-architecture.md`](frontend/frontend-architecture.md)：Vue 3 前端架构设计，说明组件结构、路由配置、状态管理、设计令牌与主色调调整入口。
+- [`views-and-ui.md`](frontend/views-and-ui.md)：页面视图与交互规范，包含主色系与阅读舒适度视觉规范、移动端答题界面与主持人控制台交互逻辑。
 
 ### 5. 数据与配置篇 (`data-and-config/`)
 - [`timeline-spec.md`](data-and-config/timeline-spec.md)：编排文件规范与制作指南，说明 `timeline.json` 的轮次结构、动作语义与题目内容格式。

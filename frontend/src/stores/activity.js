@@ -5,7 +5,7 @@ import { getEventState } from '../services/api'
 export const useActivityStore = defineStore('activity', () => {
   const eventId = ref('demo')
   const playerId = ref(sessionStorage.getItem('bgm-player-id') || '')
-  const nickname = ref(sessionStorage.getItem('bgm-nickname') || '')
+  const nickname = ref(localStorage.getItem('bgm-nickname') || sessionStorage.getItem('bgm-nickname') || '')
   const state = ref(null)
   const loading = ref(false)
   const error = ref('')
@@ -19,6 +19,7 @@ export const useActivityStore = defineStore('activity', () => {
     nickname.value = payload.nickname
     sessionStorage.setItem('bgm-player-id', payload.playerId)
     sessionStorage.setItem('bgm-nickname', payload.nickname)
+    localStorage.setItem('bgm-nickname', payload.nickname)
   }
 
   async function refresh() {
@@ -35,10 +36,8 @@ export const useActivityStore = defineStore('activity', () => {
 
   function clearPlayer() {
     playerId.value = ''
-    nickname.value = ''
     state.value = null
     sessionStorage.removeItem('bgm-player-id')
-    sessionStorage.removeItem('bgm-nickname')
   }
 
   return {
