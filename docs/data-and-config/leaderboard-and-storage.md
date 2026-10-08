@@ -40,7 +40,7 @@
 - `eventId`：活动唯一标识。
 - `finishedAt`：轮次结束的标准 ISO-8601 UTC 时间戳。
 - `entries[].rank`：该轮内根据得分与竞速总耗时综合计算的最终名次。
-- `entries[].durationMs`：该参与者全轮累计作答耗时（毫秒数），作答超时题目按 20000ms 计入。
+- `entries[].durationMs`：该参与者全轮累计作答耗时（毫秒数），锁卷时未提交的题目按参与时长补记计入。
 
 ## 3. 格式化大总结与去重榜 (`leaderboard_summary.txt`)
 

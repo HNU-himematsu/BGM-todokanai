@@ -23,14 +23,14 @@ frontend/
 │   └── views/
 │       ├── JoinView.vue                    # 扫码登记与昵称输入页面
 │       ├── PlayView.vue                    # 移动端实时答题与个人结算页面
-│       └── HostView.vue                    # 主持人现场调度与放音监控控制台
+│       └── HostView.vue                    # 主持人控制台（音频播放、轮次切换、状态调度）
 ```
 
 ## 2. 状态管理设计 (`stores/activity.js`)
 
 前端利用 Pinia 集中管理响应式状态：
-- **`userState`**：缓存当前参与者的 `playerId`、`nickname` 以及关联的 `eventId`，保存在本地 `sessionStorage` 防止刷新丢失。
-- **`activityState`**：维护当前房间的全局状态快照（`status`、`question`、`deadlineEpochMs`、`answeredCount` 等）。
+- **`userState`**：缓存当前参与者的 `playerId`、`nickname` 以及关联的 `eventId`；凭据保存在本地 `sessionStorage` 防止刷新丢失，昵称同时保存在本地存储中用于回填，轮次重置回到登记页时无需重复输入。
+- **`activityState`**：维护当前房间的全局状态快照（`status`、`question`、`questionAudioStartEpochMs`、`questionAudioEndEpochMs`、`timelineRunning`、`answeredCount` 等）。
 - **`leaderboard`**：存储当前轮次或全场排行榜数据。
 
 ## 3. 网络与实时通讯层封装
@@ -38,6 +38,7 @@ frontend/
 ### 3.1 REST API 封装 (`services/api.js`)
 - 使用 Axios 实例统一配置 `baseURL`（优先读取环境变量 `VITE_API_BASE`，缺省指向 `/api`）。
 - 设定 8000ms 超时限制，针对控制台请求自动挂载 `X-Host-Token` 头信息。
+- 音频流接口 `GET /api/events/{eventId}/audio` 的地址供控制台音频元素直接引用。
 
 ### 3.2 WebSocket 封装 (`services/socket.js`)
 - 使用 `@stomp/stompjs` 库中的 `Client` 对象。
@@ -46,6 +47,12 @@ frontend/
 
 ## 4. 路由定义 (`router/index.js`)
 
-- `/`：默认路由，指向 `JoinView.vue`，展示活动规则并引导用户登记昵称；页面仅面向参与者，不提供主持人端入口。
+- `/`：默认路由，指向 `JoinView.vue`，展示活动标题与昵称登记表单；轮次结束后参与者由答题页返回本页，表单自动回填已保存的昵称。
 - `/play`：答题核心路由，指向 `PlayView.vue`，仅在存在有效登记凭据时准入，否则回退至 `/`。
 - `/host`：管理路由，指向 `HostView.vue`，仅能通过直接输入网址进入，前端各页面均不设置指向该路由的跳转链接；进入控制面板前需完成管理员密码核验。
+
+## 5. 控制台音频播放
+
+- `HostView.vue` 内置音频播放元素，音源指向 `GET /api/events/{eventId}/audio`。
+- 主持人点击开始播放时，播放器定位到当前轮次的 `startMs` 位置开始播放，同时调用 `/host/start` 建立时间轴零点。
+- 收到 `ACTIVITY_PAUSED` / `ACTIVITY_RESUMED` / `ROUND_ENDED` / `ACTIVITY_RESET` 广播时，播放器分别执行暂停、恢复、停在结束标记与停止并回到轮次起点。
