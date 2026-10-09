@@ -27,7 +27,7 @@ public class HostAuthService {
 
     public void requireValid(String token) {
         if (token == null || !activeTokens.contains(token)) {
-            throw new IllegalArgumentException("主持人登录已失效，请重新输入密码");
+            throw new UnauthorizedException("主持人登录已失效，请重新输入密码");
         }
     }
 

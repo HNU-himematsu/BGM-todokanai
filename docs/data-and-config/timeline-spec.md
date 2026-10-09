@@ -6,6 +6,8 @@
 - **编码格式**：UTF-8 字符集
 - **音频文件**：`audioFile` 字段指向的文件与编排文件同目录存放（默认 `backend/data/`）
 - **职责**：定义单音频内的全部轮次、动作时间轴与题目内容；后端启动时加载并校验，主持人控制台通过音频流接口播放同一音频文件。
+- **仓库内置演示编排**：`backend/data/timeline.json` 随仓库提供，包含可直接运行的两轮演示轮次，供本地联调与接口验证使用。
+- **音频文件归属**：音频由运营方按现场素材放入同目录，仓库不跟踪音频文件；音频缺失时编排加载仍然完成，音频流接口在请求时返回错误。
 
 所有时间字段均为音频文件内的绝对毫秒位置，与音频波形刻度一一对应。控制台将音频定位到轮次开始标记起播，服务端以启动接口接收时刻为零点 `T0`，条目实际触发时刻为 `T0 + (atMs − startMs)`。
 
@@ -15,7 +17,7 @@
 {
   "eventId": "demo",
   "eventName": "旮旯原声之届不到的 BGM",
-  "audioFile": "event-demo.mp3",
+  "audioFile": "event-demo.wav",
   "rounds": [ ... ]
 }
 ```
@@ -82,7 +84,7 @@ LOAD → NEXT → LOCK → REVEAL → LOAD → NEXT → LOCK → REVEAL → … 
 {
   "eventId": "demo",
   "eventName": "旮旯原声之届不到的 BGM",
-  "audioFile": "event-demo.mp3",
+  "audioFile": "event-demo.wav",
   "rounds": [
     {
       "id": "round-1",

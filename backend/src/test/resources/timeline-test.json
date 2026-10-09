@@ -1,0 +1,163 @@
+{
+  "eventId": "demo",
+  "eventName": "编排联调演示",
+  "audioFile": "event-test.wav",
+  "rounds": [
+    {
+      "id": "round-1",
+      "name": "联调轮次",
+      "startMs": 0,
+      "endMs": 3600,
+      "items": [
+        {
+          "atMs": 0,
+          "action": "LOAD",
+          "question": {
+            "id": "t-01",
+            "prompt": "联调第一题题干",
+            "type": "ATMOSPHERE",
+            "difficulty": "EASY",
+            "options": [
+              "选项甲",
+              "选项乙",
+              "选项丙",
+              "选项丁"
+            ],
+            "correctOption": 1,
+            "workName": "联调作品甲",
+            "explanation": "联调第一题解析",
+            "audioStartMs": 0,
+            "audioEndMs": 1000
+          }
+        },
+        {
+          "atMs": 100,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 1500,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 1600,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 1700,
+          "action": "LOAD",
+          "question": {
+            "id": "t-02",
+            "prompt": "联调第二题题干",
+            "type": "ATMOSPHERE",
+            "difficulty": "EASY",
+            "options": [
+              "选项甲",
+              "选项乙",
+              "选项丙",
+              "选项丁"
+            ],
+            "correctOption": 0,
+            "workName": "联调作品乙",
+            "explanation": "联调第二题解析",
+            "audioStartMs": 1700,
+            "audioEndMs": 2600
+          }
+        },
+        {
+          "atMs": 1800,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 3200,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 3300,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 3400,
+          "action": "FINISH"
+        }
+      ]
+    },
+    {
+      "id": "round-2",
+      "name": "联调备用轮次",
+      "startMs": 4000,
+      "endMs": 7600,
+      "items": [
+        {
+          "atMs": 4000,
+          "action": "LOAD",
+          "question": {
+            "id": "t-01",
+            "prompt": "联调第一题题干",
+            "type": "ATMOSPHERE",
+            "difficulty": "EASY",
+            "options": [
+              "选项甲",
+              "选项乙",
+              "选项丙",
+              "选项丁"
+            ],
+            "correctOption": 1,
+            "workName": "联调作品甲",
+            "explanation": "联调第一题解析",
+            "audioStartMs": 4000,
+            "audioEndMs": 5000
+          }
+        },
+        {
+          "atMs": 4100,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 5500,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 5600,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 5700,
+          "action": "LOAD",
+          "question": {
+            "id": "t-02",
+            "prompt": "联调第二题题干",
+            "type": "ATMOSPHERE",
+            "difficulty": "EASY",
+            "options": [
+              "选项甲",
+              "选项乙",
+              "选项丙",
+              "选项丁"
+            ],
+            "correctOption": 0,
+            "workName": "联调作品乙",
+            "explanation": "联调第二题解析",
+            "audioStartMs": 5700,
+            "audioEndMs": 6600
+          }
+        },
+        {
+          "atMs": 5800,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 7200,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 7300,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 7400,
+          "action": "FINISH"
+        }
+      ]
+    }
+  ]
+}

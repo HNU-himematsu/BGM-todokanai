@@ -4,16 +4,18 @@ import com.jisong.bgm.dto.ApiResponse;
 import com.jisong.bgm.dto.EventState;
 import com.jisong.bgm.dto.HostLoginRequest;
 import com.jisong.bgm.dto.HostLoginResponse;
+import com.jisong.bgm.dto.HostStateResponse;
+import com.jisong.bgm.dto.RoundListResponse;
+import com.jisong.bgm.dto.SelectRoundRequest;
 import com.jisong.bgm.service.ActivityService;
 import com.jisong.bgm.service.HostAuthService;
 import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -33,13 +35,34 @@ public class HostController {
     }
 
     @PostMapping("/host/logout")
-    public ApiResponse<Void> logout(@RequestHeader(value = "X-Host-Token", required = false) String token) {
+    public ApiResponse<Void> logout(
+            @RequestHeader(value = "X-Host-Token", required = false) String token
+    ) {
         hostAuthService.logout(token);
         return ApiResponse.ok();
     }
 
+    @GetMapping("/events/{eventId}/host/rounds")
+    public ApiResponse<RoundListResponse> rounds(
+            @PathVariable String eventId,
+            @RequestHeader(value = "X-Host-Token", required = false) String token
+    ) {
+        hostAuthService.requireValid(token);
+        return ApiResponse.ok(activityService.listRounds(eventId));
+    }
+
+    @PostMapping("/events/{eventId}/host/round")
+    public ApiResponse<EventState> selectRound(
+            @PathVariable String eventId,
+            @Valid @RequestBody SelectRoundRequest request,
+            @RequestHeader(value = "X-Host-Token", required = false) String token
+    ) {
+        hostAuthService.requireValid(token);
+        return ApiResponse.ok(activityService.selectRound(eventId, request.roundId()));
+    }
+
     @GetMapping("/events/{eventId}/host/state")
-    public ApiResponse<ActivityService.HostRoomState> state(
+    public ApiResponse<HostStateResponse> state(
             @PathVariable String eventId,
             @RequestHeader(value = "X-Host-Token", required = false) String token
     ) {
@@ -53,16 +76,34 @@ public class HostController {
             @RequestHeader(value = "X-Host-Token", required = false) String token
     ) {
         hostAuthService.requireValid(token);
-        return ApiResponse.ok(activityService.startQuestion(eventId));
+        return ApiResponse.ok(activityService.startTimeline(eventId));
     }
 
-    @PostMapping("/events/{eventId}/host/end")
-    public ApiResponse<EventState> end(
+    @PostMapping("/events/{eventId}/host/pause")
+    public ApiResponse<EventState> pause(
             @PathVariable String eventId,
             @RequestHeader(value = "X-Host-Token", required = false) String token
     ) {
         hostAuthService.requireValid(token);
-        return ApiResponse.ok(activityService.endAnswer(eventId));
+        return ApiResponse.ok(activityService.pauseTimeline(eventId));
+    }
+
+    @PostMapping("/events/{eventId}/host/resume")
+    public ApiResponse<EventState> resume(
+            @PathVariable String eventId,
+            @RequestHeader(value = "X-Host-Token", required = false) String token
+    ) {
+        hostAuthService.requireValid(token);
+        return ApiResponse.ok(activityService.resumeTimeline(eventId));
+    }
+
+    @PostMapping("/events/{eventId}/host/lock")
+    public ApiResponse<EventState> lock(
+            @PathVariable String eventId,
+            @RequestHeader(value = "X-Host-Token", required = false) String token
+    ) {
+        hostAuthService.requireValid(token);
+        return ApiResponse.ok(activityService.lockQuestion(eventId));
     }
 
     @PostMapping("/events/{eventId}/host/reveal")
@@ -71,7 +112,7 @@ public class HostController {
             @RequestHeader(value = "X-Host-Token", required = false) String token
     ) {
         hostAuthService.requireValid(token);
-        return ApiResponse.ok(activityService.reveal(eventId));
+        return ApiResponse.ok(activityService.revealAnswer(eventId));
     }
 
     @PostMapping("/events/{eventId}/host/next")
@@ -90,33 +131,5 @@ public class HostController {
     ) {
         hostAuthService.requireValid(token);
         return ApiResponse.ok(activityService.reset(eventId));
-    }
-
-    @PostMapping("/events/{eventId}/host/pause")
-    public ApiResponse<EventState> pause(
-            @PathVariable String eventId,
-            @RequestHeader(value = "X-Host-Token", required = false) String token
-    ) {
-        hostAuthService.requireValid(token);
-        return ApiResponse.ok(activityService.pauseAuto(eventId));
-    }
-
-    @PostMapping("/events/{eventId}/host/resume")
-    public ApiResponse<EventState> resume(
-            @PathVariable String eventId,
-            @RequestHeader(value = "X-Host-Token", required = false) String token
-    ) {
-        hostAuthService.requireValid(token);
-        return ApiResponse.ok(activityService.resumeAuto(eventId));
-    }
-
-    @PostMapping("/events/{eventId}/host/toggle-auto")
-    public ApiResponse<EventState> toggleAuto(
-            @PathVariable String eventId,
-            @RequestParam boolean enabled,
-            @RequestHeader(value = "X-Host-Token", required = false) String token
-    ) {
-        hostAuthService.requireValid(token);
-        return ApiResponse.ok(activityService.setAutoMode(eventId, enabled));
     }
 }

@@ -8,6 +8,6 @@ spring:
 app:
   frontend-origin: http://localhost:5173
   host-password: "123456"
+  timeline-file: data/timeline.json
   leaderboard-file: data/leaderboards.json
   leaderboard-txt-file: data/leaderboard_summary.txt
-  questions-file: data/questions.json

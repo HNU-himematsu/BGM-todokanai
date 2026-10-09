@@ -6,15 +6,13 @@ public class Player {
     private final String id;
     private final String nickname;
     private final Instant joinedAt;
-    private boolean canAnswer;
     private int score;
     private long totalDurationMs;
 
-    public Player(String id, String nickname, boolean canAnswer) {
+    public Player(String id, String nickname) {
         this.id = id;
         this.nickname = nickname;
         this.joinedAt = Instant.now();
-        this.canAnswer = canAnswer;
         this.score = 0;
         this.totalDurationMs = 0L;
     }
@@ -31,12 +29,8 @@ public class Player {
         return joinedAt;
     }
 
-    public boolean canAnswer() {
-        return canAnswer;
-    }
-
-    public void setCanAnswer(boolean canAnswer) {
-        this.canAnswer = canAnswer;
+    public long getJoinedAtEpochMs() {
+        return joinedAt.toEpochMilli();
     }
 
     public int getScore() {

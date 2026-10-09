@@ -130,6 +130,12 @@ a {
   border-color: var(--accent) !important;
 }
 
+/* 主操作按钮禁用态：主色实体底 + 纯白文字，与底色对比度 4.11:1。 */
+.ant-btn-primary:disabled,
+.ant-btn-primary.ant-btn-disabled {
+  color: #ffffff !important;
+}
+
 .ant-btn-primary:not(:disabled):hover {
   background-color: var(--accent-dark) !important;
   border-color: var(--accent-dark) !important;
@@ -402,6 +408,7 @@ p {
 .host-header h1 {
   margin-bottom: 7px;
   font-size: 29px;
+  line-height: 1.3;
   letter-spacing: -0.025em;
 }
 
@@ -462,7 +469,7 @@ p {
 .countdown-fill {
   height: 100%;
   border-radius: 3px;
-  background: linear-gradient(90deg, var(--green), #d48806 55%, var(--accent-dark));
+  background: var(--accent);
   transition: width 250ms linear;
 }
 
@@ -475,6 +482,7 @@ p {
   justify-content: space-between;
   gap: 15px;
   align-items: center;
+  margin: 12px 0 18px;
 }
 
 .question-title {

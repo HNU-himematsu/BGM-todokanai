@@ -10,8 +10,10 @@ public record EventState(
         ActivityStatus status,
         int currentQuestionIndex,
         int totalQuestions,
-        Long deadlineEpochMs,
+        Long questionAudioStartEpochMs,
+        Long questionAudioEndEpochMs,
         boolean answerRevealed,
+        boolean timelineRunning,
         boolean canAnswer,
         QuestionView question,
         boolean hasAnswered,
@@ -21,7 +23,6 @@ public record EventState(
         int playerRank,
         int playerCount,
         int answeredCount,
-        boolean autoMode,
         List<LeaderboardEntry> leaderboard
 ) {
 }

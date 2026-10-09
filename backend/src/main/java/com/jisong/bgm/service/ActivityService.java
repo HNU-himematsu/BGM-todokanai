@@ -1,18 +1,27 @@
 package com.jisong.bgm.service;
 
 import com.jisong.bgm.dto.EventState;
+import com.jisong.bgm.dto.HostPlayerView;
+import com.jisong.bgm.dto.HostStateResponse;
 import com.jisong.bgm.dto.JoinResponse;
 import com.jisong.bgm.dto.LeaderboardEntry;
+import com.jisong.bgm.dto.LeaderboardSnapshot;
 import com.jisong.bgm.dto.QuestionView;
+import com.jisong.bgm.dto.RoundListResponse;
+import com.jisong.bgm.dto.RoundView;
 import com.jisong.bgm.dto.SubmitAnswerRequest;
 import com.jisong.bgm.model.ActivityStatus;
+import com.jisong.bgm.model.ActionType;
 import com.jisong.bgm.model.Player;
 import com.jisong.bgm.model.Question;
+import com.jisong.bgm.model.Round;
+import com.jisong.bgm.model.Timeline;
+import com.jisong.bgm.model.TimelineItem;
 import jakarta.annotation.PreDestroy;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -27,15 +36,11 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 public class ActivityService {
-    private static final String DEMO_EVENT_ID = "demo";
-    private static final String DEMO_EVENT_NAME = "旮旯原声之届不到的 BGM";
-    private static final int QUESTION_SECONDS = 20;
-    private static final int REVEAL_SECONDS = 6;
     private static final int POINTS_PER_CORRECT = 10;
 
     private final SimpMessagingTemplate messagingTemplate;
     private final LeaderboardStore leaderboardStore;
-    private final QuestionBank questionBank;
+    private final TimelineStore timelineStore;
     private final Map<String, Activity> activities = new HashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
         Thread thread = new Thread(runnable, "bgm-scheduler");
@@ -46,12 +51,15 @@ public class ActivityService {
     public ActivityService(
             SimpMessagingTemplate messagingTemplate,
             LeaderboardStore leaderboardStore,
-            QuestionBank questionBank
+            TimelineStore timelineStore
     ) {
         this.messagingTemplate = messagingTemplate;
         this.leaderboardStore = leaderboardStore;
-        this.questionBank = questionBank;
-        activities.put(DEMO_EVENT_ID, new Activity(DEMO_EVENT_ID, DEMO_EVENT_NAME, questionBank.roundQuestions()));
+        this.timelineStore = timelineStore;
+        Timeline timeline = timelineStore.timeline();
+        Activity activity = new Activity(timeline.eventId(), timeline.eventName(), timeline.rounds());
+        activity.currentRoundId = timeline.rounds().get(0).id();
+        activities.put(activity.id, activity);
     }
 
     @PreDestroy
@@ -59,9 +67,14 @@ public class ActivityService {
         scheduler.shutdownNow();
     }
 
+    public Path audioPath(String eventId) {
+        getActivity(eventId);
+        return timelineStore.audioPath();
+    }
+
     public synchronized ActivitySummary getActivitySummary(String eventId) {
         Activity activity = getActivity(eventId);
-        return new ActivitySummary(activity.id, activity.name, activity.questions.size(), activity.status);
+        return new ActivitySummary(activity.id, activity.name, questionCount(activity), activity.status);
     }
 
     public synchronized List<LeaderboardEntry> getLeaderboard(String eventId) {
@@ -69,7 +82,7 @@ public class ActivityService {
         return activity.status == ActivityStatus.FINISHED ? leaderboard(activity) : List.of();
     }
 
-    public synchronized List<com.jisong.bgm.dto.LeaderboardSnapshot> getLeaderboardHistory(String eventId) {
+    public synchronized List<LeaderboardSnapshot> getLeaderboardHistory(String eventId) {
         return leaderboardStore.history(eventId);
     }
 
@@ -77,15 +90,30 @@ public class ActivityService {
         return leaderboardStore.getSummaryTxt();
     }
 
+    public synchronized RoundListResponse listRounds(String eventId) {
+        Activity activity = getActivity(eventId);
+        return new RoundListResponse(roundViews(activity), activity.currentRoundId);
+    }
+
+    public synchronized EventState selectRound(String eventId, String roundId) {
+        Activity activity = getActivity(eventId);
+        Round round = requireRound(activity, roundId);
+        if (activity.timelineRunning) {
+            throw new IllegalStateException("时间轴正在运行，无法切换轮次");
+        }
+        activity.currentRoundId = round.id();
+        resetRoom(activity);
+        broadcast(activity, "ACTIVITY_RESET");
+        return toState(activity, null, false);
+    }
+
     public synchronized JoinResponse join(String eventId, String nickname) {
         Activity activity = getActivity(eventId);
         if (activity.status == ActivityStatus.FINISHED) {
             throw new IllegalStateException("本场活动已经结束");
         }
-
         String playerId = UUID.randomUUID().toString();
-        boolean canAnswer = !activity.startedOnce;
-        activity.players.put(playerId, new Player(playerId, nickname.trim(), canAnswer));
+        activity.players.put(playerId, new Player(playerId, nickname.trim()));
         broadcast(activity, "PLAYER_JOINED");
         return new JoinResponse(eventId, playerId, nickname.trim());
     }
@@ -93,308 +121,369 @@ public class ActivityService {
     public synchronized EventState getState(String eventId, String playerId) {
         Activity activity = getActivity(eventId);
         Player player = playerId == null ? null : activity.players.get(playerId);
-        Question question = currentQuestion(activity);
-        AnswerRecord answer = player == null || question == null
-                ? null
-                : activity.answers.get(answerKey(player.getId(), question.id()));
-
-        return toState(activity, player, question, answer, false);
+        return toState(activity, player, false);
     }
 
-    public synchronized HostRoomState getHostState(String eventId) {
+    public synchronized HostStateResponse getHostState(String eventId) {
         Activity activity = getActivity(eventId);
-        Question question = currentQuestion(activity);
-        EventState state = toState(activity, null, question, null, true);
         List<HostPlayerView> players = activity.players.values().stream()
                 .map(player -> new HostPlayerView(
                         player.getId(),
                         player.getNickname(),
-                        hasSubmitted(activity, player.getId(), question),
-                        !player.canAnswer()
-                ))
+                        hasSubmitted(activity, player.getId(), activity.currentQuestion)))
                 .toList();
-        return new HostRoomState(state, players);
+        return new HostStateResponse(
+                toState(activity, null, true),
+                players,
+                roundViews(activity),
+                activity.currentRoundId,
+                activity.timelineRunning);
     }
 
     public synchronized EventState submitAnswer(String eventId, SubmitAnswerRequest request) {
         Activity activity = getActivity(eventId);
         Player player = requirePlayer(activity, request.playerId());
-        Question question = currentQuestion(activity);
-
-        if (!player.canAnswer()) {
-            throw new IllegalStateException("你是在答题开始后加入的，本轮只能观看");
-        }
-        if (activity.status != ActivityStatus.ANSWERING || question == null) {
-            throw new IllegalStateException("当前不是答题时间");
+        requireStatus(activity, ActivityStatus.ANSWERING);
+        Question question = activity.currentQuestion;
+        if (question == null) {
+            throw new IllegalStateException("当前没有上屏题目");
         }
         if (!question.id().equals(request.questionId())) {
             throw new IllegalArgumentException("题目已经切换");
         }
-        if (activity.deadline == null || Instant.now().toEpochMilli() > activity.deadline) {
-            throw new IllegalStateException("答题时间已结束");
-        }
-
         String key = answerKey(player.getId(), question.id());
         if (activity.answers.containsKey(key)) {
             throw new IllegalStateException("这道题已经提交过答案");
         }
-
-        long now = Instant.now().toEpochMilli();
-        long duration = Math.max(0, now - activity.questionStartTime);
-        boolean correct = question.correctOption() == request.optionIndex();
+        long now = System.currentTimeMillis();
+        long duration = activity.questionNextEpochMs == null ? 0L : Math.max(0L, now - activity.questionNextEpochMs);
+        boolean correct = question.correctOption() != null && question.correctOption() == request.optionIndex();
         int points = correct ? POINTS_PER_CORRECT : 0;
         activity.answers.put(key, new AnswerRecord(request.optionIndex(), correct, points, duration));
         player.addScore(points);
         player.addDuration(duration);
         broadcast(activity, "PLAYER_ANSWERED");
-        return getState(eventId, player.getId());
+        return toState(activity, player, false);
     }
 
-    public synchronized EventState startQuestion(String eventId) {
+    public synchronized EventState startTimeline(String eventId) {
         Activity activity = getActivity(eventId);
-        if (activity.status == ActivityStatus.FINISHED) {
-            throw new IllegalStateException("本场活动已经结束，请先重置");
+        if (activity.currentRoundId == null) {
+            throw new IllegalStateException("尚未选择轮次");
         }
-        if (activity.currentQuestionIndex < 0) {
-            activity.currentQuestionIndex = 0;
+        requireStatus(activity, ActivityStatus.WAITING);
+        if (activity.timelineRunning) {
+            throw new IllegalStateException("时间轴已经在运行");
         }
-        if (activity.currentQuestionIndex >= activity.questions.size()) {
-            finishActivity(activity);
-        } else {
-            startQuestionInternal(activity);
-        }
-        return getState(eventId, null);
-    }
-
-    private void startQuestionInternal(Activity activity) {
-        cancelTimer(activity);
-        activity.startedOnce = true;
-        activity.status = ActivityStatus.ANSWERING;
+        Round round = requireRound(activity, activity.currentRoundId);
+        activity.timelineRunning = true;
         activity.answerRevealed = false;
-        activity.questionStartTime = Instant.now().toEpochMilli();
-        activity.deadline = activity.questionStartTime + (QUESTION_SECONDS * 1000L);
-
-        if (activity.autoMode) {
-            final int expectedIndex = activity.currentQuestionIndex;
-            final String eventId = activity.id;
-            activity.currentScheduledTask = scheduler.schedule(
-                    () -> handleQuestionTimeout(eventId, expectedIndex),
-                    QUESTION_SECONDS,
-                    TimeUnit.SECONDS
-            );
-        }
-        broadcast(activity, "QUESTION_STARTED");
+        activity.pendingQuestion = null;
+        activity.currentQuestion = null;
+        activity.currentQuestionIndex = -1;
+        activity.questionAudioStartEpochMs = null;
+        activity.questionAudioEndEpochMs = null;
+        activity.questionNextEpochMs = null;
+        activity.t0EpochMs = System.currentTimeMillis();
+        activity.pausedAtEpochMs = null;
+        scheduleRound(activity, round);
+        broadcast(activity, "ACTIVITY_STARTED");
+        return toState(activity, null, false);
     }
 
-    public synchronized void handleQuestionTimeout(String eventId, int expectedIndex) {
-        Activity activity = activities.get(eventId);
-        if (activity == null || activity.status != ActivityStatus.ANSWERING || activity.currentQuestionIndex != expectedIndex) {
-            return;
+    public synchronized EventState pauseTimeline(String eventId) {
+        Activity activity = getActivity(eventId);
+        if (!activity.timelineRunning) {
+            throw new IllegalStateException("时间轴当前未运行");
         }
-        cancelTimer(activity);
-        Question question = currentQuestion(activity);
-        if (question != null) {
-            recordTimeoutsForCurrentQuestion(activity, question);
-        }
-        activity.status = ActivityStatus.ANSWER_REVEALED;
-        activity.answerRevealed = true;
-        activity.deadline = null;
-
-        if (activity.autoMode) {
-            final int nextIndex = activity.currentQuestionIndex;
-            activity.currentScheduledTask = scheduler.schedule(
-                    () -> handleRevealTimeout(eventId, nextIndex),
-                    REVEAL_SECONDS,
-                    TimeUnit.SECONDS
-            );
-        }
-        broadcast(activity, "ANSWER_REVEALED");
+        activity.timelineRunning = false;
+        activity.pausedAtEpochMs = System.currentTimeMillis();
+        suspendTasks(activity);
+        broadcast(activity, "ACTIVITY_PAUSED");
+        return toState(activity, null, false);
     }
 
-    public synchronized void handleRevealTimeout(String eventId, int expectedIndex) {
-        Activity activity = activities.get(eventId);
-        if (activity == null || activity.status != ActivityStatus.ANSWER_REVEALED || activity.currentQuestionIndex != expectedIndex) {
-            return;
+    public synchronized EventState resumeTimeline(String eventId) {
+        Activity activity = getActivity(eventId);
+        if (activity.timelineRunning) {
+            throw new IllegalStateException("时间轴已经在运行");
         }
-        cancelTimer(activity);
-        if (!activity.autoMode) {
-            return;
+        if (activity.t0EpochMs == null || activity.pausedAtEpochMs == null) {
+            throw new IllegalStateException("本轮时间轴尚未启动");
         }
-        activity.currentQuestionIndex++;
-        if (activity.currentQuestionIndex >= activity.questions.size()) {
-            finishActivity(activity);
-            broadcast(activity, "ACTIVITY_FINISHED");
-        } else {
-            startQuestionInternal(activity);
+        Round round = requireRound(activity, activity.currentRoundId);
+        long now = System.currentTimeMillis();
+        long pausedDuration = now - activity.pausedAtEpochMs;
+        activity.pausedAtEpochMs = null;
+        activity.t0EpochMs += pausedDuration;
+        if (activity.questionAudioStartEpochMs != null) {
+            activity.questionAudioStartEpochMs += pausedDuration;
         }
+        if (activity.questionAudioEndEpochMs != null) {
+            activity.questionAudioEndEpochMs += pausedDuration;
+        }
+        if (activity.questionNextEpochMs != null) {
+            activity.questionNextEpochMs += pausedDuration;
+        }
+        activity.timelineRunning = true;
+        for (PendingTask task : activity.pendingTasks) {
+            long due = activity.t0EpochMs + (task.atMs - round.startMs());
+            task.future = scheduler.schedule(
+                    () -> runItem(activity.id, task), Math.max(0L, due - now), TimeUnit.MILLISECONDS);
+        }
+        long roundEndDue = activity.t0EpochMs + (round.endMs() - round.startMs());
+        activity.roundEndFuture = scheduler.schedule(
+                () -> runRoundEnd(activity.id, round.id()), Math.max(0L, roundEndDue - now), TimeUnit.MILLISECONDS);
+        broadcast(activity, "ACTIVITY_RESUMED");
+        return toState(activity, null, false);
     }
 
-    public synchronized EventState endAnswer(String eventId) {
+    public synchronized EventState lockQuestion(String eventId) {
         Activity activity = getActivity(eventId);
         requireStatus(activity, ActivityStatus.ANSWERING);
-        cancelTimer(activity);
-        Question question = currentQuestion(activity);
-        if (question != null) {
-            recordTimeoutsForCurrentQuestion(activity, question);
-        }
-        activity.status = ActivityStatus.ANSWER_REVEALED;
-        activity.deadline = null;
-        activity.answerRevealed = true;
-
-        if (activity.autoMode) {
-            final int nextIndex = activity.currentQuestionIndex;
-            activity.currentScheduledTask = scheduler.schedule(
-                    () -> handleRevealTimeout(eventId, nextIndex),
-                    REVEAL_SECONDS,
-                    TimeUnit.SECONDS
-            );
-        }
-        broadcast(activity, "ANSWER_REVEALED");
-        return getState(eventId, null);
+        cancelPendingAction(activity, ActionType.LOCK);
+        lockCurrentQuestion(activity);
+        return toState(activity, null, false);
     }
 
-    public synchronized EventState reveal(String eventId) {
+    public synchronized EventState revealAnswer(String eventId) {
         Activity activity = getActivity(eventId);
-        requireStatus(activity, ActivityStatus.ANSWER_REVEALED);
-        activity.answerRevealed = true;
-        cancelTimer(activity);
-        if (activity.autoMode) {
-            final int nextIndex = activity.currentQuestionIndex;
-            activity.currentScheduledTask = scheduler.schedule(
-                    () -> handleRevealTimeout(eventId, nextIndex),
-                    REVEAL_SECONDS,
-                    TimeUnit.SECONDS
-            );
-        }
-        broadcast(activity, "ANSWER_REVEALED");
-        return getState(eventId, null);
+        requireStatus(activity, ActivityStatus.ANSWER_LOCKED);
+        cancelPendingAction(activity, ActionType.REVEAL);
+        revealCurrentQuestion(activity);
+        return toState(activity, null, false);
     }
 
     public synchronized EventState nextQuestion(String eventId) {
         Activity activity = getActivity(eventId);
-        if (activity.status != ActivityStatus.ANSWER_REVEALED && activity.status != ActivityStatus.WAITING) {
-            throw new IllegalStateException("请先结束当前题目");
+        if (activity.status != ActivityStatus.WAITING && activity.status != ActivityStatus.ANSWER_REVEALED) {
+            throw new IllegalStateException("仅等待或揭晓状态下可以上屏下一题");
         }
-
-        cancelTimer(activity);
-        activity.currentQuestionIndex++;
-        if (activity.currentQuestionIndex >= activity.questions.size()) {
-            finishActivity(activity);
-            broadcast(activity, "ACTIVITY_FINISHED");
-        } else {
-            if (activity.autoMode) {
-                startQuestionInternal(activity);
-            } else {
-                activity.status = ActivityStatus.WAITING;
-                activity.answerRevealed = false;
-                activity.deadline = null;
-                broadcast(activity, "QUESTION_NEXT");
-            }
+        if (activity.pendingQuestion == null) {
+            throw new IllegalStateException("待上屏题目尚未预加载");
         }
-        return getState(eventId, null);
-    }
-
-    public synchronized EventState pauseAuto(String eventId) {
-        Activity activity = getActivity(eventId);
-        activity.autoMode = false;
-        cancelTimer(activity);
-        broadcast(activity, "ACTIVITY_PAUSED");
-        return getState(eventId, null);
-    }
-
-    public synchronized EventState resumeAuto(String eventId) {
-        Activity activity = getActivity(eventId);
-        if (activity.status == ActivityStatus.FINISHED) {
-            throw new IllegalStateException("本场活动已经结束，请先重置");
-        }
-        activity.autoMode = true;
-        cancelTimer(activity);
-
-        if (activity.status == ActivityStatus.WAITING) {
-            startQuestion(eventId);
-        } else if (activity.status == ActivityStatus.ANSWERING) {
-            long now = Instant.now().toEpochMilli();
-            long remainingMs = activity.deadline != null ? activity.deadline - now : 0L;
-            if (remainingMs <= 0) {
-                handleQuestionTimeout(eventId, activity.currentQuestionIndex);
-            } else {
-                final int expectedIndex = activity.currentQuestionIndex;
-                activity.currentScheduledTask = scheduler.schedule(
-                        () -> handleQuestionTimeout(eventId, expectedIndex),
-                        remainingMs,
-                        TimeUnit.MILLISECONDS
-                );
-            }
-        } else if (activity.status == ActivityStatus.ANSWER_REVEALED) {
-            final int nextIndex = activity.currentQuestionIndex;
-            activity.currentScheduledTask = scheduler.schedule(
-                    () -> handleRevealTimeout(eventId, nextIndex),
-                    REVEAL_SECONDS,
-                    TimeUnit.SECONDS
-            );
-        }
-        broadcast(activity, "ACTIVITY_RESUMED");
-        return getState(eventId, null);
-    }
-
-    public synchronized EventState setAutoMode(String eventId, boolean enabled) {
-        return enabled ? resumeAuto(eventId) : pauseAuto(eventId);
+        cancelPendingAction(activity, ActionType.NEXT);
+        openQuestion(activity, requireRound(activity, activity.currentRoundId));
+        return toState(activity, null, false);
     }
 
     public synchronized EventState reset(String eventId) {
         Activity activity = getActivity(eventId);
-        cancelTimer(activity);
-        activity.currentQuestionIndex = -1;
-        activity.status = ActivityStatus.WAITING;
-        activity.answerRevealed = false;
-        activity.deadline = null;
-        activity.startedOnce = false;
-        activity.leaderboardSaved = false;
-        activity.autoMode = true;
-        activity.answers.clear();
-        activity.players.clear();
+        resetRoom(activity);
         broadcast(activity, "ACTIVITY_RESET");
-        return getState(eventId, null);
+        return toState(activity, null, false);
     }
 
-    private ActivitySummary toSummary(Activity activity) {
-        return new ActivitySummary(activity.id, activity.name, activity.questions.size(), activity.status);
+    private void scheduleRound(Activity activity, Round round) {
+        clearTasks(activity);
+        long now = System.currentTimeMillis();
+        for (int index = 0; index < round.items().size(); index++) {
+            TimelineItem item = round.items().get(index);
+            long due = activity.t0EpochMs + (item.atMs() - round.startMs());
+            PendingTask task = new PendingTask(round.id(), index, item.atMs(), item.action());
+            task.future = scheduler.schedule(
+                    () -> runItem(activity.id, task), Math.max(0L, due - now), TimeUnit.MILLISECONDS);
+            activity.pendingTasks.add(task);
+        }
+        long roundEndDue = activity.t0EpochMs + (round.endMs() - round.startMs());
+        activity.roundEndFuture = scheduler.schedule(
+                () -> runRoundEnd(activity.id, round.id()), Math.max(0L, roundEndDue - now), TimeUnit.MILLISECONDS);
     }
 
-    private EventState toState(Activity activity, Player player, Question question, AnswerRecord answer, boolean hostView) {
+    private synchronized void runItem(String eventId, PendingTask task) {
+        Activity activity = activities.get(eventId);
+        if (activity == null || !activity.timelineRunning || !task.roundId.equals(activity.currentRoundId)) {
+            return;
+        }
+        activity.pendingTasks.remove(task);
+        Round round = round(activity, task.roundId);
+        if (round == null) {
+            return;
+        }
+        TimelineItem item = round.items().get(task.itemIndex);
+        switch (item.action()) {
+            case LOAD -> activity.pendingQuestion = item.question();
+            case NEXT -> {
+                if (takesNext(activity) && activity.pendingQuestion != null) {
+                    openQuestion(activity, round);
+                }
+            }
+            case LOCK -> {
+                if (activity.status == ActivityStatus.ANSWERING) {
+                    lockCurrentQuestion(activity);
+                }
+            }
+            case REVEAL -> {
+                if (activity.status == ActivityStatus.ANSWER_LOCKED) {
+                    revealCurrentQuestion(activity);
+                }
+            }
+            case FINISH -> finishRound(activity);
+        }
+    }
+
+    private synchronized void runRoundEnd(String eventId, String roundId) {
+        Activity activity = activities.get(eventId);
+        if (activity == null || !activity.timelineRunning || !roundId.equals(activity.currentRoundId)) {
+            return;
+        }
+        activity.timelineRunning = false;
+        activity.roundEndFuture = null;
+        clearPendingItems(activity);
+        broadcast(activity, "ROUND_ENDED");
+    }
+
+    private void openQuestion(Activity activity, Round round) {
+        Question question = activity.pendingQuestion;
+        if (question == null) {
+            return;
+        }
+        activity.pendingQuestion = null;
+        activity.currentQuestion = question;
+        activity.currentQuestionIndex++;
+        activity.status = ActivityStatus.ANSWERING;
+        activity.answerRevealed = false;
+        activity.questionNextEpochMs = System.currentTimeMillis();
+        if (activity.t0EpochMs == null) {
+            activity.questionAudioStartEpochMs = null;
+            activity.questionAudioEndEpochMs = null;
+        } else {
+            activity.questionAudioStartEpochMs = activity.t0EpochMs + (question.audioStartMs() - round.startMs());
+            activity.questionAudioEndEpochMs = activity.t0EpochMs + (question.audioEndMs() - round.startMs());
+        }
+        broadcast(activity, "QUESTION_STARTED");
+    }
+
+    private void lockCurrentQuestion(Activity activity) {
+        Question question = activity.currentQuestion;
+        if (question != null) {
+            long now = System.currentTimeMillis();
+            long openedAt = activity.questionNextEpochMs == null ? now : activity.questionNextEpochMs;
+            for (Player player : activity.players.values()) {
+                if (hasSubmitted(activity, player.getId(), question)) {
+                    continue;
+                }
+                long startedAt = Math.max(openedAt, player.getJoinedAtEpochMs());
+                long duration = now - startedAt;
+                if (duration > 0) {
+                    player.addDuration(duration);
+                }
+            }
+        }
+        activity.status = ActivityStatus.ANSWER_LOCKED;
+        broadcast(activity, "ANSWER_LOCKED");
+    }
+
+    private void revealCurrentQuestion(Activity activity) {
+        activity.status = ActivityStatus.ANSWER_REVEALED;
+        activity.answerRevealed = true;
+        broadcast(activity, "ANSWER_REVEALED");
+    }
+
+    private void finishRound(Activity activity) {
+        clearPendingItems(activity);
+        activity.status = ActivityStatus.FINISHED;
+        activity.answerRevealed = true;
+        if (!activity.leaderboardSaved) {
+            leaderboardStore.save(activity.id, activity.name, leaderboard(activity));
+            activity.leaderboardSaved = true;
+        }
+        broadcast(activity, "ACTIVITY_FINISHED");
+    }
+
+    private void resetRoom(Activity activity) {
+        clearTasks(activity);
+        activity.players.clear();
+        activity.answers.clear();
+        activity.status = ActivityStatus.WAITING;
+        activity.currentQuestionIndex = -1;
+        activity.pendingQuestion = null;
+        activity.currentQuestion = null;
+        activity.questionAudioStartEpochMs = null;
+        activity.questionAudioEndEpochMs = null;
+        activity.questionNextEpochMs = null;
+        activity.answerRevealed = false;
+        activity.timelineRunning = false;
+        activity.t0EpochMs = null;
+        activity.pausedAtEpochMs = null;
+        activity.leaderboardSaved = false;
+    }
+
+    private void clearTasks(Activity activity) {
+        clearPendingItems(activity);
+        cancel(activity.roundEndFuture);
+        activity.roundEndFuture = null;
+    }
+
+    private void clearPendingItems(Activity activity) {
+        for (PendingTask task : activity.pendingTasks) {
+            cancel(task.future);
+        }
+        activity.pendingTasks.clear();
+    }
+
+    private void suspendTasks(Activity activity) {
+        for (PendingTask task : activity.pendingTasks) {
+            cancel(task.future);
+        }
+        cancel(activity.roundEndFuture);
+        activity.roundEndFuture = null;
+    }
+
+    private void cancelPendingAction(Activity activity, ActionType action) {
+        activity.pendingTasks.removeIf(task -> {
+            if (task.action != action) {
+                return false;
+            }
+            cancel(task.future);
+            return true;
+        });
+    }
+
+    private static void cancel(ScheduledFuture<?> future) {
+        if (future != null) {
+            future.cancel(false);
+        }
+    }
+
+    private EventState toState(Activity activity, Player player, boolean hostView) {
         boolean showLeaderboard = activity.status == ActivityStatus.FINISHED;
         List<LeaderboardEntry> leaderboard = showLeaderboard ? leaderboard(activity) : List.of();
-        int playerRank = !showLeaderboard || player == null ? 0 : leaderboard.stream()
-                .filter(entry -> entry.playerId().equals(player.getId()))
-                .map(LeaderboardEntry::rank)
-                .findFirst()
-                .orElse(0);
-
+        int playerRank = 0;
+        if (showLeaderboard && player != null) {
+            playerRank = leaderboard.stream()
+                    .filter(entry -> entry.playerId().equals(player.getId()))
+                    .map(LeaderboardEntry::rank)
+                    .findFirst()
+                    .orElse(0);
+        }
+        Question question = activity.currentQuestion;
         boolean revealAnswer = activity.answerRevealed;
-        boolean hostQuestionView = hostView || revealAnswer;
-        int currentQuestionIndex = Math.min(activity.currentQuestionIndex, activity.questions.size() - 1);
-        boolean submitted = answer != null && answer.optionIndex() >= 0;
+        boolean showWorkName = hostView || revealAnswer;
         QuestionView questionView = question == null ? null : new QuestionView(
                 question.id(),
-                question.audioCode(),
                 question.prompt(),
-                question.type(),
                 question.difficulty(),
+                question.type(),
                 question.options(),
-                hostQuestionView ? question.workName() : null,
+                showWorkName ? question.workName() : null,
                 revealAnswer ? question.explanation() : null,
-                revealAnswer ? question.correctOption() : null
-        );
-
+                revealAnswer ? question.correctOption() : null);
+        AnswerRecord answer = player == null || question == null
+                ? null
+                : activity.answers.get(answerKey(player.getId(), question.id()));
+        boolean submitted = answer != null && answer.optionIndex() >= 0;
         return new EventState(
                 activity.id,
                 activity.name,
                 activity.status,
-                currentQuestionIndex,
-                activity.questions.size(),
-                activity.deadline,
+                activity.currentQuestionIndex,
+                questionCount(activity),
+                activity.questionAudioStartEpochMs,
+                activity.questionAudioEndEpochMs,
                 activity.answerRevealed,
-                player != null && player.canAnswer(),
+                activity.timelineRunning,
+                player != null && activity.status == ActivityStatus.ANSWERING,
                 questionView,
                 submitted,
                 submitted ? answer.optionIndex() : null,
@@ -402,10 +491,22 @@ public class ActivityService {
                 player != null ? player.getTotalDurationMs() : 0L,
                 playerRank,
                 activity.players.size(),
-                submittedCountForCurrentQuestion(activity, question),
-                activity.autoMode,
-                leaderboard
-        );
+                answeredCount(activity, question),
+                leaderboard);
+    }
+
+    private List<RoundView> roundViews(Activity activity) {
+        List<RoundView> views = new ArrayList<>();
+        for (Round round : activity.rounds) {
+            views.add(new RoundView(
+                    round.id(), round.name(), round.startMs(), round.endMs(), round.questionCount()));
+        }
+        return views;
+    }
+
+    private int questionCount(Activity activity) {
+        Round round = round(activity, activity.currentRoundId);
+        return round == null ? 0 : round.questionCount();
     }
 
     private boolean hasSubmitted(Activity activity, String playerId, Question question) {
@@ -416,7 +517,7 @@ public class ActivityService {
         return answer != null && answer.optionIndex() >= 0;
     }
 
-    private int submittedCountForCurrentQuestion(Activity activity, Question question) {
+    private int answeredCount(Activity activity, Question question) {
         if (question == null) {
             return 0;
         }
@@ -429,26 +530,12 @@ public class ActivityService {
         return count;
     }
 
-    private void finishActivity(Activity activity) {
-        cancelTimer(activity);
-        activity.status = ActivityStatus.FINISHED;
-        activity.answerRevealed = true;
-        activity.deadline = null;
-        if (!activity.leaderboardSaved) {
-            leaderboardStore.save(activity.id, activity.name, leaderboard(activity));
-            activity.leaderboardSaved = true;
-        }
-    }
-
     private List<LeaderboardEntry> leaderboard(Activity activity) {
-        List<Player> players = activity.players.values().stream()
-                .filter(Player::canAnswer)
-                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        List<Player> players = new ArrayList<>(activity.players.values());
         players.sort(Comparator.comparingInt(Player::getScore).reversed()
                 .thenComparingLong(Player::getTotalDurationMs)
                 .thenComparing(Player::getJoinedAt)
                 .thenComparing(Player::getNickname));
-
         List<LeaderboardEntry> entries = new ArrayList<>();
         for (int index = 0; index < players.size(); index++) {
             Player player = players.get(index);
@@ -457,8 +544,7 @@ public class ActivityService {
                     player.getId(),
                     player.getNickname(),
                     player.getScore(),
-                    player.getTotalDurationMs()
-            ));
+                    player.getTotalDurationMs()));
         }
         return entries;
     }
@@ -466,8 +552,7 @@ public class ActivityService {
     private void broadcast(Activity activity, String type) {
         messagingTemplate.convertAndSend(
                 "/topic/events/" + activity.id,
-                Map.of("type", type, "eventId", activity.id)
-        );
+                Map.of("type", type, "eventId", activity.id));
     }
 
     private Activity getActivity(String eventId) {
@@ -492,66 +577,78 @@ public class ActivityService {
         }
     }
 
-    private Question currentQuestion(Activity activity) {
-        if (activity.currentQuestionIndex < 0 || activity.currentQuestionIndex >= activity.questions.size()) {
+    private Round requireRound(Activity activity, String roundId) {
+        Round round = round(activity, roundId);
+        if (round == null) {
+            throw new IllegalArgumentException("轮次不存在");
+        }
+        return round;
+    }
+
+    private Round round(Activity activity, String roundId) {
+        if (roundId == null) {
             return null;
         }
-        return activity.questions.get(activity.currentQuestionIndex);
+        for (Round round : activity.rounds) {
+            if (round.id().equals(roundId)) {
+                return round;
+            }
+        }
+        return null;
+    }
+
+    private static boolean takesNext(Activity activity) {
+        return activity.status == ActivityStatus.WAITING || activity.status == ActivityStatus.ANSWER_REVEALED;
     }
 
     private static String answerKey(String playerId, String questionId) {
         return playerId + ":" + questionId;
     }
 
-    private void recordTimeoutsForCurrentQuestion(Activity activity, Question question) {
-        long timeoutDuration = QUESTION_SECONDS * 1000L;
-        for (Player player : activity.players.values()) {
-            if (player.canAnswer()) {
-                String key = answerKey(player.getId(), question.id());
-                if (!activity.answers.containsKey(key)) {
-                    activity.answers.put(key, new AnswerRecord(-1, false, 0, timeoutDuration));
-                    player.addDuration(timeoutDuration);
-                }
-            }
-        }
-    }
-
-    private void cancelTimer(Activity activity) {
-        if (activity.currentScheduledTask != null) {
-            activity.currentScheduledTask.cancel(false);
-            activity.currentScheduledTask = null;
-        }
-    }
-
     public record ActivitySummary(String id, String name, int totalQuestions, ActivityStatus status) {
-    }
-
-    public record HostRoomState(EventState state, List<HostPlayerView> players) {
-    }
-
-    public record HostPlayerView(String playerId, String nickname, boolean answered, boolean spectator) {
     }
 
     private static final class Activity {
         private final String id;
         private final String name;
-        private final List<Question> questions;
+        private final List<Round> rounds;
         private final Map<String, Player> players = new LinkedHashMap<>();
         private final Map<String, AnswerRecord> answers = new HashMap<>();
+        private final List<PendingTask> pendingTasks = new ArrayList<>();
         private ActivityStatus status = ActivityStatus.WAITING;
+        private String currentRoundId;
         private int currentQuestionIndex = -1;
-        private Long deadline;
-        private long questionStartTime;
+        private Question pendingQuestion;
+        private Question currentQuestion;
+        private Long questionAudioStartEpochMs;
+        private Long questionAudioEndEpochMs;
+        private Long questionNextEpochMs;
+        private Long t0EpochMs;
+        private Long pausedAtEpochMs;
         private boolean answerRevealed;
-        private boolean startedOnce;
+        private boolean timelineRunning;
         private boolean leaderboardSaved;
-        private boolean autoMode = true;
-        private ScheduledFuture<?> currentScheduledTask;
+        private ScheduledFuture<?> roundEndFuture;
 
-        private Activity(String id, String name, List<Question> questions) {
+        private Activity(String id, String name, List<Round> rounds) {
             this.id = id;
             this.name = name;
-            this.questions = questions;
+            this.rounds = rounds;
+        }
+    }
+
+    private static final class PendingTask {
+        private final String roundId;
+        private final int itemIndex;
+        private final long atMs;
+        private final ActionType action;
+        private ScheduledFuture<?> future;
+
+        private PendingTask(String roundId, int itemIndex, long atMs, ActionType action) {
+            this.roundId = roundId;
+            this.itemIndex = itemIndex;
+            this.atMs = atMs;
+            this.action = action;
         }
     }
 

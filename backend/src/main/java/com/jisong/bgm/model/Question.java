@@ -4,19 +4,17 @@ import java.util.List;
 
 public record Question(
         String id,
-        String audioCode,
         String prompt,
         QuestionType type,
         Difficulty difficulty,
         List<String> options,
-        int correctOption,
+        Integer correctOption,
         String workName,
-        String explanation
+        String explanation,
+        Long audioStartMs,
+        Long audioEndMs
 ) {
     public Question {
-        options = List.copyOf(options);
-        if (audioCode == null || audioCode.isBlank()) {
-            audioCode = id;
-        }
+        options = options == null ? List.of() : List.copyOf(options);
     }
 }

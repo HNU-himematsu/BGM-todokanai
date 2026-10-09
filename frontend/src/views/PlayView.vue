@@ -43,6 +43,12 @@ const progressPercent = computed(() => {
   if (!state.value?.totalQuestions) return 0
   return Math.round((displayQuestionNo.value / state.value.totalQuestions) * 100)
 })
+const isQuestionPhase = computed(() => isAnswering.value || isLocked.value || isRevealing.value)
+const pageTitle = computed(() => {
+  if (isFinished.value) return '本轮结算'
+  if (isQuestionPhase.value) return question.value?.prompt || state.value?.eventName || ''
+  return state.value?.eventName || ''
+})
 
 onMounted(async () => {
   if (!store.isParticipant) {
@@ -123,7 +129,7 @@ function leave() {
     <div class="play-main">
       <div class="topline">
         <div>
-          <h1>{{ state.eventName }}</h1>
+          <h1>{{ pageTitle }}</h1>
         </div>
         <a-button title="退出本次参与" @click="leave">
           <LogOut :size="16" />
@@ -167,7 +173,6 @@ function leave() {
             {{ isLocked ? '已锁卷' : isRevealing ? '答案揭晓' : state.questionAudioEndEpochMs ? `音频剩余 ${audioSecondsLeft} 秒` : '答题中' }}
           </div>
         </div>
-        <h2 class="question-title">{{ question.prompt }}</h2>
         <div class="option-grid">
           <button
             v-for="(option, index) in question.options"
