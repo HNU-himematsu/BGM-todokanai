@@ -1,6 +1,8 @@
 package com.jisong.bgm.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.jisong.bgm.model.ActionType;
 import com.jisong.bgm.model.Question;
 import com.jisong.bgm.model.Round;
 import com.jisong.bgm.model.Timeline;
@@ -14,11 +16,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 import java.util.Set;
 
 /**
- * 编排文件加载与合法性校验：启动时读取 timeline.json，解析轮次、动作条目与内联题目内容。
+ * 编排文件加载与合法性校验：启动时读取 timeline.json 和 questions.json，并按题目编号关联题目内容。
  * 读取或校验失败时抛出启动异常，异常信息包含具体轮次与条目位置。
  */
 @Service
@@ -34,7 +38,9 @@ public class TimelineStore {
             @Value("${app.timeline-file:data/timeline.json}") String filePath
     ) {
         Path path = resolveFile(filePath);
-        this.timeline = read(objectMapper, path);
+        Timeline rawTimeline = readTimeline(objectMapper, path);
+        Map<String, Question> questions = readQuestions(objectMapper, path);
+        this.timeline = resolveQuestions(rawTimeline, questions);
         validate(this.timeline);
         this.audioPath = path.toAbsolutePath().getParent().resolve(this.timeline.audioFile());
         if (!Files.isReadable(audioPath)) {
@@ -62,13 +68,55 @@ public class TimelineStore {
         throw new IllegalStateException("编排文件不存在：" + direct.toAbsolutePath());
     }
 
-    private static Timeline read(ObjectMapper objectMapper, Path path) {
+    private static Timeline readTimeline(ObjectMapper objectMapper, Path path) {
         try {
             return objectMapper.readValue(Files.readAllBytes(path), Timeline.class);
         } catch (IOException exception) {
             throw new IllegalStateException(
                     "编排文件解析失败：" + path.toAbsolutePath() + " · " + exception.getMessage(), exception);
         }
+    }
+
+    private static Map<String, Question> readQuestions(ObjectMapper objectMapper, Path timelinePath) {
+        Path questionsPath = timelinePath.toAbsolutePath().getParent().resolve("questions.json");
+        try {
+            List<Question> questions = objectMapper.readValue(
+                    Files.readAllBytes(questionsPath), new TypeReference<>() {});
+            Map<String, Question> byId = new HashMap<>();
+            for (Question question : questions) {
+                if (question.id() == null || question.id().isBlank()) {
+                    throw new IllegalStateException("题库存在缺少 id 的题目");
+                }
+                if (byId.putIfAbsent(question.id(), question) != null) {
+                    throw new IllegalStateException("题库题目 id 重复：" + question.id());
+                }
+            }
+            return Map.copyOf(byId);
+        } catch (IOException exception) {
+            throw new IllegalStateException(
+                    "题库文件读取或解析失败：" + questionsPath + " · " + exception.getMessage(), exception);
+        }
+    }
+
+    private static Timeline resolveQuestions(Timeline timeline, Map<String, Question> questions) {
+        List<Round> rounds = timeline.rounds().stream().map(round -> {
+            List<TimelineItem> items = round.items().stream().map(item -> {
+                if (item.action() != ActionType.LOAD) {
+                    return item;
+                }
+                Question question = questions.get(item.questionId());
+                if (question == null) {
+                    throw new IllegalStateException("轮次 " + round.id() + " 引用了不存在的题目：" + item.questionId());
+                }
+                Question occurrence = new Question(
+                        question.id(), question.audioCode(), question.prompt(), question.type(), question.difficulty(),
+                        question.options(), question.correctOption(), question.workName(), question.explanation(),
+                        item.audioStartMs(), item.audioEndMs());
+                return item.withQuestion(occurrence);
+            }).toList();
+            return new Round(round.id(), round.name(), round.startMs(), round.endMs(), items);
+        }).toList();
+        return new Timeline(timeline.eventId(), timeline.eventName(), timeline.audioFile(), rounds);
     }
 
     private static void validate(Timeline timeline) {
@@ -134,10 +182,20 @@ public class TimelineStore {
             previousAtMs = item.atMs();
             switch (item.action()) {
                 case LOAD -> {
-                    if (item.question() == null) {
-                        throw new IllegalStateException(position + " 的 LOAD 缺少 question");
+                    if (item.question() == null || item.questionId() == null || item.questionId().isBlank()) {
+                        throw new IllegalStateException(position + " 的 LOAD 缺少有效 questionId");
                     }
-                    validateQuestion(round, item.question(), questionIds);
+                    if (!questionIds.add(item.questionId())) {
+                        throw new IllegalStateException(position + " 重复引用题目：" + item.questionId());
+                    }
+                    validateQuestion(round, item.question());
+                    if (item.audioStartMs() == null || item.audioEndMs() == null
+                            || item.audioStartMs() >= item.audioEndMs()) {
+                        throw new IllegalStateException(position + " 的音频区间必须满足 audioStartMs < audioEndMs");
+                    }
+                    if (item.audioStartMs() < round.startMs() || item.audioEndMs() > round.endMs()) {
+                        throw new IllegalStateException(position + " 的音频区间超出轮次区间");
+                    }
                     pendingLoads++;
                     loadCount++;
                 }
@@ -161,14 +219,11 @@ public class TimelineStore {
         }
     }
 
-    private static void validateQuestion(Round round, Question question, Set<String> questionIds) {
-        if (isBlank(question.id())) {
-            throw new IllegalStateException("轮次 " + round.id() + " 存在缺少 id 的题目");
-        }
-        if (!questionIds.add(question.id())) {
-            throw new IllegalStateException("轮次 " + round.id() + " 内题目 id 重复：" + question.id());
-        }
+    private static void validateQuestion(Round round, Question question) {
         String position = "轮次 " + round.id() + " 题目 " + question.id();
+        if (isBlank(question.audioCode())) {
+            throw new IllegalStateException(position + " 缺少 audioCode");
+        }
         if (isBlank(question.prompt())) {
             throw new IllegalStateException(position + " 缺少 prompt");
         }
@@ -191,11 +246,6 @@ public class TimelineStore {
         }
         if (isBlank(question.explanation())) {
             throw new IllegalStateException(position + " 缺少 explanation");
-        }
-        if (question.audioStartMs() == null
-                || question.audioEndMs() == null
-                || question.audioStartMs() >= question.audioEndMs()) {
-            throw new IllegalStateException(position + " 的 audioStartMs 必须小于 audioEndMs");
         }
     }
 

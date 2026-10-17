@@ -9,7 +9,8 @@ backend/
 ├── pom.xml                                 # 项目依赖定义 (Spring Boot 3.5.5, Java 17)
 ├── maven-settings.xml                      # Maven 构建镜像配置
 ├── data/                                   # 本地数据存储目录
-│   ├── timeline.json                       # 编排文件（轮次、动作时间轴与题目内容）
+│   ├── timeline.json                       # 编排文件（轮次、动作时间轴与题目引用）
+│   ├── questions.json                      # 题库文件（题干、选项、答案与解析）
 │   ├── <audioFile>                         # 完整音频文件（轮次为其内部区段）
 │   ├── leaderboards.json                   # 历史榜单快照 (JSON)
 │   └── leaderboard_summary.txt             # 格式化全场大总结 (TXT)
@@ -33,7 +34,7 @@ backend/
     │   ├── ActionType.java                 # LOAD / NEXT / LOCK / REVEAL / FINISH
     │   ├── Difficulty.java                 # EASY / MEDIUM / HARD
     │   ├── QuestionType.java               # WORK / ATMOSPHERE
-    │   ├── Question.java                   # 编排内联题目内容实体
+    │   ├── Question.java                   # 题库题目内容实体
     │   ├── TimelineItem.java               # 单条动作条目（时间、动作、可选题目）
     │   ├── Round.java                      # 轮次实体（音频区间与条目列表）
     │   ├── Timeline.java                   # 编排文件根对象
@@ -56,7 +57,7 @@ backend/
 - **主持人专用快照**：`getHostState` 返回完整的 `EventState`、在线玩家名册（`playerId` / `nickname` / `answered`）、轮次清单与选中轮次，题目中的作品名不做脱敏，供控制台现场作答进度监控墙与音频协同看板使用；参与者接口的快照保持脱敏。
 
 ### 2.2 `TimelineStore`（编排加载与校验）
-- 启动时自动读取 `backend/data/timeline.json`，解析轮次、动作条目与内联题目内容。
+- 启动时自动读取 `backend/data/timeline.json` 与同目录的 `questions.json`，按 `questionId` 解析题目引用并校验数据。
 - 校验规则：轮次区间合法且互不重叠、条目时间在轮次区间内且严格递增、`NEXT` 触发时要求存在尚未被消费的 `LOAD`、`LOAD` 与 `NEXT` 数量匹配、每轮存在 `atMs` 不晚于 `endMs` 的 `FINISH`、题目选项数量与正确答案下标合法、题目编号唯一。
 - 编排文件读取或校验失败时抛出启动异常并输出具体条目位置，避免带病运行。
 

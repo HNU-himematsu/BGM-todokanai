@@ -1,0 +1,32 @@
+[
+  {
+    "id": "t-01",
+    "prompt": "联调第一题题干",
+    "type": "ATMOSPHERE",
+    "difficulty": "EASY",
+    "options": [
+      "选项甲",
+      "选项乙",
+      "选项丙",
+      "选项丁"
+    ],
+    "correctOption": 1,
+    "workName": "联调作品甲",
+    "explanation": "联调第一题解析"
+  },
+  {
+    "id": "t-02",
+    "prompt": "联调第二题题干",
+    "type": "ATMOSPHERE",
+    "difficulty": "EASY",
+    "options": [
+      "选项甲",
+      "选项乙",
+      "选项丙",
+      "选项丁"
+    ],
+    "correctOption": 0,
+    "workName": "联调作品乙",
+    "explanation": "联调第二题解析"
+  }
+]

@@ -12,23 +12,9 @@
         {
           "atMs": 0,
           "action": "LOAD",
-          "question": {
-            "id": "q-01",
-            "prompt": "这段旋律更适合哪一种场景？",
-            "type": "ATMOSPHERE",
-            "difficulty": "EASY",
-            "options": [
-              "放学后的海边散步",
-              "最终决战前夜",
-              "密室推理现场",
-              "热闹的祭典舞台"
-            ],
-            "correctOption": 0,
-            "workName": "示例作品 A",
-            "explanation": "明亮、舒缓的和声更接近日常与海边散步的氛围。",
-            "audioStartMs": 0,
-            "audioEndMs": 6000
-          }
+          "questionId": "q-01",
+          "audioStartMs": 0,
+          "audioEndMs": 6000
         },
         {
           "atMs": 1000,
@@ -45,23 +31,9 @@
         {
           "atMs": 10000,
           "action": "LOAD",
-          "question": {
-            "id": "q-02",
-            "prompt": "这段 BGM 的整体气质更接近？",
-            "type": "ATMOSPHERE",
-            "difficulty": "EASY",
-            "options": [
-              "轻松日常",
-              "紧张追逐",
-              "悲伤离别",
-              "诡异探索"
-            ],
-            "correctOption": 0,
-            "workName": "示例作品 B",
-            "explanation": "轻快的节奏与简单的旋律动机常用于轻松日常场景。",
-            "audioStartMs": 10000,
-            "audioEndMs": 16000
-          }
+          "questionId": "q-02",
+          "audioStartMs": 10000,
+          "audioEndMs": 16000
         },
         {
           "atMs": 11000,
@@ -78,23 +50,9 @@
         {
           "atMs": 20000,
           "action": "LOAD",
-          "question": {
-            "id": "q-03",
-            "prompt": "如果画面里出现樱花和社团教室，这段音乐最可能是什么？",
-            "type": "ATMOSPHERE",
-            "difficulty": "EASY",
-            "options": [
-              "校园日常",
-              "战斗音乐",
-              "悬疑调查",
-              "危机倒计时"
-            ],
-            "correctOption": 0,
-            "workName": "示例作品 C",
-            "explanation": "校园题材常用清新的钢琴、木管或轻柔弦乐铺陈日常感。",
-            "audioStartMs": 20000,
-            "audioEndMs": 26000
-          }
+          "questionId": "q-03",
+          "audioStartMs": 20000,
+          "audioEndMs": 26000
         },
         {
           "atMs": 21000,
@@ -111,23 +69,9 @@
         {
           "atMs": 30000,
           "action": "LOAD",
-          "question": {
-            "id": "q-04",
-            "prompt": "以下哪部作品与这段 BGM 的风格最接近？",
-            "type": "WORK",
-            "difficulty": "MEDIUM",
-            "options": [
-              "夏色心跳",
-              "星屑列车",
-              "月影档案",
-              "雨后的信"
-            ],
-            "correctOption": 1,
-            "workName": "星屑列车",
-            "explanation": "这是一道示例作品题，后续可替换为真实题库与作品信息。",
-            "audioStartMs": 30000,
-            "audioEndMs": 36000
-          }
+          "questionId": "q-04",
+          "audioStartMs": 30000,
+          "audioEndMs": 36000
         },
         {
           "atMs": 31000,
@@ -144,23 +88,9 @@
         {
           "atMs": 40000,
           "action": "LOAD",
-          "question": {
-            "id": "q-05",
-            "prompt": "这段音乐最可能出现在 galgame 的哪类情节？",
-            "type": "ATMOSPHERE",
-            "difficulty": "MEDIUM",
-            "options": [
-              "角色初次相遇",
-              "日常喜剧插曲",
-              "真相揭晓",
-              "片尾回忆"
-            ],
-            "correctOption": 2,
-            "workName": "月影档案",
-            "explanation": "持续上行的和声与悬念感，适合真相揭晓前后的情节。",
-            "audioStartMs": 40000,
-            "audioEndMs": 46000
-          }
+          "questionId": "q-05",
+          "audioStartMs": 40000,
+          "audioEndMs": 46000
         },
         {
           "atMs": 41000,
@@ -177,23 +107,9 @@
         {
           "atMs": 50000,
           "action": "LOAD",
-          "question": {
-            "id": "q-06",
-            "prompt": "如果要从作品名中选出正确答案，你会选？",
-            "type": "WORK",
-            "difficulty": "HARD",
-            "options": [
-              "白昼与纸飞机",
-              "届不到的夏天",
-              "玻璃色的季节",
-              "冬日回廊"
-            ],
-            "correctOption": 1,
-            "workName": "届不到的夏天",
-            "explanation": "困难题示例，正式活动中替换为来源明确的原声片段。",
-            "audioStartMs": 50000,
-            "audioEndMs": 56000
-          }
+          "questionId": "q-06",
+          "audioStartMs": 50000,
+          "audioEndMs": 56000
         },
         {
           "atMs": 51000,
@@ -222,23 +138,9 @@
         {
           "atMs": 60000,
           "action": "LOAD",
-          "question": {
-            "id": "q-01",
-            "prompt": "这段旋律更适合哪一种场景？",
-            "type": "ATMOSPHERE",
-            "difficulty": "EASY",
-            "options": [
-              "放学后的海边散步",
-              "最终决战前夜",
-              "密室推理现场",
-              "热闹的祭典舞台"
-            ],
-            "correctOption": 0,
-            "workName": "示例作品 A",
-            "explanation": "明亮、舒缓的和声更接近日常与海边散步的氛围。",
-            "audioStartMs": 60000,
-            "audioEndMs": 66000
-          }
+          "questionId": "q-01",
+          "audioStartMs": 60000,
+          "audioEndMs": 66000
         },
         {
           "atMs": 61000,
@@ -255,23 +157,9 @@
         {
           "atMs": 70000,
           "action": "LOAD",
-          "question": {
-            "id": "q-02",
-            "prompt": "这段 BGM 的整体气质更接近？",
-            "type": "ATMOSPHERE",
-            "difficulty": "EASY",
-            "options": [
-              "轻松日常",
-              "紧张追逐",
-              "悲伤离别",
-              "诡异探索"
-            ],
-            "correctOption": 0,
-            "workName": "示例作品 B",
-            "explanation": "轻快的节奏与简单的旋律动机常用于轻松日常场景。",
-            "audioStartMs": 70000,
-            "audioEndMs": 76000
-          }
+          "questionId": "q-02",
+          "audioStartMs": 70000,
+          "audioEndMs": 76000
         },
         {
           "atMs": 71000,
@@ -288,23 +176,9 @@
         {
           "atMs": 80000,
           "action": "LOAD",
-          "question": {
-            "id": "q-03",
-            "prompt": "如果画面里出现樱花和社团教室，这段音乐最可能是什么？",
-            "type": "ATMOSPHERE",
-            "difficulty": "EASY",
-            "options": [
-              "校园日常",
-              "战斗音乐",
-              "悬疑调查",
-              "危机倒计时"
-            ],
-            "correctOption": 0,
-            "workName": "示例作品 C",
-            "explanation": "校园题材常用清新的钢琴、木管或轻柔弦乐铺陈日常感。",
-            "audioStartMs": 80000,
-            "audioEndMs": 86000
-          }
+          "questionId": "q-03",
+          "audioStartMs": 80000,
+          "audioEndMs": 86000
         },
         {
           "atMs": 81000,
@@ -321,23 +195,9 @@
         {
           "atMs": 90000,
           "action": "LOAD",
-          "question": {
-            "id": "q-04",
-            "prompt": "以下哪部作品与这段 BGM 的风格最接近？",
-            "type": "WORK",
-            "difficulty": "MEDIUM",
-            "options": [
-              "夏色心跳",
-              "星屑列车",
-              "月影档案",
-              "雨后的信"
-            ],
-            "correctOption": 1,
-            "workName": "星屑列车",
-            "explanation": "这是一道示例作品题，后续可替换为真实题库与作品信息。",
-            "audioStartMs": 90000,
-            "audioEndMs": 96000
-          }
+          "questionId": "q-04",
+          "audioStartMs": 90000,
+          "audioEndMs": 96000
         },
         {
           "atMs": 91000,
@@ -354,23 +214,9 @@
         {
           "atMs": 100000,
           "action": "LOAD",
-          "question": {
-            "id": "q-05",
-            "prompt": "这段音乐最可能出现在 galgame 的哪类情节？",
-            "type": "ATMOSPHERE",
-            "difficulty": "MEDIUM",
-            "options": [
-              "角色初次相遇",
-              "日常喜剧插曲",
-              "真相揭晓",
-              "片尾回忆"
-            ],
-            "correctOption": 2,
-            "workName": "月影档案",
-            "explanation": "持续上行的和声与悬念感，适合真相揭晓前后的情节。",
-            "audioStartMs": 100000,
-            "audioEndMs": 106000
-          }
+          "questionId": "q-05",
+          "audioStartMs": 100000,
+          "audioEndMs": 106000
         },
         {
           "atMs": 101000,
@@ -387,23 +233,9 @@
         {
           "atMs": 110000,
           "action": "LOAD",
-          "question": {
-            "id": "q-06",
-            "prompt": "如果要从作品名中选出正确答案，你会选？",
-            "type": "WORK",
-            "difficulty": "HARD",
-            "options": [
-              "白昼与纸飞机",
-              "届不到的夏天",
-              "玻璃色的季节",
-              "冬日回廊"
-            ],
-            "correctOption": 1,
-            "workName": "届不到的夏天",
-            "explanation": "困难题示例，正式活动中替换为来源明确的原声片段。",
-            "audioStartMs": 110000,
-            "audioEndMs": 116000
-          }
+          "questionId": "q-06",
+          "audioStartMs": 110000,
+          "audioEndMs": 116000
         },
         {
           "atMs": 111000,

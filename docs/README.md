@@ -22,7 +22,7 @@
 - [`views-and-ui.md`](frontend/views-and-ui.md)：页面视图与交互规范，包含主色系与阅读舒适度视觉规范、移动端答题界面与主持人控制台交互逻辑。
 
 ### 5. 数据与配置篇 (`data-and-config/`)
-- [`timeline-spec.md`](data-and-config/timeline-spec.md)：编排文件规范与制作指南，说明 `timeline.json` 的轮次结构、动作语义与题目内容格式。
+- [`timeline-spec.md`](data-and-config/timeline-spec.md)：编排文件规范与制作指南，说明 `timeline.json` 的轮次与动作标记，以及 `questions.json` 的题目内容格式。
 - [`leaderboard-and-storage.md`](data-and-config/leaderboard-and-storage.md)：排行榜存储格式与解析说明，包含 JSON 快照格式、去重奖品榜逻辑与 Python 离线脚本。
 
 ### 6. 运维保障篇 (`ops-and-deployment/`)

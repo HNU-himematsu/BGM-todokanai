@@ -47,7 +47,8 @@
                                 │
 ┌───────────────────────────────▼────────────────────────┐
 │                     持久化层 (本地文件系统)             │
-│  - data/timeline.json: 轮次、动作时间轴与题目内容      │
+│  - data/timeline.json: 轮次、动作时间轴与题目引用      │
+│  - data/questions.json: 题干、选项、答案与解析          │
 │  - data/<audioFile>: 单文件完整音频（轮次为其中区段）  │
 │  - data/leaderboards.json: 历史轮次结算快照           │
 │  - data/leaderboard_summary.txt: 全场总榜与去重奖品榜  │
@@ -57,6 +58,6 @@
 ## 4. 关键组件与职责说明
 
 1. **`ActivityService`**：系统核心调度引擎，维护活动内存实例 `Activity`，管理玩家连接、待上屏内容、题目进度、时间轴任务、轮次切换及同分竞速排序。
-2. **`TimelineStore`**：加载并解析本地 `timeline.json` 文件，校验轮次区间与动作序列的合法性，向调度引擎提供轮次清单与条目数据。
+2. **`TimelineStore`**：加载并解析本地 `timeline.json` 与 `questions.json`，关联题目编号，校验轮次区间、动作序列与题库数据，向调度引擎提供轮次清单与条目数据。
 3. **`LeaderboardStore`**：负责活动结算数据的持久化。提供同步写入机制，保障 `leaderboards.json` 数据一致性，并自动刷新生成包含中英文字符等宽对齐的 `leaderboard_summary.txt`。
 4. **`HostAuthService`**：管理主持人控制权限，校验 `X-Host-Token` 请求头，确保管理指令的安全受控。

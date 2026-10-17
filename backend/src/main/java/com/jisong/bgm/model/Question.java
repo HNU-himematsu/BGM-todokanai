@@ -4,6 +4,7 @@ import java.util.List;
 
 public record Question(
         String id,
+        String audioCode,
         String prompt,
         QuestionType type,
         Difficulty difficulty,
