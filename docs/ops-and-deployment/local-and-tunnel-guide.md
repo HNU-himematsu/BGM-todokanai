@@ -1,88 +1,329 @@
 # 本地启动与现场内网穿透指南
 
-## 1. 本地开发与现场环境启动
+## 1. 运行环境
 
-### 1.1 服务端 (Spring Boot)
-- **运行环境要求**：JDK 17 或以上版本、Maven 3.8+。
-- **构建与运行**：
-  ```powershell
-  cd backend
-  mvn clean compile
-  mvn spring-boot:run
-  ```
-- **验证健康状态**：浏览器或终端访问 `http://localhost:8080/api/health`，收到 `{"code":200,"message":"success","data":"bgm-guess-backend is running"}` 即表示启动成功。
+| 组件 | 要求 |
+| :--- | :--- |
+| JDK | 17 或以上 |
+| Maven | 3.8 或以上 |
+| Node.js | 18 或以上 |
+| npm | 9 或以上 |
+| 浏览器 | Chrome / Edge 111+、Safari 16.2+、Firefox 113+ |
+| 网络 | 手机可访问的公网 HTTPS 地址，或现场局域网地址 |
 
-### 1.2 客户端 (Vue 3 / Vite)
-- **运行环境要求**：Node.js 18+、npm 9+。
-- **依赖安装与构建**：
-  ```powershell
-  cd frontend
-  npm install
-  # 启动本地开发热更新服务器 (端口 5173)
-  npm run dev
-  # 构建静态生产产物至 frontend/dist
-  npm run build
-  ```
+## 2. 素材准备
 
-### 1.3 数据与音频准备
-1. 将编排文件放置为 `backend/data/timeline.json`，将完整音频文件放置到编排文件同目录（默认 `backend/data/`）。
-2. 音频文件名需与编排文件 `audioFile` 字段一致。
-3. 启动时 `TimelineStore` 自动加载并校验编排文件，校验失败会在日志中输出具体条目位置。
-4. 音频由后端接口 `GET /api/events/{eventId}/audio` 输出，主持人控制台直接引用；通过 Nginx 部署时音频随 `/api/` 代理转发，无需额外静态配置。
+### 2.1 文件位置
 
----
-
-## 2. 现场内网穿透方案 (Cloudflare Quick Tunnel)
-
-展位现场笔记本电脑通常处于校园 Wi-Fi 或手机热点局域网中，无公网 IP。使用 Cloudflare Quick Tunnel 即可在免域名、免证书配置下建立 HTTPS 公网访问隧道：
-
-### 2.1 穿透命令
-确保已下载 `cloudflared.exe`，在终端执行：
-```powershell
-cloudflared.exe tunnel --url http://localhost:8080
+```text
+backend/data/
+├── questions.json
+├── timeline.json
+├── event-demo.mp3
+├── leaderboards.json
+├── online_leaderboard.json
+└── leaderboard_summary.txt
 ```
 
-### 2.2 运行机制与注意事项
-1. **自动分配公网 HTTPS 域名**：终端会输出类似 `https://xxxx-xxxx-xxxx.trycloudflare.com` 的临时访问链接。
-2. **进程保活**：Quick Tunnel 伴随命令行进程存活。百团大战活动期间必须保持该命令行窗口最小化，避免意外关闭。
-3. **防止主机休眠**：笔记本电脑需插接电源适配器，并在 Windows 系统设置中将“屏幕与睡眠”调整为“接通电源时从不休眠”。
-4. **二维码展示方式**：由于临时隧道每次重启会随机生成新域名，现场采用主持人电脑屏幕展示动态二维码，供参与者扫码。
+`questions.json`、`timeline.json` 与音频文件由运营方提供。榜单文件可由服务在首次写入时创建。
 
----
+### 2.2 题库
 
-## 3. 独立服务器部署方案 (Nginx 反向代理)
+- 全部题目使用唯一 `id`。
+- 每题包含四个选项与 0 至 3 的正确选项下标。
+- `workName` 与 `explanation` 完整，供线下揭晓使用。
+- `type` 为 `WORK` 或 `ATMOSPHERE`。
+- `difficulty` 为 `EASY`、`MEDIUM` 或 `HARD`。
 
-若在公网云服务器上部署，推荐配置 Nginx 反向代理并启用静态托管与 WebSocket 升级转发：
+### 2.3 编排
+
+- `eventId` 与访问地址中的活动标识一致。
+- 全部题库题目至少被一个 `LOAD` 引用。
+- 每题包含 `LOAD`、`NEXT`、`LOCK` 与 `REVEAL`。
+- 每轮包含 `FINISH`。
+- 相邻题目音频片段首尾相接。
+- 第一段从音频 0 毫秒开始，最后一段到音频总时长结束。
+- 线上题目满足 `audioStartMs <= answerStartMs < answerEndMs <= audioEndMs`。
+
+### 2.4 音频
+
+- 文件名与 `timeline.json` 的 `audioFile` 一致。
+- 编码可被手机与主持人浏览器解码。
+- 音频接口支持 HTTP Range。
+- 线上与线下使用同一份完整音频。
+- 题目片段之间没有空白。
+
+## 3. 本地开发启动
+
+### 3.1 后端
+
+```powershell
+cd backend
+mvn clean compile
+mvn spring-boot:run
+```
+
+健康检查：
+
+```powershell
+Invoke-RestMethod http://localhost:8080/api/health
+```
+
+预期：
+
+```text
+bgm-guess-backend is running
+```
+
+### 3.2 前端
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+开发地址：
+
+```text
+http://localhost:5173/
+```
+
+Vite 把 `/api` 与 `/ws` 代理到 `http://localhost:8080`。
+
+### 3.3 本地入口
+
+| 场景 | 地址 |
+| :--- | :--- |
+| 线上 | `http://localhost:5173/` |
+| 显式线上 | `http://localhost:5173/?mode=online&event=demo` |
+| 线下 | `http://localhost:5173/?mode=offline&event=demo` |
+| 主持人 | `http://localhost:5173/host` |
+
+手机与电脑位于同一局域网时，可把 `localhost` 替换为电脑局域网地址。跨设备访问前确认系统防火墙允许 Vite 端口。
+
+## 4. 生产构建
+
+### 4.1 前端构建
+
+```powershell
+cd frontend
+npm install
+npm run build
+```
+
+构建产物位于 `frontend/dist`。
+
+### 4.2 后端运行
+
+```powershell
+cd backend
+mvn clean package
+java -jar target/bgm-guess-backend-0.0.1-SNAPSHOT.jar
+```
+
+后端默认监听 `8080`。
+
+### 4.3 单域名要求
+
+线上进度、`participantId` 与主持人令牌按浏览器 origin 隔离。现场入口应满足：
+
+- 前端页面、`/api` 与 `/ws` 使用同一协议、域名与端口。
+- HTTPS 页面连接 `wss://`。
+- 活动期间不更换公网域名。
+- 不把前端与 API 分配到不同 origin 后再依赖跨域共享 `localStorage`。
+
+## 5. Nginx 部署
 
 ```nginx
 server {
     listen 80;
-    server_name bgm.your-domain.com;
+    server_name bgm.example.test;
 
-    # 前端构建产物根路径
     root /var/www/bgm-guess/frontend/dist;
     index index.html;
 
-    # SPA 路由重定向
     location / {
         try_files $uri $uri/ /index.html;
     }
 
-    # REST API 与音频流代理至后端 8080
     location /api/ {
         proxy_pass http://127.0.0.1:8080;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 120s;
     }
 
-    # WebSocket 握手与长连接代理
     location /ws {
         proxy_pass http://127.0.0.1:8080;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_set_header Host $host;
+        proxy_read_timeout 3600s;
     }
 }
 ```
+
+检查项：
+
+- `/` 返回前端 SPA。
+- `/api/health` 返回后端健康信息。
+- `/api/events/demo/audio` 支持 Range。
+- `/ws` 返回 WebSocket 升级响应。
+- 刷新 `/host` 不出现 404。
+
+## 6. Cloudflare Quick Tunnel
+
+当现场电脑没有公网 IP 时，使用内网穿透提供 HTTPS 入口。
+
+### 6.1 穿透目标
+
+生产演示时，Quick Tunnel 指向同时提供前端、API 与 WebSocket 的 Nginx origin：
+
+```powershell
+cloudflared.exe tunnel --url http://localhost:80
+```
+
+只穿透后端 `8080` 的隧道无法加载前端页面，不能作为现场参与者入口。
+
+开发联调时可指向 Vite：
+
+```powershell
+cloudflared.exe tunnel --url http://localhost:5173
+```
+
+Vite 必须保留 `/api` 与 `/ws` 代理配置。
+
+### 6.2 公网地址
+
+终端输出类似：
+
+```text
+https://xxxx-xxxx-xxxx.trycloudflare.com
+```
+
+该地址作为 `publicBaseUrl`。参与者入口：
+
+```text
+{publicBaseUrl}/
+```
+
+线下二维码：
+
+```text
+{publicBaseUrl}/?mode=offline&event=demo
+```
+
+主持人入口：
+
+```text
+{publicBaseUrl}/host
+```
+
+### 6.3 稳定性
+
+- Quick Tunnel 进程与终端窗口保持运行。
+- 笔记本接通电源，并关闭接通电源时的自动休眠。
+- 现场准备备用网络，例如手机热点。
+- 重新启动隧道会生成新域名；新域名会形成新的浏览器存储空间。
+- 活动开始前固定域名并完成扫码、音频与锁定测试。
+
+## 7. 现场配置
+
+### 7.1 后端参数
+
+`backend/src/main/resources/application.yml`：
+
+| 配置 | 作用 |
+| :--- | :--- |
+| `server.port` | 后端端口，默认 `8080`。 |
+| `app.frontend-origin` | 允许访问 API 的前端 origin。 |
+| `app.host-password` | 主持人登录密码。 |
+| `app.timeline-file` | 编排文件路径。 |
+| `app.leaderboard-file` | 线下快照文件路径。 |
+| `app.online-leaderboard-file` | 线上锁定记录文件路径。 |
+| `app.leaderboard-txt-file` | 文本总结路径。 |
+
+`app.online-leaderboard-file` 缺省为 `data/online_leaderboard.json`，与 `app.leaderboard-file` 使用同一数据目录。
+
+### 7.2 前端参数
+
+`VITE_API_BASE` 缺省为 `/api`。同域部署保持缺省值，使前端、API、音频与 WebSocket 共用一个 origin。
+
+### 7.3 主持人密码
+
+活动前修改默认密码，设置足够长度，并通过受控渠道交给主持人。主持人令牌只保存在当前标签页 `sessionStorage`。
+
+## 8. 上线前流程
+
+1. 启动后端。
+2. 构建并启动前端静态服务。
+3. 启动隧道或确认公网域名。
+4. 验证 `/api/health`。
+5. 验证根地址进入线上登记页。
+6. 验证线下二维码进入线下登记页。
+7. 验证主持人登录与轮次列表。
+8. 使用手机完整播放线上音频并完成一次预览。
+9. 使用测试参与者锁定一次成绩。
+10. 验证线上榜、总榜与文本总结更新。
+11. 清理测试锁定记录与测试线下快照，保留正式活动初始状态。
+12. 备份空榜单文件与素材。
+
+## 9. 活动期间操作
+
+### 9.1 线上
+
+- 参与者访问根地址并输入昵称。
+- 点击开始后连续播放全部题目音频。
+- 全部题目结束后出现预览分。
+- 参与者选择重试或锁定。
+- 锁定后显示线上榜与总榜名次。
+
+线上不需要主持人启动轮次。
+
+### 9.2 线下
+
+- 主持人登录 `/host`。
+- 选择轮次并点击「开始播放」。
+- 参与者扫描二维码加入。
+- 服务端按时间轴推进，主持人按需暂停、恢复或手动兜底。
+- `FINISH` 生成本轮榜。
+- 主持人切换下一轮并重新开始。
+
+### 9.3 榜单核对
+
+- 本轮榜只显示线下成绩。
+- 线上榜只显示线上锁定成绩。
+- 总榜合并线下各轮最佳成绩与线上成绩。
+- 文本总结包含三个板块。
+
+## 10. 备份
+
+活动前备份：
+
+- `questions.json`
+- `timeline.json`
+- 完整音频
+- 空的 `leaderboards.json`
+- 空的 `online_leaderboard.json`
+
+每轮结束或线上锁定高峰后备份：
+
+- `leaderboards.json`
+- `online_leaderboard.json`
+- `leaderboard_summary.txt`
+
+备份文件保存在独立目录，不以相同文件名覆盖正式存储路径。
+
+## 11. 部署验收
+
+- 根地址进入线上模式。
+- 线下二维码包含 `mode=offline`。
+- 同一 origin 提供页面、API、音频与 WebSocket。
+- 手机可加载音频并自动出题。
+- 页面隐藏后可恢复进度。
+- 线上成绩锁定后线上榜与总榜更新。
+- 主持人可查看三类榜单与文本总结。
+- 重启服务后已写入的榜单记录仍可读取。

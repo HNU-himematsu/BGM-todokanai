@@ -1,145 +1,763 @@
 # 前端架构设计
 
-## 1. 工程目录结构
+## 1. 文档定位
 
-前端基于 Vue 3 + Vite 构建，源码目录规划如下：
+前端采用 Vue 3、Vite、Pinia、Vue Router 与 Ant Design Vue，承载线上独立答题、线下现场答题与主持人控制台三类界面。本文档定义路由、状态、浏览器存储、音频时钟、网络层、页面拆分与实现约束；页面布局与交互细则见 [`views-and-ui.md`](views-and-ui.md)。
+
+前端遵循以下原则：
+
+- 网页根地址进入线上模式，线下模式由二维码查询参数进入。
+- 线上题目的推进时钟来自音频播放位置，题目顺序由服务端题集固定。
+- 线上答题进度只保存在浏览器本地；服务端保存锁定成绩，不保存进行中的 attempt。
+- 线下状态以服务端快照为准；实时广播只作为刷新触发信号。
+- 线上界面不提供跳题、回看、暂停、答案揭晓或逐题对错。
+- 线上与线下共用 `participantId`，总榜按该标识合并成绩。
+
+## 2. 工程目录
+
+目标目录结构：
 
 ```text
 frontend/
-├── package.json                            # 依赖与脚本定义
-├── vite.config.js                          # Vite 构建与代理配置
-├── .env.example                            # 环境变量模板
-├── src/
-│   ├── main.js                             # 前端入口，注册 Pinia、路由与 Ant Design
-│   ├── App.vue                             # 顶层布局容器
-│   ├── theme.js                            # 品牌主色唯一定义点 (ACCENT 常量)
-│   ├── styles.css                          # 全局样式与移动端适配变量
-│   ├── router/
-│   │   └── index.js                        # 路由定义 (/ -> JoinView, /play -> PlayView, /host -> HostView)
-│   ├── services/
-│   │   ├── api.js                          # Axios HTTP 请求封装
-│   │   └── socket.js                       # STOMP WebSocket 客户端生命周期封装
-│   ├── stores/
-│   │   └── activity.js                     # Pinia 状态树 (玩家凭据、活动状态、排行榜)
-│   └── views/
-│       ├── JoinView.vue                    # 扫码登记、昵称输入与答题规则弹窗
-│       ├── PlayView.vue                    # 移动端实时答题与个人结算页面
-│       └── HostView.vue                    # 主持人控制台（音频播放、轮次切换、状态调度）
+├── index.html
+├── package.json
+├── vite.config.js
+└── src/
+    ├── main.js
+    ├── App.vue
+    ├── theme.js
+    ├── styles.css
+    ├── router/
+    │   └── index.js
+    ├── services/
+    │   ├── api.js
+    │   ├── socket.js
+    │   ├── storage.js
+    │   └── audioClock.js
+    ├── stores/
+    │   ├── activity.js
+    │   ├── online.js
+    │   └── host.js
+    ├── components/
+    │   ├── OfflinePlayPanel.vue
+    │   ├── OnlinePlayPanel.vue
+    │   ├── OnlineProgress.vue
+    │   ├── OnlineResultPanel.vue
+    │   └── LeaderboardPanel.vue
+    └── views/
+        ├── JoinView.vue
+        ├── PlayView.vue
+        └── HostView.vue
 ```
 
-## 2. 状态管理设计 (`stores/activity.js`)
+文件职责：
 
-前端利用 Pinia 集中管理响应式状态：
-- **`userState`**：缓存当前参与者的 `playerId`、`nickname` 以及关联的 `eventId`；凭据保存在本地 `sessionStorage` 防止刷新丢失，昵称同时保存在本地存储中用于回填，轮次切换或活动重置回到登记页时无需重复输入。
-- **`activityState`**：维护 `GET /api/events/{eventId}/state` 返回的参与者快照（`status`、`question`、`canAnswer`、`hasAnswered`、`selectedOption`、`questionAudioStartEpochMs`、`questionAudioEndEpochMs`、`timelineRunning`、`answeredCount` 等）；活动状态以服务端快照为准。
-- **`leaderboard`**：存储当前轮次或全场排行榜数据。
+| 文件 | 职责 |
+| :--- | :--- |
+| `router/index.js` | 注册 `/`、`/play`、`/host`，执行模式与凭据守卫。 |
+| `services/api.js` | 封装 REST 请求、错误归一化、主持人令牌与音频地址。 |
+| `services/socket.js` | STOMP 连接、订阅、断线重连与事件分发。 |
+| `services/storage.js` | 读写模式、身份、线上进度与主持人令牌，处理 JSON 损坏与存储不可用。 |
+| `services/audioClock.js` | 管理音频元素、播放位置、暂停恢复、当前题推导与进度快照。 |
+| `stores/activity.js` | 保存模式、活动信息、参与者身份、线下快照与线下榜单。 |
+| `stores/online.js` | 保存线上题集、attempt、答案、预览结果、锁定结果与页面阶段。 |
+| `stores/host.js` | 保存主持人令牌、轮次、主持人快照与榜单页签。 |
+| `components/OfflinePlayPanel.vue` | 线下等待、逐题作答、锁卷、揭晓与结算。 |
+| `components/OnlinePlayPanel.vue` | 线上开始、自动答题、进度控件、结果页与锁定。 |
 
-## 3. 网络与实时通讯层封装
+## 3. 启动与模式解析
 
-### 3.1 REST API 封装 (`services/api.js`)
-- 使用 Axios 实例统一配置 `baseURL`（优先读取环境变量 `VITE_API_BASE`，缺省指向 `/api`）。
-- 设定 8000ms 超时限制，针对控制台请求自动挂载 `X-Host-Token` 头信息。
-- 音频流接口 `GET /api/events/{eventId}/audio` 的地址供控制台音频元素直接引用。
-- 参与者与主持人端点、请求体及响应字段遵循 [`api-spec.md`](../backend/api-spec.md)；提交答案与主持人指令成功后以响应或重新获取的状态快照更新界面。
+### 3.1 地址参数
 
-### 3.2 WebSocket 封装 (`services/socket.js`)
-- 使用 `@stomp/stompjs` 库中的 `Client` 对象。
-- 支持根据当前页面协议自动推导 WebSocket 地址（`https:` 对应 `wss:`，`http:` 对应 `ws:`）。
-- 设置 `reconnectDelay: 3000`，在现场弱网导致长连接断开后，每 3 秒发起一次静默重连，保障消息通道自动恢复。
-- 订阅 `/topic/events/{eventId}`，广播消息提供事件类型与活动标识；收到状态相关广播或完成重连后，请求对应的参与者或主持人快照，避免仅凭广播类型拼接题目与榜单数据。
+参与者入口使用查询参数：
 
-## 4. 路由定义 (`router/index.js`)
+| 参数 | 允许值 | 缺省值 | 说明 |
+| :--- | :--- | :--- | :--- |
+| `mode` | `online` / `offline`，大小写不敏感 | `online` | 页面模式。 |
+| `event` | 活动标识 | `demo` | 活动标识。 |
 
-- `/`：默认路由，指向 `JoinView.vue`，引导参与者登记昵称并通过弹窗展示答题规则；轮次切换或活动重置后返回本页时表单自动回填已保存的昵称。页面仅面向参与者，不提供主持人端入口。
-- `/play`：答题核心路由，指向 `PlayView.vue`，仅在存在有效登记凭据时准入，否则回退至 `/`；就绪等待阶段专注呈现联机状态与发题等待指示。
-- `/host`：管理路由，指向 `HostView.vue`，仅能通过直接输入网址进入，前端各页面均不设置指向该路由的跳转链接；进入控制面板前需完成管理员密码核验。
+地址示例：
 
-## 5. 控制台音频播放
+```text
+https://example.test/
+https://example.test/?mode=online&event=demo
+https://example.test/?mode=offline&event=demo
+```
 
-- `HostView.vue` 内置音频播放元素，音源指向 `GET /api/events/{eventId}/audio`。
-- 主持人点击开始播放时，播放器定位到当前轮次的 `startMs` 位置开始播放，同时调用 `POST /api/events/{eventId}/host/start` 建立时间轴零点；请求失败时停止本地播放并显示错误。
-- 收到 `ACTIVITY_PAUSED` / `ACTIVITY_RESUMED` / `ROUND_ENDED` / `ACTIVITY_RESET` 广播时，播放器分别执行暂停、恢复、停在结束标记与停止并回到轮次起点。
-- 轮次切换读取 `startMs` / `endMs` 并重新定位播放器；服务端时间轴负责题目上屏、锁卷、揭晓与结算，播放器只负责当前轮次的现场放音。
+归一规则：
 
-## 6. 页面数据与接口映射
+1. 读取 `mode`、`event` 查询参数。
+2. `mode` 转小写；缺省为 `online`。
+3. `mode` 为 `online` 或 `offline` 时采用该值。
+4. 其他值归一为 `online`，页面显示“模式参数无效，已进入线上模式”。
+5. `event` 去空白；空值与缺省值均为 `demo`。
+6. 归一后的模式写入 `sessionStorage` 的 `bgm.mode`。
+7. `JoinView.vue` 根据模式渲染不同登记页；`/play` 只读取已保存的模式与会话凭据。
 
-### 6.1 参与者页面
+### 3.2 路由守卫
 
-| 页面动作或状态 | 接口与数据 | 界面响应 |
+| 路由 | 准入条件 | 不满足时 |
 | :--- | :--- | :--- |
-| 登记昵称并确认规则 | `POST /api/events/{eventId}/join`，请求体为 `nickname` | 保存 `playerId` 与昵称后进入 `/play`；`FINISHED` 状态拒绝加入时显示服务端错误。 |
-| 进入答题页、刷新或广播到达 | `GET /api/events/{eventId}/state?playerId={playerId}` | 以 `status`、`question`、`canAnswer`、`hasAnswered` 与 `selectedOption` 恢复题目和提交状态。 |
-| 提交单选答案 | `POST /api/events/{eventId}/answers`，提交 `playerId`、`questionId` 与 `optionIndex` | 仅在 `ANSWERING` 且 `canAnswer` 为 `true` 时开放确认提交；服务端响应决定最终锁定状态。 |
-| 结算排名 | 状态快照中的个人成绩及 `GET /api/events/{eventId}/leaderboard` | 仅在 `FINISHED` 展示个人得分、耗时、名次与本轮榜单。 |
+| `/` | 无条件 | 正常显示登记页。 |
+| `/play` | `sessionStorage` 存在有效模式；线上存在 `participantId` 与昵称；线下存在 `playerId` 与昵称 | 回到 `/?mode={当前模式}&event={eventId}`。 |
+| `/host` | 主持人密码核验成功并持有会话令牌 | 显示登录表单，不跳转参与者页面。 |
 
-`WAITING` 隐藏题目；`ANSWERING` 展示脱敏题目与音频剩余时间条；`ANSWER_LOCKED` 禁止提交且隐藏答案；`ANSWER_REVEALED` 展示答案与解析，并保持到下一次 `QUESTION_STARTED`；`FINISHED` 展示结算。时间条使用 `questionAudioStartEpochMs` / `questionAudioEndEpochMs`，暂停时依据 `timelineRunning` 冻结显示；音频段终点不控制提交截止，提交截止由 `ANSWER_LOCKED` 与 `canAnswer` 决定。`ACTIVITY_RESET` 表示玩家凭据失效，答题页返回登记页并保留昵称供回填；`ROUND_ENDED` 仅表示时间轴与音频暂停。
+`/play` 刷新时从 `sessionStorage` 读取模式。模式缺失时回到 `/`。主持人路由不读取参与者模式。
 
-### 6.2 主持人页面
+### 3.3 模式切换
 
-| 控制区与操作 | 接口与数据 | 可用条件及界面响应 |
+- 线下登记页提供「进入线上模式」按钮，跳转到 `/?mode=online&event={eventId}`。
+- 线上登记页提供现场二维码说明，不把线上答题直接切换为线下房间。
+- 切换模式不删除 `participantId`、昵称与线上进度。
+- 线下 `playerId` 只属于线下会话；切回线上时保留但不使用。
+- 同一浏览器再次通过线下二维码加入时，生成新的 `playerId`，沿用现有 `participantId`。
+
+## 4. 浏览器存储
+
+### 4.1 存储键
+
+| 键 | 存储区 | 内容 |
 | :--- | :--- | :--- |
-| 登录 | `POST /api/host/login` | 保存 Token；主持人接口附带 `X-Host-Token`。 |
-| 轮次选择 | `GET /api/events/{eventId}/host/rounds`、`POST /api/events/{eventId}/host/round` | 选择操作清空在线玩家并回到 `WAITING`；运行中且未暂停时禁用切换。 |
-| 控制台快照 | `GET /api/events/{eventId}/host/state` | 从 `state`、`players`、`rounds`、`currentRoundId` 与 `timelineRunning` 构建状态栏、播放器、题目预览与作答进度。 |
-| 开始、暂停、恢复 | `POST /api/events/{eventId}/host/start`、`pause`、`resume` | 按服务端状态守卫启用按钮；音频播放状态与时间轴广播同步。 |
-| 手动推进 | `POST /api/events/{eventId}/host/lock`、`reveal`、`next` | 按 `status` 控制按钮可用性；`next` 所需的待上屏题目由服务端验证。成功后重新获取主持人快照。 |
-| 重置 | `POST /api/events/{eventId}/host/reset` | 清空在线玩家并回到 `WAITING`；播放器停止并回到轮次起点。 |
-| 榜单与导出 | `GET /api/events/{eventId}/leaderboard`、`GET /api/events/{eventId}/leaderboard/summary-txt` | `FINISHED` 展示本轮榜单，文本接口用于总榜查看和下载。 |
+| `bgm.participant-id.v1` | `localStorage` | 跨线上与线下共用的参与者标识。 |
+| `bgm.nickname.v1` | `localStorage` | 昵称回填值。 |
+| `bgm.online.progress.v1` | `localStorage` | 线上 attempt 进度。 |
+| `bgm.mode` | `sessionStorage` | 当前标签页模式：`ONLINE` 或 `OFFLINE`。 |
+| `bgm.player-id` | `sessionStorage` | 线下玩家会话标识。 |
+| `bgm.nickname.session` | `sessionStorage` | 当前标签页昵称。 |
+| `bgm.host-token` | `sessionStorage` | 主持人令牌。 |
 
-控制台在 `ACTIVITY_STARTED`、`QUESTION_STARTED`、`ANSWER_LOCKED`、`ANSWER_REVEALED`、`ACTIVITY_FINISHED`、`ROUND_ENDED`、`ACTIVITY_PAUSED`、`ACTIVITY_RESUMED`、`ACTIVITY_RESET`、`PLAYER_JOINED` 与 `PLAYER_ANSWERED` 广播后刷新主持人快照。参与者端在影响个人界面的状态广播后刷新参与者快照；断线重连后两端均主动刷新。轮次结束标记与 `FINISH` 的作用分别是暂停播放和结算归档，界面不把两者合并为同一状态。
+读取时兼容历史昵称键 `bgm-nickname` 与线下历史玩家键 `bgm-player-id`。写入统一使用上表键名。
 
-## 7. 视觉主题与设计令牌规范 (`theme.js` / `App.vue` / `styles.css`)
+### 4.2 `participantId` 生成
 
-前端视觉层建立在以亮兰紫 `rgb(188, 74, 216)`（十六进制 `#BC4AD8`）为主色的色彩体系之上。主色在 `src/theme.js` 中单点定义，组件库主题与全局 CSS 的全部主色阶元均由该常量驱动，调整色调只需修改这一处定义。
+页面首次进入时读取 `bgm.participant-id.v1`。值缺失时：
 
-### 7.1 主色唯一定义点 (`theme.js`)
+1. 优先调用 `crypto.randomUUID()`。
+2. 不可用时使用 `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`。
+3. 写入 `localStorage`，并在加入接口请求体中提交。
 
-`src/theme.js` 导出品牌主色常量，构成主色系的唯一手写色值：
-- `ACCENT`: `rgb(188, 74, 216)`（十六进制 `#BC4AD8`，品牌主色）
+`participantId` 是合并键，不用于授权。页面不把昵称、`playerId` 或 `attemptId` 作为身份合并键。
 
-### 7.2 组件库主题令牌 (`App.vue`)
+### 4.3 线上进度结构
 
-顶层使用 Ant Design Vue 的 `<a-config-provider>` 注入全局主题令牌：
-- `colorPrimary`: 取自 `theme.js` 的 `ACCENT`（全局品牌主色，组件库据此自动派生悬停、激活、禁用等全部状态色）
-- `colorInfo`: 取自 `ACCENT`（信息提示色）
-- `colorLink`: 取自 `ACCENT`（超链接文本色）
-- `borderRadius`: `2`（微圆角矩形）
-- `fontFamily`: `Inter, "PingFang SC", "Microsoft YaHei", sans-serif`
+```json
+{
+  "version": 1,
+  "eventId": "demo",
+  "participantId": "18f1e6a2-6af8-4fc2-bc87-13d603e4868f",
+  "attemptId": "3e8d7c56-32b1-4f80-9d1f-5e6a4a9b2c77",
+  "questionSetVersion": "b3f1f5f4b4d07b8f0d9f0d5c2a3e5c1f0e9c8a7b6d5e4f3a2b1c0d9e8f7a6b5c",
+  "status": "IN_PROGRESS",
+  "currentIndex": 3,
+  "answers": {
+    "q-01": 2,
+    "q-02": 0
+  },
+  "audioPositionMs": 42000,
+  "activeDurationMs": 39150,
+  "questionRemainingMs": 3200,
+  "startedAt": "2026-10-20T10:00:00.000Z",
+  "updatedAt": "2026-10-20T10:02:12.000Z",
+  "previewScore": null,
+  "previewAnsweredCount": null
+}
+```
 
-`main.js` 在应用挂载前将 `ACCENT` 写入文档根元素的 `--accent` 变量，原生 CSS 层与组件库由此共用同一主色来源。
+| 字段 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `version` | Integer | 本地结构版本，当前为 `1`。 |
+| `eventId` | String | 活动标识。 |
+| `participantId` | String | 参与者合并键。 |
+| `attemptId` | String | 本次尝试标识。 |
+| `questionSetVersion` | String | 题集版本。 |
+| `status` | String | `IN_PROGRESS` 或 `RESULT_READY`。 |
+| `currentIndex` | Integer | 当前题下标；首题开始前为 `-1`。 |
+| `answers` | Object | `questionId` 到 `optionIndex` 的映射。 |
+| `audioPositionMs` | Long | 音频元素当前播放位置。 |
+| `activeDurationMs` | Long | 音频实际播放时长累计值，不含隐藏与暂停时间。 |
+| `questionRemainingMs` | Long | 当前题距 `answerEndMs` 的剩余时长。 |
+| `startedAt` | String | 本次 attempt 首次开始时间。 |
+| `updatedAt` | String | 最近一次写入时间。 |
+| `previewScore` | Integer / null | 预览总分。 |
+| `previewAnsweredCount` | Integer / null | 预览已答数。 |
 
-### 7.3 全局设计令牌 (`styles.css`)
+写入时机：
 
-全局样式表根作用域 `:root` 声明设计令牌。主色阶元由 `--accent` 经 `color-mix()` 函数按固定配方派生，主色变更时全部阶元自动联动（括号内为 `--accent` 取值 `rgb(188, 74, 216)` / `#BC4AD8` 时的渲染结果）：
-- `--accent`: 主色本体。运行时由 `theme.js` 注入覆盖，样式表中保留同值缺省声明作为回退
-- `--accent-dark`: `color-mix(in srgb, var(--accent), #000 25%)`（→ `#8D38A2`，主色深阶：交互悬停、激活态与重要高亮文字）
-- `--accent-mid`: `color-mix(in oklch, var(--accent), #fff 36%)`（→ `#D691E9`，主色中间阶：排行榜第二名徽章底色）
-- `--accent-line`: `color-mix(in oklch, var(--accent), #fff 70%)`（→ `#EDCCF6`，主色浅阶：排行榜第三名徽章底色与轻量强调边框）
-- `--accent-light`: `color-mix(in oklch, var(--accent), #fff 94%)`（→ `#FCF5FD`，主色柔和底衬：选项选中态浅淡底色）
-- 输入框聚焦光晕由 `color-mix(in srgb, var(--accent) 20%, transparent)` 派生，随主色联动
+- 用户点击「开始答题」或「继续答题」。
+- 当前题下标变化。
+- 选项变化。
+- 每 500 毫秒保存一次播放位置与有效时长。
+- 页面隐藏、刷新、关闭前。
+- 预览请求返回后。
 
-中性色与语义状态色保持独立取值，不随主色派生：
-- `--ink`: `#171717`（核心文字颜色，对比度 16.1:1，防眩光）
-- `--muted`: `#595959`（辅助文字颜色，对比度 7.0:1，达到 WCAG AAA 级标准）
-- `--line`: `#E9E9E9`（结构分割线与轻度边界）
-- `--soft`: `#F7F7F8`（轻量容器与面板底衬）
-- `--green`: `#168267`（成功与正确反馈色，浅底为 `#F1FBF8`）
-- `--danger`: `#C94A42`（错误与警示反馈色，浅底为 `#FFF3F2`）
+清理时机：
 
-### 7.4 色调调整方法与约束
+- 锁定成功。
+- 用户确认重试。
+- `questionSetVersion` 不一致。
+- JSON 解析失败、字段类型错误或 `version` 不支持。
 
-调整全站色调的步骤：
-1. 修改 `src/theme.js` 中 `ACCENT` 的色值。
-2. 组件库主题、CSS 主色阶元与输入框聚焦光晕随主色自动重算，其余文件无需改动。
-3. `styles.css` 中 `--accent` 的缺省回退值与 `theme.js` 保持同值（仅影响脚本注入前的瞬时状态）。
+### 4.4 存储恢复
 
-选色约束：
-- 主色同时承担实体按钮底色与白字承载，主色与白色文字的对比度需保持可读性（`#BC4AD8` 与白色文字对比度为 4.11:1；主色深阶 `#8D38A2` 与白色对比度为 6.52:1，满足 WCAG AA 级标准）。
-- 各阶元按固定配方派生，更换主色后保持同一色相；派生结果需微调时，调整对应 `color-mix()` 的混色比例。
-- `color-mix()` 函数需要 Chrome/Edge 111+、Safari 16.2+、Firefox 113+ 及以上版本浏览器支持。
+读取 `bgm.online.progress.v1` 后依次校验：
 
-### 7.5 舒适阅读与工程实现标准
+1. JSON 可解析且为对象。
+2. `version === 1`。
+3. `eventId`、`participantId`、`attemptId` 非空。
+4. `questionSetVersion` 等于服务端返回值。
+5. `status` 为 `IN_PROGRESS` 或 `RESULT_READY`。
+6. `currentIndex` 位于 `-1` 至 `totalQuestions - 1`。
+7. `answers` 的键属于题集，值为 0 至 3。
+8. `audioPositionMs` 位于 `0` 至 `audioEndMs`。
 
-- 全局排版保证正文行高在 1.6 至 1.75 之间，段间距保持充足留白。
-- 卡片组件（`.ant-card`）配置微羽化低透明度阴影 `0 18px 45px rgba(0, 0, 0, 0.045)`，弱化生硬边框视觉刺激，保障长时间参与答题与场控调度过程中的眼部舒适度。
-- 主操作按钮 `.ant-btn-primary` 的视觉由 `styles.css` 显式覆盖：底色与边界取 `--accent`，悬停与按压态取 `--accent-dark`，禁用态文字取纯白 `#FFFFFF`，禁用态保留 `--accent` 实体底填充。白字与 `#BC4AD8` 底的对比度为 4.11:1；组件库缺省的半透明黑禁用文字色叠加在同一底色上对比度仅 1.59:1。
+任一校验失败时删除本地进度并回到开始答题状态。题集版本不一致时额外提示“题目已更新，请重新开始”。
+
+`localStorage` 不可用、配额耗尽或被隐私策略阻止时，页面允许开始答题，并显示“当前浏览器无法保存进度，刷新后需重新开始”。
+
+线上进度没有应用层过期时间；其生命周期与当前 origin 的站点数据一致，直到用户清理站点数据、浏览器删除存储或服务端题集版本变化。
+
+### 4.5 存储安全
+
+- 本地进度不保存正确选项、解析、作品名或服务端判定结果。
+- 本地进度可被用户修改；锁定请求由服务端重新判分。
+- 清除站点数据会删除 `participantId`，线上锁定状态随新身份失去关联。
+- 更换访问域名会形成独立存储空间；现场二维码域名应保持稳定。
+
+## 5. Pinia 状态设计
+
+### 5.1 `activity` store
+
+| 字段 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `eventId` | String | 当前活动标识。 |
+| `eventName` | String | 活动名称。 |
+| `mode` | String | `ONLINE` 或 `OFFLINE`。 |
+| `participantId` | String | 参与者合并键。 |
+| `nickname` | String | 当前昵称。 |
+| `playerId` | String | 线下玩家会话标识。 |
+| `state` | Object / null | 线下 `EventState` 快照。 |
+| `leaderboard` | Array | 线下本轮榜。 |
+| `leaderboardHistory` | Array | 线下历史快照。 |
+| `loading` | Boolean | 请求进行中。 |
+| `error` | String | 可展示错误。 |
+
+主要动作：
+
+| 动作 | 行为 |
+| :--- | :--- |
+| `initializeFromLocation()` | 解析查询参数、模式、活动标识与昵称。 |
+| `setMode(mode)` | 写入 store 与 `sessionStorage`。 |
+| `joinOnline()` | 调用加入接口，保存 `participantId`、昵称与锁定状态。 |
+| `joinOffline()` | 调用加入接口，保存 `playerId`、`participantId` 与昵称。 |
+| `refreshState()` | 读取线下快照；无 `playerId` 时读取房间公开快照。 |
+| `refreshLeaderboards()` | 读取本轮榜与历史快照。 |
+| `clearOfflinePlayer()` | 清空线下玩家凭据与线下页面状态，保留 `participantId` 与昵称。 |
+
+### 5.2 `online` store
+
+| 字段 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `phase` | String | `IDLE`、`IN_PROGRESS`、`RESULT_READY`、`LOCKED` 或 `ERROR`。 |
+| `questionSet` | Object / null | 线上题集响应。 |
+| `attemptId` | String | 当前 attempt 标识。 |
+| `answers` | Object | `questionId` 到选项下标。 |
+| `currentIndex` | Integer | 当前题下标。 |
+| `audioPositionMs` | Long | 当前音频位置。 |
+| `activeDurationMs` | Long | 有效作答耗时。 |
+| `questionRemainingMs` | Long | 当前题剩余作答时长。 |
+| `preview` | Object / null | 预览分响应。 |
+| `lockResult` | Object / null | 锁定响应。 |
+| `status` | Object / null | 服务端锁定状态。 |
+| `visiblePause` | Boolean | 页面隐藏导致的暂停。 |
+| `errorMessage` | String | 可展示错误。 |
+
+计算属性：
+
+| 名称 | 说明 |
+| :--- | :--- |
+| `questions` | `questionSet.questions`，空时返回空数组。 |
+| `currentQuestion` | `questions[currentIndex]`。 |
+| `displayQuestionNumber` | `currentIndex + 1`，仅在 `currentIndex >= 0` 时有意义。 |
+| `answeredCount` | `answers` 中有效题目的数量。 |
+| `unansweredCount` | 总题数减已答数。 |
+| `progressPercent` | `(currentIndex + 1) / totalQuestions × 100`。 |
+| `canLock` | `phase === 'RESULT_READY'` 且锁定请求未进行中。 |
+
+主要动作：
+
+| 动作 | 行为 |
+| :--- | :--- |
+| `loadQuestionSet()` | 读取题集与服务端锁定状态，校验本地进度。 |
+| `beginAttempt()` | 创建 `attemptId`，清空答案，写入初始进度。 |
+| `resumeAttempt()` | 验证本地进度后恢复答案与音频位置。 |
+| `selectOption(index)` | 仅当前题可答时写入答案并保存。 |
+| `advanceToIndex(index)` | 更新当前题、剩余时间与进度。 |
+| `persistProgress()` | 写入完整本地进度。 |
+| `previewScore()` | 结果页调用预览接口。 |
+| `retryAttempt()` | 清空进度，创建新 `attemptId`，回到首题。 |
+| `lockScore()` | 调用锁定接口，保存名次，清理进度。 |
+| `recoverLockedState()` | 服务端返回已锁定时恢复锁定结果并禁止重试。 |
+
+### 5.3 `host` store
+
+| 字段 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `token` | String | 主持人令牌。 |
+| `authenticated` | Boolean | 令牌是否可用。 |
+| `rounds` | Array | 轮次清单。 |
+| `currentRoundId` | String | 当前轮次。 |
+| `snapshot` | Object / null | 主持人快照。 |
+| `onlineLeaderboard` | Array | 线上积分榜。 |
+| `totalLeaderboard` | Array | 总榜。 |
+| `activeLeaderboardTab` | String | `round`、`online` 或 `total`。 |
+| `audioStatus` | String | `IDLE`、`PLAYING`、`PAUSED` 或 `ENDED`。 |
+
+主持人动作成功后以响应或重新获取的主持人快照更新页面。动作失败时展示服务端错误，不修改本地状态。
+
+## 6. 网络层
+
+### 6.1 REST 封装
+
+`services/api.js` 使用 Axios 实例：
+
+- `baseURL` 取 `VITE_API_BASE`，缺省为 `/api`。
+- 超时 8000 毫秒。
+- 参与者请求不携带主持人令牌。
+- 主持人请求自动附加 `X-Host-Token`。
+- 响应统一解包 `data.data`。
+- 错误统一提取 `response.data.message`；网络错误使用页面定义的提示。
+
+目标函数：
+
+| 函数 | 接口 |
+| :--- | :--- |
+| `getEvent(eventId)` | 获取活动摘要。 |
+| `joinEvent(eventId, payload)` | 线上或线下加入。 |
+| `getOnlineQuestions(eventId)` | 获取线上题集。 |
+| `getOnlineStatus(eventId, participantId)` | 查询线上锁定状态。 |
+| `previewOnlineScore(eventId, payload)` | 计算预览分。 |
+| `lockOnlineScore(eventId, payload)` | 锁定线上成绩。 |
+| `getOnlineLeaderboard(eventId)` | 读取线上榜。 |
+| `getTotalLeaderboard(eventId)` | 读取总榜。 |
+| `getEventState(eventId, playerId)` | 读取线下参与者快照。 |
+| `submitAnswer(eventId, payload)` | 提交线下答案。 |
+| `getLeaderboard(eventId)` | 读取线下本轮榜。 |
+| `getLeaderboardHistory(eventId)` | 读取线下历史快照。 |
+| `getAudioUrl(eventId)` | 生成完整音频地址。 |
+| `hostLogin(password)` | 主持人登录。 |
+| `hostLogout(token)` | 主持人注销。 |
+| `getHostRounds(eventId, token)` | 读取轮次清单。 |
+| `selectHostRound(eventId, roundId, token)` | 选择轮次。 |
+| `getHostState(eventId, token)` | 读取主持人快照。 |
+| `hostAction(eventId, action, token)` | 执行主持人动作。 |
+
+### 6.2 STOMP 封装
+
+`services/socket.js` 使用 `@stomp/stompjs`：
+
+- Broker URL 根据页面协议生成 `ws://` 或 `wss://`。
+- 端点路径为 `/ws`。
+- 订阅 `/topic/events/{eventId}`。
+- `reconnectDelay` 为 3000 毫秒。
+- 收到广播时把 `type` 与 `eventId` 推送给订阅者。
+- 断线重连成功后触发一次状态重同步。
+- 页面卸载时断开连接。
+
+订阅者按页面角色处理事件：
+
+- 线下参与者刷新 `GET /state`。
+- 主持人刷新 `GET /host/state`； `ONLINE_SCORE_LOCKED` 时同时刷新线上榜与总榜。
+- 线上参与者不依赖广播推进题目；音频位置是推进时钟。
+
+### 6.3 请求竞态
+
+- 每次刷新保存递增请求序号，只有最新响应可以写入 store。
+- 锁定请求进行中禁用重复点击，防止同一页面并发提交。
+- 服务端锁定接口仍以 `attemptId` 保证幂等。
+- 主持人动作连续点击时，按钮在请求期间禁用，响应返回后按新快照恢复。
+
+## 7. 线上音频时钟
+
+### 7.1 时钟来源
+
+线上模式以 `HTMLAudioElement.currentTime` 作为唯一答题时钟：
+
+- 音频元素由 `OnlinePlayPanel.vue` 持有，播放源取题集响应的 `audioUrl`。
+- 音频元素设置 `preload="auto"`、`playsInline`，不显示原生控制条。
+- 时间轴位置换算为 `audioPositionMs = Math.round(audio.currentTime * 1000)`。
+- 播放起点为第一题的 `audioStartMs`，播放终点为最后一题的 `audioEndMs`。
+- 不使用服务端墙上时刻推进线上题目，不使用固定 `setTimeout` 序列替代音频位置。
+
+### 7.2 开始与恢复
+
+开始条件：
+
+- 题集加载完成。
+- 用户已加入并持有昵称与 `participantId`。
+- 服务端状态为 `NOT_LOCKED`。
+- 本地进度不存在、已失效或已被用户确认重试。
+
+恢复条件：
+
+- 本地进度通过版本与字段校验。
+- 用户点击「继续答题」。
+- 音频元数据已加载，目标播放位置可设置。
+
+开始或恢复动作：
+
+1. 等待音频元数据加载并确认目标播放位置可设置。
+2. 新 attempt 的目标位置取第一题 `audioStartMs`；恢复 attempt 的目标位置取 `savedPositionMs`。
+3. 设置 `audio.currentTime = targetPositionMs / 1000`。
+4. 在用户点击事件中调用 `audio.play()`，满足浏览器自动播放策略。
+5. 等待播放 Promise 成功后记录有效播放起点。
+6. 进入 `IN_PROGRESS`。
+7. 立即执行一次题目位置推导与进度保存。
+
+页面加载后不自动播放音频；恢复进度也需要用户再次点击。
+
+### 7.3 当前题推导
+
+设 `t = audioPositionMs`，题目集合按 `index` 升序排列：
+
+```text
+t < questions[0].answerStartMs
+  → 尚未进入第一题作答窗口
+
+questions[i].answerStartMs <= t < questions[i].answerEndMs
+  → 当前题为 questions[i]，选项可修改
+
+questions[i].answerEndMs <= t < questions[i + 1].answerStartMs
+  → 第 i 题已锁定，等待下一题
+
+questions[last].answerEndMs <= t < questions[last].audioEndMs
+  → 全部题目已锁定，音频播放尾段
+
+t >= questions[last].audioEndMs
+  → 音频结束，停止播放并进入结果流程
+```
+
+边界规则：
+
+- `answerStartMs` 到达时立即上屏对应题目。
+- `answerEndMs` 到达时立即禁用选项并写入本题锁定状态。
+- 当前题只允许向前推进；音频位置计算出的下标小于当前下标时，保持当前下标并记录异常，不执行回退。
+- 音频位置跨越多个窗口时，按题集顺序补齐所有已结束题目，未选择答案的题目保持未答。
+- 相邻题目的 `audioEndMs` 与下一题 `audioStartMs` 相等时，题集顺序决定展示顺序。
+
+### 7.4 答题交互
+
+- 当前题开放期间，选项可点击并写入 `answers[questionId]`。
+- 当前题开放期间允许在同一题的四个选项之间修改。
+- 当前题关闭后，该题选项不可访问，不提供回看入口。
+- 进度圆点显示已答题、当前题与未到达题，全部圆点不可点击。
+- 页面不提供上一题、下一题、跳题、暂停、拖动进度、倍速和音量控制。
+- 结果流程在最后一题 `audioEndMs` 到达后启动；全部题目作答窗口可以早于该位置结束。
+- 提前耗尽音频数据时进入 `ERROR`，不伪造题目结束。
+
+### 7.5 有效耗时
+
+`activeDurationMs` 只累计音频实际播放的时间：
+
+- `audio.play()` 成功后开始计时。
+- `pause`、页面隐藏、音频错误和答题结束停止计时。
+- 恢复播放后继续累计，不清零。
+- `durationMs` 请求字段取 `activeDurationMs` 的整数毫秒值。
+- 用户拖动系统媒体控件导致的其他播放状态变化按音频 `play` / `pause` 事件计入。
+
+计时用于同分排序。服务端信任该数值，不提供防篡改保证。
+
+### 7.6 页面隐藏与关闭
+
+监听以下事件：
+
+- `visibilitychange`
+- `pagehide`
+- `beforeunload`
+
+页面进入隐藏状态时：
+
+1. 暂停音频。
+2. 记录暂停原因 `visiblePause = true`。
+3. 读取当前题、答案、音频位置、有效耗时与剩余作答时间。
+4. 同步写入 `bgm.online.progress.v1`。
+
+页面重新可见时：
+
+- 保持暂停状态，不自动继续播放。
+- 显示「继续答题」遮罩。
+- 用户点击后从保存位置恢复。
+
+页面刷新或关闭时允许丢失最后一次 500 毫秒内的播放位置更新；答题结束、选项变化与页面隐藏事件均立即保存。
+
+### 7.7 错误处理
+
+| 场景 | 页面状态 | 处理 |
+| :--- | :--- | :--- |
+| 音频元数据加载失败 | `ERROR` | 显示「重新加载音频」与「重试本次答题」。 |
+| `audio.play()` 被策略拒绝 | `IDLE` | 保留开始按钮，等待用户点击。 |
+| 播放中断且无法恢复 | `ERROR` | 保存进度，禁止锁定，提供重新加载。 |
+| 网络断开但音频已缓存 | `IN_PROGRESS` | 继续本地播放；锁定与预览需要网络。 |
+| 预览请求失败 | `RESULT_READY` | 显示分数加载失败与「重新获取分数」。 |
+| 锁定请求失败 | `RESULT_READY` | 保留答案与预览结果，允许重新锁定。 |
+| 锁定返回 `409` 已有记录 | `LOCKED` | 读取服务端锁定状态并显示已有名次。 |
+| 题集版本不一致 | `IDLE` | 清理进度并提示题目更新。 |
+
+## 8. 线上答题组件
+
+### 8.1 `PlayView.vue`
+
+`PlayView.vue` 是模式分发容器：
+
+- 从 `activity` store 读取 `mode`。
+- `ONLINE` 渲染 `OnlinePlayPanel.vue`。
+- `OFFLINE` 渲染 `OfflinePlayPanel.vue`。
+- 模式缺失或凭据不完整时由路由守卫回到登记页。
+
+### 8.2 `OnlinePlayPanel.vue`
+
+页面阶段与组件：
+
+| 阶段 | 展示内容 | 主操作 |
+| :--- | :--- | :--- |
+| `IDLE` 无进度 | 规则摘要、题量、音频总长度、开始说明 | 「开始答题」 |
+| `IDLE` 有进度 | 恢复题号、已答数、上次保存时间 | 「继续答题」 |
+| `IDLE` 有预览结果 | 预览分、已答数、重试与锁定 | 「重试」「锁定分数」 |
+| `IN_PROGRESS` | 只读进度、当前题、选项、剩余时间 | 无跳题操作 |
+| `RESULT_READY` | 总分、已答数、重试与锁定 | 「重试」「锁定分数」 |
+| `LOCKED` | 总分、线上名次、总榜名次、锁定时间 | 无重试 |
+| `ERROR` | 错误说明与保存状态 | 「重新加载音频」或「返回登记页」 |
+
+锁定交互：
+
+1. 点击「锁定分数」打开确认层，说明锁定后不可重试。
+2. 确认后调用锁定接口并禁用按钮。
+3. 成功时清理本地进度并进入 `LOCKED`。
+4. 失败时保留结果页与答案，显示错误并恢复按钮。
+
+### 8.3 `OnlineProgress.vue`
+
+只读进度控件包含：
+
+- 「第 x / N 题」。
+- 线性进度条。
+- 已答与未答数量。
+- 题目序号圆点状态：已答、当前、未到达。
+- 不渲染按钮、链接或可聚焦的跳题元素。
+
+### 8.4 `OnlineResultPanel.vue`
+
+结果页只展示聚合答案信息：
+
+- 总分。
+- 已答题目数 / 总题目数。
+- 有效耗时。
+- 「重试」和「锁定分数」。
+- 锁定后的线上榜名次、总榜名次与锁定时间。
+
+结果页不得渲染正确选项、作品名、解析、逐题对错或答案分布。
+
+### 8.5 离开页面
+
+- 线上答题中离开 `/play` 前保存当前进度。
+- 页面不弹出阻塞式离开确认；返回同一浏览器可继续。
+- 已锁定时离开不会生成新的 attempt。
+- 清理站点数据等同于放弃恢复能力。
+
+## 9. 线下答题组件
+
+### 9.1 `OfflinePlayPanel.vue`
+
+线下面板按 `EventState.status` 渲染：
+
+| 状态 | 界面 |
+| :--- | :--- |
+| `WAITING` | 等待主持人开始，显示活动名称与当前轮次提示。 |
+| `ANSWERING` | 显示当前题、四个选项、本题剩余音频时间与提交状态。 |
+| `ANSWER_LOCKED` | 选项只读，提示等待揭晓，不显示正确答案。 |
+| `ANSWER_REVEALED` | 显示正确选项、解析与作品名。 |
+| `FINISHED` | 显示本轮得分、耗时、名次与本轮榜。 |
+
+线下提交：
+
+1. 点击选项后立即调用提交接口。
+2. 响应快照更新 `hasAnswered` 与 `selectedOption`。
+3. 同一题提交成功后选项禁用。
+4. 服务端拒绝时刷新快照并以服务端状态为准。
+
+### 9.2 线下刷新
+
+- 页面进入 `/play` 时读取一次 `GET /state`。
+- 收到线下相关广播后刷新快照。
+- 断线重连后刷新快照。
+- 轮次切换或重置广播触发后清空线下会话并回到登记页。
+- `ROUND_ENDED` 只停止时间轴，不直接清空页面；`FINISHED` 保留结算内容。
+
+## 10. 主持人控制台
+
+### 10.1 登录与令牌
+
+- 登录页提交密码后调用 `POST /api/host/login`。
+- 令牌写入 `sessionStorage` 的 `bgm.host-token`。
+- 所有主持人请求携带 `X-Host-Token`。
+- `401` 时清除令牌并回到登录页。
+
+### 10.2 二维码
+
+二维码内容：
+
+```text
+{publicBaseUrl}/?mode=offline&event={eventId}
+```
+
+`publicBaseUrl` 取当前页面协议的 origin，或在配置中显式指定。二维码不含主持人令牌、玩家标识或本地进度。
+
+### 10.3 音频播放
+
+- 主持人音频元素指向 `GET /api/events/{eventId}/audio`。
+- 「开始播放」由点击事件触发，定位到当前轮次 `startMs` 并调用启动接口。
+- 启动接口失败时立即暂停本地音频并展示错误。
+- `ACTIVITY_PAUSED`、`ACTIVITY_RESUMED`、`ROUND_ENDED`、`ACTIVITY_RESET` 分别驱动暂停、恢复、停在结束位置与回到轮次起点。
+- 轮次运行期间禁用轮次切换。
+- 断线重连后读取主持人快照，按 `timelineRunning`、`status` 与当前轮次校准音频。
+
+### 10.4 榜单视图
+
+榜单区提供三个页签：
+
+| 页签 | 数据来源 | 刷新条件 |
+| :--- | :--- | :--- |
+| 本轮榜 | `GET /leaderboard` | 线下结算、手动刷新、`ACTIVITY_FINISHED`。 |
+| 线上榜 | `GET /leaderboards/online` | 页面进入、`ONLINE_SCORE_LOCKED`、手动刷新。 |
+| 总榜 | `GET /leaderboards/total` | 页面进入、`ONLINE_SCORE_LOCKED`、线下结算、手动刷新。 |
+
+线上锁定广播只触发重新读取，不把广播内容直接拼入榜单。
+
+### 10.5 文本总结
+
+主持人可打开或下载 `GET /api/events/{eventId}/leaderboard/summary-txt`。文本总结按线下轮次榜、线上榜、总榜顺序输出。
+
+## 11. 视觉主题与设计令牌
+
+### 11.1 主色唯一定义点
+
+`src/theme.js` 导出品牌主色：
+
+```text
+ACCENT = rgb(188, 74, 216) / #BC4AD8
+```
+
+组件库主题与全局 CSS 的主色阶元由该常量驱动。调整主色只修改 `theme.js`，其余色阶自动派生。
+
+### 11.2 组件库令牌
+
+`App.vue` 通过 `<a-config-provider>` 注入：
+
+| 令牌 | 值 |
+| :--- | :--- |
+| `colorPrimary` | `ACCENT` |
+| `colorInfo` | `ACCENT` |
+| `colorLink` | `ACCENT` |
+| `borderRadius` | `2` |
+| `fontFamily` | `Inter, "PingFang SC", "Microsoft YaHei", sans-serif` |
+
+`main.js` 在挂载前把 `ACCENT` 写入根元素 `--accent` 变量。
+
+### 11.3 全局色阶
+
+`styles.css` 的根令牌：
+
+| 令牌 | 取值或派生规则 | 典型用途 |
+| :--- | :--- | :--- |
+| `--accent` | 主色本体 | 主按钮、选中边框、进度填充。 |
+| `--accent-dark` | 主色与黑色 25% 混合 | 悬停、按压、重点文字。 |
+| `--accent-mid` | 主色与白色 36% 混合 | 第二名徽章。 |
+| `--accent-line` | 主色与白色 70% 混合 | 第三名徽章、轻边框。 |
+| `--accent-light` | 主色与白色 94% 混合 | 选中项浅底。 |
+| `--ink` | `#171717` | 核心标题与正文。 |
+| `--muted` | `#595959` | 辅助说明。 |
+| `--line` | `#E9E9E9` | 分割线与边界。 |
+| `--soft` | `#F7F7F8` | 轻量容器底衬。 |
+| `--green` | `#168267` | 成功、正确答案。 |
+| `--danger` | `#C94A42` | 错误与警示。 |
+
+主按钮使用主色实体底与纯白文字；悬停与按压使用 `--accent-dark`。禁用态保留实体底与纯白文字，避免低对比度。
+
+### 11.4 阅读舒适度
+
+- 正文字号不小于 14px，行高保持 1.6 至 1.75。
+- 手机端可点击控件触控高度不小于 44px。
+- 题目选项之间的间距保持独立可点区域。
+- 页面主体使用白色与浅灰白，卡片使用轻度阴影，不使用大面积高饱和底色。
+- 颜色不是唯一状态信号；已答、当前题与锁定状态同时提供文字或形状差异。
+
+## 12. 响应式与兼容性
+
+### 12.1 手机端
+
+- 参与者页面以 320px 至 430px 视口为主要设计宽度。
+- 题目、选项、进度和结果卡片纵向排列。
+- 主持人页面在手机端单列堆叠，在宽屏端多列分区。
+- 固定操作区不覆盖选项；键盘弹出时不遮挡当前题。
+- 横屏下选项区域保持可滚动，不裁切题干与倒计时。
+
+### 12.2 浏览器能力
+
+依赖能力：
+
+- ES Modules、Fetch/XHR、WebSocket。
+- `localStorage`、`sessionStorage`、`crypto.randomUUID()`。
+- HTML5 Audio 与 Range 请求。
+- `color-mix()` 需要 Chrome/Edge 111+、Safari 16.2+、Firefox 113+。
+
+不支持 `crypto.randomUUID()` 时使用随机标识回退。存储被禁用时页面提示无法保存进度。
+
+### 12.3 移动端音频
+
+- 音频元素在用户手势中调用 `play()`。
+- `play()` 返回的 Promise 被捕获，拒绝时回到可重试状态。
+- 页面切换为后台时主动暂停并保存。
+- 来电、系统媒体按键或其他应用抢占音频后，依据音频事件恢复页面状态。
+- 音频文件需支持 Range 与移动浏览器可解码的编码格式。
+
+## 13. 性能与资源
+
+- 题集接口一次返回全部题目，线上答题过程只使用本次题集响应。
+- 音频使用浏览器原生流式加载与 Range 缓存；前端不把完整音频转成 Base64。
+- 进度保存节流为 500 毫秒，选项变化与页面隐藏立即写入。
+- 主持人快照与榜单请求在广播密集时合并刷新，避免同一事件循环内重复请求。
+- 组件卸载时移除音频事件、`visibilitychange`、`pagehide` 与 STOMP 订阅。
+
+## 14. 前端验收
+
+### 14.1 模式与路由
+
+- 访问 `/` 显示线上登记页。
+- 访问 `/?mode=offline&event=demo` 显示线下登记页。
+- 无效 `mode` 进入线上模式并显示提示。
+- 线下登记页可进入线上模式。
+- `/play` 刷新后保持当前模式；模式缺失时回到 `/`。
+
+### 14.2 线上答题
+
+- 全部题目按题集顺序自动上屏。
+- 音频连续播放，题目边界由音频位置触发。
+- 选项在 `answerEndMs` 后失效。
+- 页面不存在跳题、回看、暂停与进度拖动控件。
+- 未答题按 0 分提交。
+- 结束页不显示答案、解析、作品名或逐题对错。
+
+### 14.3 本地恢复
+
+- 刷新页面后可继续同一 attempt。
+- 页面隐藏时音频暂停，返回后需要点击继续。
+- 题集版本变化后进度失效并提示重新开始。
+- 锁定成功后进度删除。
+- 重试生成新的 `attemptId`。
+
+### 14.4 榜单与主持人
+
+- 锁定成功显示线上名次与总榜名次。
+- 已锁定参与者重新进入时显示锁定结果。
+- 主持人收到 `ONLINE_SCORE_LOCKED` 后刷新线上榜与总榜。
+- 主持人二维码指向线下模式。
+- 线下轮次切换、揭晓、结算与榜单展示保持服务端状态驱动。

@@ -2,63 +2,123 @@
 
 ## 1. 通讯机制总览
 
-系统采用“**REST 主动交互 + STOMP WebSocket 被动通知**”相结合的双通道设计：
-- **REST 通道**：负责具备明确结果反馈的单向业务操作，如用户登记昵称、提交选项、主持人发起控制指令、音频文件拉取以及全量快照拉取。
-- **STOMP 通道**：负责向所有在线客户端轻量广播状态变更事件。广播消息仅包含事件类型与活动 ID，不携带业务数据；客户端在收到广播后按需拉取针对自身身份脱敏后的状态快照。
+系统采用两种数据通道：
 
-## 2. 参与者全流程数据流
+- **REST 主动交互**：线上题集读取、线上预览/锁定、线下加入、答案提交、主持人控制、音频拉取与榜单查询。
+- **STOMP WebSocket 被动通知**：线下活动状态变更广播；线上锁定后向主持人页面广播榜单更新事件。
+
+广播消息只包含事件类型与活动标识；客户端收到广播后按需拉取对应快照或榜单。
+
+## 2. 线上模式数据流
 
 ```text
-[手机端 PlayView]                     [Spring Boot 服务端]                     [主持人控制台 HostView]
-        │                                      │                                      │
-        ├────── 1. POST /api/events/{id}/join ─>│ 校验昵称，生成 playerId                │
-        │<───── 2. 返回 JoinResponse ──────────┤                                      │
-        │                                      │<──── 3. POST /host/round（选择轮次）───┤
-        │                                      │<──── 4. POST /host/start（启动 T0）────┤ 同时播放音频
-        ├────── 5. CONNECT /ws ────────────────>│                                      │
-        ├────── 6. SUBSCRIBE /topic/events/{id}─>│ 注册主题监听                          │
-        │                                      │                                      │
-        │      （编排 LOAD：静默预加载题目内容）  │                                      │
-        │<───── 7. 收到广播: QUESTION_STARTED ───┤ 编排 NEXT：上屏并开放作答              │
-        ├────── 8. GET /api/events/{id}/state ──>│ 请求当前题目（脱敏）                   │
-        │<───── 9. 返回 EventState ─────────────┤                                      │
-        │                                      │                                      │
-        ├────── 10. POST /api/events/{id}/answers > 提交单选，记录毫秒耗时                 │
-        │<───── 11. 返回最新状态 ────────────────┤                                      │
-        │                                      │                                      │
-        │<───── 12. 收到广播: ANSWER_LOCKED ─────┤ 编排 LOCK：关闭作答通道，不公布答案     │
-        ├────── 13. GET /api/events/{id}/state ─>│ 拉取已锁卷状态                         │
-        │<───── 14. 返回不含答案的 EventState ───┤                                      │
-        │                                      │                                      │
-        │<───── 15. 收到广播: ANSWER_REVEALED ───┤ 编排 REVEAL：公布答案与解析            │
-        ├────── 16. GET /api/events/{id}/state ─>│ 拉取含解析的 EventState                │
-        │<───── 17. 返回揭晓状态 ────────────────┤                                      │
-        │                                      │      （后续题循环 7~17）               │
-        │<───── 18. 收到广播: ACTIVITY_FINISHED ─┤ 编排 FINISH：结算并归档榜单            │
-        ├────── 19. GET /api/events/{id}/leaderboard
-        │<───── 20. 返回最终排行榜清单 ──────────┤                                      │
-        │                                      │                                      │
-        │<───── 21. 收到广播: ROUND_ENDED ───────┤ 到达轮次结束标记：暂停时间轴            │ 暂停音频
+[浏览器 OnlinePlayPanel]                  [Spring Boot 服务端]              [本地浏览器存储]
+        │                                        │                              │
+        ├── POST /api/events/{id}/join ─────────>│ 校验昵称，读取 participantId  │
+        │<── JoinResponse(mode=ONLINE) ──────────┤                              │
+        │                                        │                              │
+        ├── GET /api/events/{id}/online/questions>│ 返回脱敏题集、音频地址、版本  │
+        │<── OnlineQuestionSet ──────────────────┤                              │
+        │                                        │                              │
+        ├── 读取本地进度 ──────────────────────────────────────────────────────>│
+        │<── 进度/题集版本 ─────────────────────────────────────────────────────┤
+        │                                        │                              │
+        ├── 播放音频，按 answerStart/End 自动出题 │                              │
+        ├── 选择答案 ──────────────────────────────────────────────────────────>│
+        │                                        │                              │
+        ├── 全部题目结束 ───────────────────────────────────────────────────────>│
+        │                                        │                              │
+        ├── POST /online/preview ───────────────>│ 校验题目与选项，计算预览分     │
+        │<── score / answeredCount ──────────────┤ 不写榜，不返回答案             │
+        │                                        │                              │
+        ├── 重试 ───────────────────────────────────────────────────────────────>│ 清空进度
+        │                                        │                              │
+        └── POST /online/lock ──────────────────>│ 重新判分，写线上榜             │
+                 │<── score / onlineRank / totalRank ─┤ 刷新文本榜单             │
+                 └── 清空本地进度 ────────────────────────────────────────────────>│
 ```
 
-## 3. 主持人控制数据流
+### 2.1 线上加入
 
-1. 主持人通过 `/api/host/login` 传入密码完成登录，获取临时会话令牌 `token`。
-2. 控制台通过 `GET /api/events/{eventId}/host/state` 获取主持人专用快照，其中包含当前房间状态、在线玩家名册、轮次清单与选中轮次。
-3. 控制台通过 `POST /api/events/{eventId}/host/round` 选择本轮要运行的轮次；选择操作重置房间并清空在线玩家。
-4. 主持人点击开始播放时，控制台将音频元素定位到轮次开始标记并开始播放，同时调用 `POST /api/events/{eventId}/host/start` 记录本轮零点 `T0`。
-5. 时间轴按编排自动推进各动作；主持人可随时通过 `pause` / `resume` 暂停或恢复时间轴（控制台同步暂停或恢复音频），并可通过 `lock` / `reveal` / `next` 实施手动兜底。
-6. 服务端执行状态流转后，通过 `SimpMessagingTemplate` 向 `/topic/events/{eventId}` 发送广播通知。
+- 请求：`POST /api/events/{eventId}/join`，请求体包含 `nickname`、`mode=ONLINE`、`participantId`。
+- 服务端不创建线下 `playerId`。
+- 服务端查询 `participantId` 的线上锁定状态。
+- 返回 `mode`、`participantId`、`nickname`、`onlineLocked`、`onlineScore` 与 `lockedAt`。
 
-## 4. 音频播放与时间同步
+### 2.2 线上题集
 
-- 后端通过 `GET /api/events/{eventId}/audio` 输出当前活动绑定的完整音频文件，供主持人控制台播放。
-- 编排文件中的所有时间标记（轮次起止、动作时刻、题目音频段起止）均为该音频文件内的绝对毫秒位置。
-- 服务端在动作触发时按“轮次开始标记 + 时间轴已运行时长”换算状态字段中的时间信息，参与者端据此计算本题音频段的剩余时间。
-- 暂停期间时间轴与音频同步冻结；恢复后服务端按剩余时长平移后续动作与结束标记。
+- 请求：`GET /api/events/{eventId}/online/questions`。
+- 服务端从 `timeline.json` 生成拉平题集，按 `questionId` 去重。
+- 响应包含 `questionSetVersion`、`totalQuestions`、`audioUrl` 与题目数组。
+- 题目数组不包含 `correctOption`、`workName`、`explanation`。
 
-## 5. 数据脱敏与安全控制
+### 2.3 线上本地推进
 
-- **题目数据脱敏**：在 `ANSWERING` 与 `ANSWER_LOCKED` 状态下，服务端下发的 `QuestionView` 仅包含 `id`、`prompt`、`difficulty`、`type` 与 `options`，不包含正确答案下标 `answerIndex`、文本解析 `analysis` 与作品名 `workName`，杜绝客户端通过开发者工具提前获取答案。
-- **预加载隔离**：`LOAD` 动作仅将内容写入服务端待上屏槽位，不产生广播，也不通过参与者接口下发。
-- **管理权限隔离**：所有 `/host/*` 管理接口均要求有效的 `X-Host-Token` 认证凭据，未授权请求均返回 `401 Unauthorized` 或对应业务异常。
+- 浏览器保存 `bgm.online.progress.v1`。
+- 音频播放位置是答题时钟。
+- 页面隐藏、刷新或关闭时暂停音频并保存当前进度。
+- 页面恢复时展示「继续答题」，用户点击后从保存位置恢复。
+
+### 2.4 预览与锁定
+
+- 预览请求包含 `participantId`、`nickname`、`attemptId`、`questionSetVersion`、`answers`、`durationMs`。
+- 未出现在 `answers` 中的题目按 0 分计算。
+- 预览只返回分数、已答数、总题数、耗时与题集版本。
+- 锁定请求使用同一答案集合；服务端重新判分，写入线上榜。
+- 同一 `attemptId` 重复锁定返回已有结果；不同 `attemptId` 在已锁定后返回冲突。
+- 锁定成功后广播 `ONLINE_SCORE_LOCKED`。
+
+## 3. 线下模式数据流
+
+```text
+[手机端 OfflinePlayPanel]                [Spring Boot 服务端]                [主持人 HostView]
+        │                                      │                                      │
+        ├── POST /api/events/{id}/join ───────>│ 生成 playerId，记录 participantId     │
+        │<── JoinResponse(mode=OFFLINE) ───────┤                                      │
+        │                                      │<── POST /host/round（选择轮次）──────┤
+        │                                      │<── POST /host/start（启动 T0）───────┤ 播放音频
+        ├── CONNECT /ws ──────────────────────>│                                      │
+        ├── SUBSCRIBE /topic/events/{id} ─────>│                                      │
+        │                                      │                                      │
+        │<── QUESTION_STARTED ─────────────────┤ NEXT：上屏并开放作答                  │
+        ├── GET /state ───────────────────────>│ 返回脱敏题目                         │
+        ├── POST /answers ────────────────────>│ 记录选项与耗时                       │
+        │<── ANSWER_LOCKED ────────────────────┤ LOCK：关闭作答                       │
+        │<── ANSWER_REVEALED ──────────────────┤ REVEAL：公布答案与解析               │
+        │<── ACTIVITY_FINISHED ────────────────┤ FINISH：结算并归档线下榜             │
+        ├── GET /leaderboard ─────────────────>│ 返回本轮榜                           │
+        │<── ROUND_ENDED ──────────────────────┤ 到达轮次结束标记，暂停音频/时间轴     │
+```
+
+线下流程要点：
+
+- 主持人选择轮次并启动，服务端按 `T0 + (atMs - startMs)` 调度动作。
+- 参与者只提交选项，题目推进与答案揭晓由服务端状态决定。
+- 轮次结束标记只暂停时间轴与音频；结算由 `FINISH` 完成。
+- 主持人可暂停、恢复、锁卷、揭晓、下一题、重置与切换轮次。
+
+## 4. 音频与时间同步
+
+- `GET /api/events/{eventId}/audio` 输出完整音频，支持 HTTP Range。
+- 编排中的时间字段均为音频绝对毫秒位置。
+- 线下主持人将音频定位到 `round.startMs`，服务端以启动时刻为零点。
+- 线上浏览器从第一题 `audioStartMs` 连续播放到最后一题 `audioEndMs`；题目在 `answerStartMs` 上屏、`answerEndMs` 锁定。
+- 线上音频连续播放，题目之间无空白段。
+- 音频缺失或不可读时，接口返回错误，页面显示不可开始状态。
+
+## 5. 榜单数据流
+
+- 线下 `FINISH`：服务端生成轮次快照，写入 `leaderboards.json`，刷新文本总结。
+- 线上锁定：服务端写入 `online_leaderboard.json`，刷新文本总结，返回线上榜名次与总榜名次。
+- 总榜：服务端按请求聚合线下各轮最佳成绩与线上锁定成绩；不单独持久化。
+- 主持人页面可在「本轮榜 / 线上榜 / 总榜」之间切换。
+
+## 6. 数据脱敏与安全
+
+- 线下 `ANSWERING` 与 `ANSWER_LOCKED` 状态下发的题目不含正确答案、解析与作品名；`ANSWER_REVEALED` 与 `FINISHED` 状态下发答案与解析。
+- 线上题集与预览/锁定响应始终不含正确答案、解析与作品名。
+- 线上分数由服务端根据提交答案重新计算；客户端提交的分数不参与计算。
+- 线上本地进度可被用户修改；服务端以锁定请求中的答案判分。计时公平性由浏览器本地执行，服务端不提供防篡改计时。
+- 主持人接口要求 `X-Host-Token`。
+
+完整流程、字段与验收标准见 [`../product/dual-mode-development-spec.md`](../product/dual-mode-development-spec.md)。
