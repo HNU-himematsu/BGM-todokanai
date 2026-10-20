@@ -18,7 +18,7 @@ public class HostAuthService {
 
     public String login(String candidate) {
         if (!password.equals(candidate)) {
-            throw new IllegalArgumentException("主持人密码错误");
+            throw new UnauthorizedException("主持人密码错误");
         }
         String token = UUID.randomUUID().toString();
         activeTokens.add(token);

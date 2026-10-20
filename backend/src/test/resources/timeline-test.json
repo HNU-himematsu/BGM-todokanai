@@ -14,7 +14,7 @@
           "action": "LOAD",
           "questionId": "t-01",
           "audioStartMs": 0,
-          "audioEndMs": 1000
+          "audioEndMs": 2000
         },
         {
           "atMs": 100,
@@ -32,11 +32,11 @@
           "atMs": 1700,
           "action": "LOAD",
           "questionId": "t-02",
-          "audioStartMs": 1700,
-          "audioEndMs": 2600
+          "audioStartMs": 2000,
+          "audioEndMs": 3600
         },
         {
-          "atMs": 1800,
+          "atMs": 2100,
           "action": "NEXT"
         },
         {
@@ -71,34 +71,34 @@
           "action": "NEXT"
         },
         {
-          "atMs": 5500,
+          "atMs": 4900,
           "action": "LOCK"
         },
         {
-          "atMs": 5600,
+          "atMs": 4950,
           "action": "REVEAL"
         },
         {
-          "atMs": 5700,
+          "atMs": 5000,
           "action": "LOAD",
           "questionId": "t-02",
-          "audioStartMs": 5700,
-          "audioEndMs": 6600
+          "audioStartMs": 5000,
+          "audioEndMs": 6000
         },
         {
-          "atMs": 5800,
+          "atMs": 5100,
           "action": "NEXT"
         },
         {
-          "atMs": 7200,
+          "atMs": 5900,
           "action": "LOCK"
         },
         {
-          "atMs": 7300,
+          "atMs": 5950,
           "action": "REVEAL"
         },
         {
-          "atMs": 7400,
+          "atMs": 6000,
           "action": "FINISH"
         }
       ]

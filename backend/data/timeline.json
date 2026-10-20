@@ -14,7 +14,7 @@
           "action": "LOAD",
           "questionId": "q-01",
           "audioStartMs": 0,
-          "audioEndMs": 6000
+          "audioEndMs": 10000
         },
         {
           "atMs": 1000,
@@ -33,7 +33,7 @@
           "action": "LOAD",
           "questionId": "q-02",
           "audioStartMs": 10000,
-          "audioEndMs": 16000
+          "audioEndMs": 20000
         },
         {
           "atMs": 11000,
@@ -52,7 +52,7 @@
           "action": "LOAD",
           "questionId": "q-03",
           "audioStartMs": 20000,
-          "audioEndMs": 26000
+          "audioEndMs": 30000
         },
         {
           "atMs": 21000,
@@ -71,7 +71,7 @@
           "action": "LOAD",
           "questionId": "q-04",
           "audioStartMs": 30000,
-          "audioEndMs": 36000
+          "audioEndMs": 40000
         },
         {
           "atMs": 31000,
@@ -90,7 +90,7 @@
           "action": "LOAD",
           "questionId": "q-05",
           "audioStartMs": 40000,
-          "audioEndMs": 46000
+          "audioEndMs": 50000
         },
         {
           "atMs": 41000,
@@ -109,7 +109,7 @@
           "action": "LOAD",
           "questionId": "q-06",
           "audioStartMs": 50000,
-          "audioEndMs": 56000
+          "audioEndMs": 60000
         },
         {
           "atMs": 51000,
@@ -140,7 +140,7 @@
           "action": "LOAD",
           "questionId": "q-01",
           "audioStartMs": 60000,
-          "audioEndMs": 66000
+          "audioEndMs": 70000
         },
         {
           "atMs": 61000,
@@ -159,7 +159,7 @@
           "action": "LOAD",
           "questionId": "q-02",
           "audioStartMs": 70000,
-          "audioEndMs": 76000
+          "audioEndMs": 80000
         },
         {
           "atMs": 71000,
@@ -178,7 +178,7 @@
           "action": "LOAD",
           "questionId": "q-03",
           "audioStartMs": 80000,
-          "audioEndMs": 86000
+          "audioEndMs": 90000
         },
         {
           "atMs": 81000,
@@ -197,7 +197,7 @@
           "action": "LOAD",
           "questionId": "q-04",
           "audioStartMs": 90000,
-          "audioEndMs": 96000
+          "audioEndMs": 100000
         },
         {
           "atMs": 91000,
@@ -216,7 +216,7 @@
           "action": "LOAD",
           "questionId": "q-05",
           "audioStartMs": 100000,
-          "audioEndMs": 106000
+          "audioEndMs": 110000
         },
         {
           "atMs": 101000,
@@ -235,7 +235,7 @@
           "action": "LOAD",
           "questionId": "q-06",
           "audioStartMs": 110000,
-          "audioEndMs": 116000
+          "audioEndMs": 120000
         },
         {
           "atMs": 111000,

@@ -1,6 +1,7 @@
 [
   {
     "id": "t-01",
+    "audioCode": "TEST-01",
     "prompt": "联调第一题题干",
     "type": "ATMOSPHERE",
     "difficulty": "EASY",
@@ -16,6 +17,7 @@
   },
   {
     "id": "t-02",
+    "audioCode": "TEST-02",
     "prompt": "联调第二题题干",
     "type": "ATMOSPHERE",
     "difficulty": "EASY",

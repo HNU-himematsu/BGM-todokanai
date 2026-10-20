@@ -10,4 +10,5 @@ app:
   host-password: "123456"
   timeline-file: data/timeline.json
   leaderboard-file: data/leaderboards.json
+  online-leaderboard-file: data/online_leaderboard.json
   leaderboard-txt-file: data/leaderboard_summary.txt

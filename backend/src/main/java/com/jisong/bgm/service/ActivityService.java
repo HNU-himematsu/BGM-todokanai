@@ -3,15 +3,18 @@ package com.jisong.bgm.service;
 import com.jisong.bgm.dto.EventState;
 import com.jisong.bgm.dto.HostPlayerView;
 import com.jisong.bgm.dto.HostStateResponse;
+import com.jisong.bgm.dto.JoinRequest;
 import com.jisong.bgm.dto.JoinResponse;
 import com.jisong.bgm.dto.LeaderboardEntry;
 import com.jisong.bgm.dto.LeaderboardSnapshot;
+import com.jisong.bgm.dto.OnlineScoreRecord;
 import com.jisong.bgm.dto.QuestionView;
 import com.jisong.bgm.dto.RoundListResponse;
 import com.jisong.bgm.dto.RoundView;
 import com.jisong.bgm.dto.SubmitAnswerRequest;
 import com.jisong.bgm.model.ActivityStatus;
 import com.jisong.bgm.model.ActionType;
+import com.jisong.bgm.model.AppMode;
 import com.jisong.bgm.model.Player;
 import com.jisong.bgm.model.Question;
 import com.jisong.bgm.model.Round;
@@ -107,20 +110,36 @@ public class ActivityService {
         return toState(activity, null, false);
     }
 
-    public synchronized JoinResponse join(String eventId, String nickname) {
+    public synchronized JoinResponse join(String eventId, JoinRequest request) {
         Activity activity = getActivity(eventId);
-        if (activity.status == ActivityStatus.FINISHED) {
+        String nickname = normalizeNickname(request.nickname());
+        AppMode mode = request.mode() == null ? AppMode.ONLINE : request.mode();
+        String participantId = resolveParticipantId(request.participantId());
+        OnlineScoreRecord onlineRecord = leaderboardStore.onlineRecord(eventId, participantId);
+        if (mode == AppMode.OFFLINE && activity.status == ActivityStatus.FINISHED) {
             throw new IllegalStateException("本场活动已经结束");
         }
-        String playerId = UUID.randomUUID().toString();
-        activity.players.put(playerId, new Player(playerId, nickname.trim()));
-        broadcast(activity, "PLAYER_JOINED");
-        return new JoinResponse(eventId, playerId, nickname.trim());
+        String playerId = null;
+        if (mode == AppMode.OFFLINE) {
+            playerId = UUID.randomUUID().toString();
+            activity.players.put(playerId, new Player(playerId, participantId, nickname));
+            broadcast(activity, "PLAYER_JOINED");
+        }
+        return new JoinResponse(
+                activity.id,
+                activity.name,
+                mode,
+                participantId,
+                playerId,
+                nickname,
+                onlineRecord != null,
+                onlineRecord == null ? null : onlineRecord.score(),
+                onlineRecord == null ? null : onlineRecord.lockedAt());
     }
 
     public synchronized EventState getState(String eventId, String playerId) {
         Activity activity = getActivity(eventId);
-        Player player = playerId == null ? null : activity.players.get(playerId);
+        Player player = playerId == null || playerId.isBlank() ? null : requirePlayer(activity, playerId);
         return toState(activity, player, false);
     }
 
@@ -129,8 +148,12 @@ public class ActivityService {
         List<HostPlayerView> players = activity.players.values().stream()
                 .map(player -> new HostPlayerView(
                         player.getId(),
+                        player.getParticipantId(),
                         player.getNickname(),
-                        hasSubmitted(activity, player.getId(), activity.currentQuestion)))
+                        hasSubmitted(activity, player.getId(), activity.currentQuestion),
+                        player.getScore(),
+                        player.getTotalDurationMs(),
+                        player.getJoinedAt()))
                 .toList();
         return new HostStateResponse(
                 toState(activity, null, true),
@@ -385,7 +408,9 @@ public class ActivityService {
         activity.status = ActivityStatus.FINISHED;
         activity.answerRevealed = true;
         if (!activity.leaderboardSaved) {
-            leaderboardStore.save(activity.id, activity.name, leaderboard(activity));
+            Round round = requireRound(activity, activity.currentRoundId);
+            leaderboardStore.save(
+                    activity.id, activity.name, round.id(), round.name(), leaderboard(activity));
             activity.leaderboardSaved = true;
         }
         broadcast(activity, "ACTIVITY_FINISHED");
@@ -541,12 +566,27 @@ public class ActivityService {
             Player player = players.get(index);
             entries.add(new LeaderboardEntry(
                     index + 1,
+                    player.getParticipantId(),
                     player.getId(),
                     player.getNickname(),
                     player.getScore(),
-                    player.getTotalDurationMs()));
+                    player.getTotalDurationMs(),
+                    answeredCount(activity, player.getId()),
+                    questionCount(activity),
+                    player.getJoinedAt()));
         }
         return entries;
+    }
+
+    private int answeredCount(Activity activity, String playerId) {
+        String prefix = playerId + ":";
+        int count = 0;
+        for (String key : activity.answers.keySet()) {
+            if (key.startsWith(prefix)) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private void broadcast(Activity activity, String type) {
@@ -558,7 +598,7 @@ public class ActivityService {
     private Activity getActivity(String eventId) {
         Activity activity = activities.get(eventId);
         if (activity == null) {
-            throw new IllegalArgumentException("活动不存在");
+            throw new ResourceNotFoundException("活动不存在");
         }
         return activity;
     }
@@ -603,6 +643,31 @@ public class ActivityService {
 
     private static String answerKey(String playerId, String questionId) {
         return playerId + ":" + questionId;
+    }
+
+    private static String normalizeNickname(String nickname) {
+        if (nickname == null || nickname.isBlank()) {
+            throw new IllegalArgumentException("昵称不能为空");
+        }
+        String normalized = nickname.trim();
+        if (normalized.length() > 20) {
+            throw new IllegalArgumentException("昵称不能超过20个字符");
+        }
+        return normalized;
+    }
+
+    private static String resolveParticipantId(String participantId) {
+        if (participantId == null) {
+            return UUID.randomUUID().toString();
+        }
+        if (participantId.isBlank()) {
+            throw new IllegalArgumentException("参与者标识不能为空");
+        }
+        String normalized = participantId.trim();
+        if (normalized.length() > 64) {
+            throw new IllegalArgumentException("参与者标识不能超过64个字符");
+        }
+        return normalized;
     }
 
     public record ActivitySummary(String id, String name, int totalQuestions, ActivityStatus status) {

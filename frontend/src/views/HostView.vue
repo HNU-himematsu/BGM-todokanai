@@ -3,11 +3,25 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Check, ChevronRight, Copy, Eye, KeyRound, ListRestart, LockKeyhole, Pause, Play, Radio, RefreshCw, UsersRound } from 'lucide-vue-next'
 import { message, Modal } from 'ant-design-vue'
 import QRCode from 'qrcode'
-import { getAudioUrl, getHostRounds, getHostState, hostAction, hostLogin, hostLogout, selectHostRound } from '../services/api'
+import { useRoute } from 'vue-router'
+import {
+  getAudioUrl,
+  getHostRounds,
+  getHostState,
+  getLeaderboard,
+  getOnlineLeaderboard,
+  getTotalLeaderboard,
+  hostAction,
+  hostLogin,
+  hostLogout,
+  selectHostRound,
+} from '../services/api'
 import { createActivitySocket } from '../services/socket'
+import { clearHostToken, getHostToken, getStoredEventId, saveHostToken } from '../services/storage'
 
-const eventId = 'demo'
-const hostToken = ref(sessionStorage.getItem('bgm-host-token') || '')
+const route = useRoute()
+const eventId = String(route.query.event || getStoredEventId() || 'demo')
+const hostToken = ref(getHostToken())
 const authenticated = ref(Boolean(hostToken.value))
 const password = ref('')
 const state = ref(null)
@@ -24,11 +38,16 @@ const qrCanvas = ref(null)
 const audio = ref(null)
 const audioPosition = ref(0)
 const volume = ref(1)
+const roundLeaderboard = ref([])
+const onlineLeaderboard = ref([])
+const totalLeaderboard = ref([])
+const activeLeaderboardTab = ref('round')
+const leaderboardLoading = ref(false)
 
 const question = computed(() => state.value?.question)
 const round = computed(() => rounds.value.find((item) => item.id === currentRoundId.value))
 const publicBaseUrl = (import.meta.env.VITE_PUBLIC_BASE_URL || window.location.origin).replace(/\/+$/, '')
-const joinUrl = `${publicBaseUrl}/?event=${eventId}`
+const joinUrl = `${publicBaseUrl}/?mode=offline&event=${eventId}`
 const summaryTxtUrl = `${publicBaseUrl}/api/events/${eventId}/leaderboard/summary-txt`
 const displayQuestionNo = computed(() => Math.max(0, (state.value?.currentQuestionIndex ?? -1) + 1))
 const statusLabel = computed(() => ({ WAITING: '等待开始', ANSWERING: '答题中', ANSWER_LOCKED: '已锁卷', ANSWER_REVEALED: '答案揭晓', FINISHED: '活动结束' }[state.value?.status] || '连接中'))
@@ -76,6 +95,9 @@ async function onSocketEvent(event) {
     return
   }
   await refresh()
+  if (event.type === 'ONLINE_SCORE_LOCKED' || event.type === 'ACTIVITY_FINISHED') {
+    await refreshLeaderboards()
+  }
   if (event.type === 'ROUND_ENDED') {
     timelineStarted.value = true
     roundEnded.value = true
@@ -93,27 +115,60 @@ async function onSocketEvent(event) {
 
 async function openConsole() {
   await refresh()
+  await refreshLeaderboards()
   await drawJoinQr()
   if (!socket.value) socket.value = createActivitySocket(eventId, onSocketEvent)
 }
 
 async function refresh() {
   try {
-    const [snapshot, roundList] = await Promise.all([
+    const [snapshot, roundList, currentLeaderboard] = await Promise.all([
       getHostState(eventId, hostToken.value),
       getHostRounds(eventId, hostToken.value),
+      getLeaderboard(eventId),
     ])
     state.value = snapshot?.state ?? null
     players.value = snapshot?.players ?? []
     rounds.value = snapshot?.rounds ?? roundList?.rounds ?? []
     currentRoundId.value = snapshot?.currentRoundId ?? roundList?.currentRoundId ?? null
+    roundLeaderboard.value = currentLeaderboard || state.value?.leaderboard || []
     timelineRunning.value = Boolean(snapshot?.timelineRunning)
     if (timelineRunning.value || ['ANSWERING', 'ANSWER_LOCKED', 'ANSWER_REVEALED', 'FINISHED'].includes(state.value?.status)) timelineStarted.value = true
     if (state.value?.status === 'WAITING' && !timelineRunning.value && !roundEnded.value) timelineStarted.value = false
     error.value = ''
   } catch (err) {
-    error.value = err.response?.data?.message || '无法获取主持人状态，请确认服务已启动'
+    if (err.response?.status === 401) {
+      socket.value?.deactivate()
+      socket.value = null
+      clearHostToken()
+      hostToken.value = ''
+      authenticated.value = false
+      error.value = '主持人登录已失效，请重新输入密码'
+    } else {
+      error.value = err.response?.data?.message || '无法获取主持人状态，请确认服务已启动'
+    }
   }
+}
+
+async function refreshLeaderboards() {
+  leaderboardLoading.value = true
+  try {
+    const [online, total] = await Promise.all([
+      getOnlineLeaderboard(eventId),
+      getTotalLeaderboard(eventId),
+    ])
+    onlineLeaderboard.value = online?.entries || []
+    totalLeaderboard.value = total?.entries || []
+  } catch (err) {
+    error.value = err.response?.data?.message || '无法获取线上榜或总榜'
+  } finally {
+    leaderboardLoading.value = false
+  }
+}
+
+async function refreshAll() {
+  await refresh()
+  await refreshLeaderboards()
 }
 
 async function login() {
@@ -123,7 +178,7 @@ async function login() {
   try {
     const result = await hostLogin(password.value.trim())
     hostToken.value = result.token
-    sessionStorage.setItem('bgm-host-token', result.token)
+    saveHostToken(result.token)
     authenticated.value = true
     password.value = ''
     await openConsole()
@@ -140,7 +195,7 @@ async function logout() {
   socket.value = null
   audio.value?.pause()
   hostToken.value = ''
-  sessionStorage.removeItem('bgm-host-token')
+  clearHostToken()
   authenticated.value = false
   state.value = null
   players.value = []
@@ -236,6 +291,12 @@ function formatTime(ms) {
   const seconds = Math.floor((ms || 0) / 1000)
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
 }
+
+function formatDateTime(value) {
+  if (!value) return '-'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString('zh-CN', { hour12: false })
+}
 </script>
 
 <template>
@@ -273,7 +334,7 @@ function formatTime(ms) {
 
     <div v-if="state" class="host-grid">
       <a-card class="host-control">
-        <div class="section-title"><span>轮次与播放</span><a-button size="small" title="刷新状态" @click="refresh"><RefreshCw :size="15" /></a-button></div>
+        <div class="section-title"><span>轮次与播放</span><a-button size="small" title="刷新状态" :loading="leaderboardLoading" @click="refreshAll"><RefreshCw :size="15" /></a-button></div>
         <div class="field-label round-label">当前轮次</div>
         <a-select class="round-picker" :value="currentRoundId" :disabled="busy || !canSwitchRound" @change="changeRound">
           <a-select-option v-for="item in rounds" :key="item.id" :value="item.id">{{ item.name }} · {{ formatTime(item.startMs) }}–{{ formatTime(item.endMs) }}</a-select-option>
@@ -320,7 +381,72 @@ function formatTime(ms) {
 
       <a-card class="host-players"><div class="section-title"><span>现场作答进度</span><span class="muted">已作答 {{ state.answeredCount || 0 }} / {{ state.playerCount || 0 }} 人</span></div><div v-if="players.length" class="player-wall"><div v-for="player in players" :key="player.playerId" class="player-card" :class="{ 'is-answered': player.answered }"><span class="player-name">{{ player.nickname }}</span><Check v-if="player.answered" :size="14" /></div></div><a-empty v-else description="还没有玩家在线" :image-style="{ height: '48px' }" /></a-card>
 
-      <a-card class="host-leaderboard"><div class="section-title"><span>{{ state.status === 'FINISHED' ? '最终排行榜' : '排行榜' }}</span><a-button v-if="state.status === 'FINISHED'" size="small" type="link" :href="summaryTxtUrl" target="_blank" class="txt-export-btn">下载 / 查看 TXT 榜单</a-button></div><a-list v-if="state.status === 'FINISHED'" :data-source="state.leaderboard || []" :grid="{ gutter: 14, xs: 1, sm: 2, md: 2, lg: 3, xl: 3 }" row-key="playerId" class="host-leaderboard-list"><template #renderItem="{ item }"><a-list-item class="host-leader-item"><div class="host-leader-card"><div class="host-leader-rank" :class="`rank-${item.rank}`">{{ item.rank }}</div><div class="host-leader-body"><div class="host-leader-name">{{ item.nickname }}</div><div class="host-leader-time">耗时 {{ (item.durationMs / 1000).toFixed(1) }}s</div></div><div class="host-leader-score"><span class="score-value">{{ item.score }}</span><span class="score-unit">分</span></div></div></a-list-item></template></a-list><div v-else class="ranking-hidden host-ranking-hidden"><span class="ranking-lock">?</span><p>所有人的分数会在最后一题结束后一起揭晓。</p></div></a-card>
+      <a-card class="host-leaderboard">
+        <div class="section-title">
+          <span>活动榜单</span>
+          <div class="host-leader-header-right">
+            <a-button size="small" :loading="leaderboardLoading" @click="refreshAll"><RefreshCw :size="14" />刷新榜单</a-button>
+            <a-button size="small" type="link" :href="summaryTxtUrl" target="_blank" class="txt-export-btn">下载 / 查看 TXT 榜单</a-button>
+          </div>
+        </div>
+        <a-tabs v-model:activeKey="activeLeaderboardTab" class="host-leaderboard-tabs">
+          <a-tab-pane key="round" tab="本轮榜">
+            <a-list v-if="roundLeaderboard.length" :data-source="roundLeaderboard" :grid="{ gutter: 14, xs: 1, sm: 2, md: 2, lg: 3, xl: 3 }" row-key="playerId" class="host-leaderboard-list">
+              <template #renderItem="{ item }">
+                <a-list-item class="host-leader-item">
+                  <div class="host-leader-card">
+                    <div class="host-leader-rank" :class="`rank-${item.rank}`">{{ item.rank }}</div>
+                    <div class="host-leader-body">
+                      <div class="host-leader-name">{{ item.nickname }}</div>
+                      <div class="host-leader-time">耗时 {{ (item.durationMs / 1000).toFixed(1) }}s · 已答 {{ item.answeredCount }} / {{ item.totalQuestions }}</div>
+                    </div>
+                    <div class="host-leader-score"><span class="score-value">{{ item.score }}</span><span class="score-unit">分</span></div>
+                  </div>
+                </a-list-item>
+              </template>
+            </a-list>
+            <div v-else class="ranking-hidden host-ranking-hidden">
+              <span class="ranking-lock">?</span>
+              <p>本轮结算后生成本轮榜，所有人的分数会在最后一题结束后一起揭晓。</p>
+            </div>
+          </a-tab-pane>
+          <a-tab-pane key="online" tab="线上榜">
+            <a-list v-if="onlineLeaderboard.length" :data-source="onlineLeaderboard" :grid="{ gutter: 14, xs: 1, sm: 2, md: 2, lg: 3, xl: 3 }" row-key="participantId" class="host-leaderboard-list">
+              <template #renderItem="{ item }">
+                <a-list-item class="host-leader-item">
+                  <div class="host-leader-card">
+                    <div class="host-leader-rank" :class="`rank-${item.rank}`">{{ item.rank }}</div>
+                    <div class="host-leader-body">
+                      <div class="host-leader-name">{{ item.nickname }}</div>
+                      <div class="host-leader-time">耗时 {{ (item.durationMs / 1000).toFixed(1) }}s · {{ formatDateTime(item.lockedAt) }}</div>
+                    </div>
+                    <div class="host-leader-score"><span class="score-value">{{ item.score }}</span><span class="score-unit">分</span></div>
+                  </div>
+                </a-list-item>
+              </template>
+            </a-list>
+            <a-empty v-else description="暂无线上锁定成绩" />
+          </a-tab-pane>
+          <a-tab-pane key="total" tab="总榜">
+            <a-list v-if="totalLeaderboard.length" :data-source="totalLeaderboard" :grid="{ gutter: 14, xs: 1, sm: 2, md: 2, lg: 3, xl: 3 }" row-key="participantId" class="host-leaderboard-list">
+              <template #renderItem="{ item }">
+                <a-list-item class="host-leader-item">
+                  <div class="host-leader-card total-leader-card">
+                    <div class="host-leader-rank" :class="`rank-${item.rank}`">{{ item.rank }}</div>
+                    <div class="host-leader-body">
+                      <div class="host-leader-name">{{ item.nickname }}</div>
+                      <div class="host-leader-time">线下 {{ item.offlineScore }} 分 · 线上 {{ item.onlineScore }} 分 · {{ item.offlineRoundCount }} 轮</div>
+                      <div class="host-leader-time">累计耗时 {{ (item.totalDurationMs / 1000).toFixed(1) }}s</div>
+                    </div>
+                    <div class="host-leader-score"><span class="score-value">{{ item.totalScore }}</span><span class="score-unit">分</span></div>
+                  </div>
+                </a-list-item>
+              </template>
+            </a-list>
+            <a-empty v-else description="暂无总榜成绩" />
+          </a-tab-pane>
+        </a-tabs>
+      </a-card>
     </div>
     <a-alert v-if="error" class="form-alert" type="error" :message="error" show-icon />
   </section>

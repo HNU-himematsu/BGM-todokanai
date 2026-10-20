@@ -228,6 +228,7 @@ q-04,45000,60000,45000,57000
 - 最后一题 `audioEndMs` 作为线上播放终点，与音频可播放总时长的差值不超过 100 毫秒。
 - 相邻题目满足 `questions[i].audioEndMs == questions[i + 1].audioStartMs`。
 - 线上从第一题 `audioStartMs` 连续播放到最后一题 `audioEndMs`。
+- 线上参与者点击「下一题」时，播放位置定位到下一题 `answerStartMs`；该操作仅按题集顺序前进一题。
 
 ### 7.2 作答窗口
 
@@ -241,6 +242,7 @@ audioStartMs <= answerStartMs < answerEndMs <= audioEndMs
 - `answerEndMs` 对应 `LOCK`。
 - 题目音频尾段可以晚于 `answerEndMs` 结束，用于线下揭晓或线上题间过渡。
 - 线上在 `answerStartMs` 上屏，在 `answerEndMs` 锁定。
+- 线上手动进入下一题使用下一题 `answerStartMs` 作为音频定位点；素材无需为手动推进增加空白段。
 
 ### 7.3 轮次与音频
 

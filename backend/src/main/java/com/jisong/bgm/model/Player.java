@@ -4,13 +4,15 @@ import java.time.Instant;
 
 public class Player {
     private final String id;
+    private final String participantId;
     private final String nickname;
     private final Instant joinedAt;
     private int score;
     private long totalDurationMs;
 
-    public Player(String id, String nickname) {
+    public Player(String id, String participantId, String nickname) {
         this.id = id;
+        this.participantId = participantId;
         this.nickname = nickname;
         this.joinedAt = Instant.now();
         this.score = 0;
@@ -19,6 +21,10 @@ public class Player {
 
     public String getId() {
         return id;
+    }
+
+    public String getParticipantId() {
+        return participantId;
     }
 
     public String getNickname() {

@@ -24,6 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(properties = {
         "app.timeline-file=src/test/resources/timeline-test.json",
         "app.leaderboard-file=target/test-data/leaderboards.json",
+        "app.online-leaderboard-file=target/test-data/online_leaderboard.json",
         "app.leaderboard-txt-file=target/test-data/leaderboard_summary.txt"
 })
 @AutoConfigureMockMvc
@@ -51,7 +52,7 @@ class ActivityFlowTests {
         mockMvc.perform(post("/api/host/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"password\":\"wrong\"}"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -64,6 +65,10 @@ class ActivityFlowTests {
         mockMvc.perform(get("/api/events/demo/audio").header(HttpHeaders.RANGE, "bytes=0-99"))
                 .andExpect(status().isPartialContent())
                 .andExpect(header().string(HttpHeaders.CONTENT_RANGE, Matchers.startsWith("bytes 0-99/")));
+
+        mockMvc.perform(get("/api/events/demo/audio").header(HttpHeaders.RANGE, "bytes=999999999-"))
+                .andExpect(status().isRequestedRangeNotSatisfiable())
+                .andExpect(header().string(HttpHeaders.CONTENT_RANGE, Matchers.startsWith("bytes */")));
     }
 
     @Test
@@ -98,7 +103,7 @@ class ActivityFlowTests {
         assertThat(answering.get("canAnswer").asBoolean()).isTrue();
         long audioStart = answering.get("questionAudioStartEpochMs").asLong();
         long audioEnd = answering.get("questionAudioEndEpochMs").asLong();
-        assertThat(audioEnd - audioStart).isEqualTo(1000L);
+        assertThat(audioEnd - audioStart).isEqualTo(2000L);
 
         String latePlayerId = join("乙");
         assertThat(state(latePlayerId).get("canAnswer").asBoolean()).isTrue();
@@ -131,7 +136,7 @@ class ActivityFlowTests {
         JsonNode finished = awaitStatus(playerId, "FINISHED", 6000);
         assertThat(finished.get("playerScore").asInt()).isEqualTo(10);
         assertThat(finished.get("playerRank").asInt()).isEqualTo(1);
-        assertThat(finished.get("playerDurationMs").asLong()).isGreaterThanOrEqualTo(1300L);
+        assertThat(finished.get("playerDurationMs").asLong()).isGreaterThanOrEqualTo(1000L);
         assertThat(finished.get("leaderboard")).hasSize(2);
 
         JsonNode leaderboard = data(get("/api/events/demo/leaderboard"));
@@ -141,7 +146,7 @@ class ActivityFlowTests {
 
         mockMvc.perform(post("/api/events/demo/join")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nickname\":\"丙\"}"))
+                        .content("{\"nickname\":\"丙\",\"mode\":\"OFFLINE\"}"))
                 .andExpect(status().isBadRequest());
 
         awaitTimelineStopped(playerId, 5000);
@@ -169,7 +174,7 @@ class ActivityFlowTests {
     private String join(String nickname) throws Exception {
         JsonNode data = data(post("/api/events/demo/join")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"nickname\":\"" + nickname + "\"}"));
+                .content("{\"nickname\":\"" + nickname + "\",\"mode\":\"OFFLINE\"}"));
         return data.get("playerId").asText();
     }
 

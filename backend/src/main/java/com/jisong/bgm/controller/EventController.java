@@ -6,8 +6,19 @@ import com.jisong.bgm.dto.JoinRequest;
 import com.jisong.bgm.dto.JoinResponse;
 import com.jisong.bgm.dto.LeaderboardEntry;
 import com.jisong.bgm.dto.LeaderboardSnapshot;
+import com.jisong.bgm.dto.OnlineLeaderboardResponse;
+import com.jisong.bgm.dto.OnlineLockRequest;
+import com.jisong.bgm.dto.OnlineLockResponse;
+import com.jisong.bgm.dto.OnlinePreviewRequest;
+import com.jisong.bgm.dto.OnlineQuestionSet;
+import com.jisong.bgm.dto.OnlineScoreResult;
+import com.jisong.bgm.dto.OnlineStatusResponse;
 import com.jisong.bgm.dto.SubmitAnswerRequest;
+import com.jisong.bgm.dto.TotalLeaderboardResponse;
 import com.jisong.bgm.service.ActivityService;
+import com.jisong.bgm.service.OnlineAttemptService;
+import com.jisong.bgm.service.RangeNotSatisfiableException;
+import com.jisong.bgm.service.ResourceNotFoundException;
 import jakarta.validation.Valid;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpHeaders;
@@ -37,9 +48,11 @@ public class EventController {
     private static final long MAX_RANGE_CHUNK_BYTES = 1024 * 1024L;
 
     private final ActivityService activityService;
+    private final OnlineAttemptService onlineAttemptService;
 
-    public EventController(ActivityService activityService) {
+    public EventController(ActivityService activityService, OnlineAttemptService onlineAttemptService) {
         this.activityService = activityService;
+        this.onlineAttemptService = onlineAttemptService;
     }
 
     @GetMapping("/health")
@@ -57,7 +70,36 @@ public class EventController {
             @PathVariable String eventId,
             @Valid @RequestBody JoinRequest request
     ) {
-        return ApiResponse.ok(activityService.join(eventId, request.nickname()));
+        return ApiResponse.ok(activityService.join(eventId, request));
+    }
+
+    @GetMapping("/events/{eventId}/online/questions")
+    public ApiResponse<OnlineQuestionSet> onlineQuestions(@PathVariable String eventId) {
+        return ApiResponse.ok(onlineAttemptService.questionSet(eventId));
+    }
+
+    @GetMapping("/events/{eventId}/online/status")
+    public ApiResponse<OnlineStatusResponse> onlineStatus(
+            @PathVariable String eventId,
+            @RequestParam String participantId
+    ) {
+        return ApiResponse.ok(onlineAttemptService.status(eventId, participantId));
+    }
+
+    @PostMapping("/events/{eventId}/online/preview")
+    public ApiResponse<OnlineScoreResult> onlinePreview(
+            @PathVariable String eventId,
+            @Valid @RequestBody OnlinePreviewRequest request
+    ) {
+        return ApiResponse.ok(onlineAttemptService.preview(eventId, request));
+    }
+
+    @PostMapping("/events/{eventId}/online/lock")
+    public ApiResponse<OnlineLockResponse> onlineLock(
+            @PathVariable String eventId,
+            @Valid @RequestBody OnlineLockRequest request
+    ) {
+        return ApiResponse.ok(onlineAttemptService.lock(eventId, request));
     }
 
     @GetMapping("/events/{eventId}/state")
@@ -86,6 +128,16 @@ public class EventController {
         return ApiResponse.ok(activityService.getLeaderboardHistory(eventId));
     }
 
+    @GetMapping("/events/{eventId}/leaderboards/online")
+    public ApiResponse<OnlineLeaderboardResponse> onlineLeaderboard(@PathVariable String eventId) {
+        return ApiResponse.ok(onlineAttemptService.onlineLeaderboard(eventId));
+    }
+
+    @GetMapping("/events/{eventId}/leaderboards/total")
+    public ApiResponse<TotalLeaderboardResponse> totalLeaderboard(@PathVariable String eventId) {
+        return ApiResponse.ok(onlineAttemptService.totalLeaderboard(eventId));
+    }
+
     @GetMapping(value = {"/events/{eventId}/leaderboard/summary-txt", "/events/{eventId}/leaderboards/summary-txt"}, produces = "text/plain;charset=UTF-8")
     public ResponseEntity<String> leaderboardSummaryTxt(@PathVariable String eventId) {
         return ResponseEntity.ok()
@@ -100,7 +152,7 @@ public class EventController {
     ) throws IOException {
         Path audioPath = activityService.audioPath(eventId);
         if (audioPath == null || !Files.isReadable(audioPath)) {
-            throw new IllegalStateException("音频文件不可读：" + audioPath);
+            throw new ResourceNotFoundException("音频文件不可读：" + audioPath);
         }
         FileSystemResource resource = new FileSystemResource(audioPath);
         long contentLength = resource.contentLength();
@@ -118,8 +170,17 @@ public class EventController {
             throw new IllegalArgumentException("Range 请求不合法");
         }
         HttpRange range = ranges.get(0);
-        long start = range.getRangeStart(contentLength);
-        long end = range.getRangeEnd(contentLength);
+        long start;
+        long end;
+        try {
+            start = range.getRangeStart(contentLength);
+            end = range.getRangeEnd(contentLength);
+        } catch (IllegalArgumentException exception) {
+            throw new RangeNotSatisfiableException(contentLength, "Range 超出音频文件长度");
+        }
+        if (contentLength <= 0 || start < 0 || start >= contentLength || end < start) {
+            throw new RangeNotSatisfiableException(contentLength, "Range 超出音频文件长度");
+        }
         long rangeLength = Math.min(Math.min(contentLength - start, end - start + 1), MAX_RANGE_CHUNK_BYTES);
         byte[] chunk = new byte[(int) rangeLength];
         try (RandomAccessFile file = new RandomAccessFile(audioPath.toFile(), "r")) {

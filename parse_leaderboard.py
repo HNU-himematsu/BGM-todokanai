@@ -1,21 +1,24 @@
 import json
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
-def display_width(s):
-    if s is None:
+
+def display_width(value):
+    if value is None:
         return 0
-    return sum(2 if ord(c) > 127 else 1 for c in str(s))
+    return sum(2 if ord(character) > 127 else 1 for character in str(value))
 
-def pad_right(s, target_width):
-    if s is None:
-        s = ""
-    s = str(s)
-    current = display_width(s)
-    if current >= target_width:
-        return s
-    return s + " " * (target_width - current)
+
+def pad_right(value, target_width):
+    if value is None:
+        value = ""
+    text = str(value)
+    current_width = display_width(text)
+    if current_width >= target_width:
+        return text
+    return text + " " * (target_width - current_width)
+
 
 def find_file(relative_name):
     candidates = [
@@ -23,163 +26,326 @@ def find_file(relative_name):
         os.path.join("backend", relative_name),
         os.path.join("..", relative_name),
     ]
-    for c in candidates:
-        if os.path.exists(c):
-            return os.path.abspath(c)
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            return os.path.abspath(candidate)
     return os.path.abspath(candidates[0])
 
-def parse_iso_time(ts_str):
-    if not ts_str:
-        return "未知时间"
+
+def load_records(path):
+    if not os.path.exists(path):
+        return []
+    with open(path, "r", encoding="utf-8") as file:
+        value = json.load(file)
+    if not isinstance(value, list):
+        raise ValueError(f"排行榜根节点必须为数组：{path}")
+    return value
+
+
+def parse_time(value):
+    if not value:
+        return None
+    text = str(value)
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
     try:
-        if ts_str.endswith("Z"):
-            ts_str = ts_str[:-1] + "+00:00"
-        dt = datetime.fromisoformat(ts_str)
-        return dt.astimezone().strftime("%Y-%m-%d %H:%M:%S")
-    except Exception:
-        return str(ts_str)
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def format_time(value):
+    parsed = parse_time(value)
+    if parsed is None:
+        return "未知时间"
+    return parsed.astimezone().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def integer(value):
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def canonical_online(records):
+    chosen = {}
+    for record in records:
+        participant_id = record.get("participantId")
+        if not participant_id:
+            continue
+        existing = chosen.get(participant_id)
+        if existing is None:
+            chosen[participant_id] = record
+            continue
+        existing_time = parse_time(existing.get("lockedAt")) or datetime.min.replace(tzinfo=timezone.utc)
+        candidate_time = parse_time(record.get("lockedAt")) or datetime.min.replace(tzinfo=timezone.utc)
+        if candidate_time > existing_time:
+            chosen[participant_id] = record
+        elif candidate_time == existing_time:
+            if str(record.get("attemptId") or "") < str(existing.get("attemptId") or ""):
+                chosen[participant_id] = record
+    return list(chosen.values())
+
+
+def online_sort_key(record):
+    return (
+        -integer(record.get("score")),
+        integer(record.get("durationMs")),
+        parse_time(record.get("lockedAt")) or datetime.min.replace(tzinfo=timezone.utc),
+        str(record.get("nickname") or ""),
+    )
+
+
+def offline_better(candidate, existing):
+    if candidate["score"] != existing["score"]:
+        return candidate["score"] > existing["score"]
+    if candidate["durationMs"] != existing["durationMs"]:
+        return candidate["durationMs"] < existing["durationMs"]
+    if candidate["finishedAt"] and existing["finishedAt"] and candidate["finishedAt"] != existing["finishedAt"]:
+        return candidate["finishedAt"] < existing["finishedAt"]
+    if candidate["finishedAt"] and not existing["finishedAt"]:
+        return True
+    if not candidate["finishedAt"] and existing["finishedAt"]:
+        return False
+    return candidate["sequence"] < existing["sequence"]
+
+
+def aggregate_total(event_id, history, online_records):
+    aggregates = {}
+    sequence = 0
+    snapshots = [snapshot for snapshot in history if snapshot.get("eventId") == event_id]
+    for snapshot_index, snapshot in enumerate(snapshots, 1):
+        round_id = snapshot.get("roundId") or f"legacy-round-{snapshot_index}"
+        round_name = snapshot.get("roundName") or f"第 {snapshot_index} 轮"
+        finished_at = parse_time(snapshot.get("finishedAt"))
+        for entry in snapshot.get("entries") or []:
+            participant_id = entry.get("participantId") or entry.get("playerId")
+            if not participant_id:
+                continue
+            aggregate = aggregates.setdefault(participant_id, {
+                "participantId": participant_id,
+                "rounds": {},
+                "online": None,
+            })
+            candidate = {
+                "roundId": round_id,
+                "roundName": round_name,
+                "nickname": str(entry.get("nickname") or ""),
+                "score": integer(entry.get("score")),
+                "durationMs": integer(entry.get("durationMs")),
+                "finishedAt": finished_at,
+                "sequence": sequence,
+            }
+            sequence += 1
+            existing = aggregate["rounds"].get(round_id)
+            if existing is None or offline_better(candidate, existing):
+                aggregate["rounds"][round_id] = candidate
+
+    for record in canonical_online(online_records):
+        participant_id = record.get("participantId")
+        if not participant_id:
+            continue
+        aggregate = aggregates.setdefault(participant_id, {
+            "participantId": participant_id,
+            "rounds": {},
+            "online": None,
+        })
+        aggregate["online"] = record
+
+    entries = []
+    for aggregate in aggregates.values():
+        rounds = list(aggregate["rounds"].values())
+        online = aggregate["online"]
+        offline_score = sum(item["score"] for item in rounds)
+        offline_duration = sum(item["durationMs"] for item in rounds)
+        online_score = integer(online.get("score")) if online else 0
+        online_duration = integer(online.get("durationMs")) if online else 0
+        offline_last = max(
+            (item["finishedAt"] for item in rounds if item["finishedAt"]),
+            default=None,
+        )
+        online_last = parse_time(online.get("lockedAt")) if online else None
+        candidates = [value for value in (offline_last, online_last) if value]
+        last_activity = max(candidates) if candidates else None
+        nickname = ""
+        if online and online_last and (offline_last is None or online_last >= offline_last):
+            nickname = str(online.get("nickname") or "")
+        elif rounds:
+            latest = rounds[0]
+            for item in rounds[1:]:
+                if item["finishedAt"] and (latest["finishedAt"] is None or item["finishedAt"] > latest["finishedAt"]):
+                    latest = item
+            nickname = latest["nickname"]
+        entries.append({
+            "participantId": aggregate["participantId"],
+            "nickname": nickname,
+            "totalScore": offline_score + online_score,
+            "offlineScore": offline_score,
+            "onlineScore": online_score,
+            "totalDurationMs": offline_duration + online_duration,
+            "offlineRoundCount": len(rounds),
+            "onlineLocked": online is not None,
+            "lastActivityAt": last_activity,
+            "offlineContributions": rounds,
+            "onlineContribution": online,
+        })
+
+    entries.sort(key=lambda item: (
+        -item["totalScore"],
+        item["totalDurationMs"],
+        item["lastActivityAt"] or datetime.min.replace(tzinfo=timezone.utc),
+        item["nickname"],
+    ))
+    return entries
+
 
 def generate_summary():
-    json_path = find_file(os.path.join("data", "leaderboards.json"))
-    if not os.path.exists(json_path):
-        print(f"未找到排行榜数据文件：{json_path}")
-        return
-
-    txt_dir = os.path.dirname(json_path)
-    txt_path = os.path.join(txt_dir, "leaderboard_summary.txt")
-
-    with open(json_path, "r", encoding="utf-8") as f:
-        history = json.load(f)
-
-    lines = []
-    round_index = 1
-    all_entries = []
-
-    for snapshot in history:
-        event_name = snapshot.get("eventName", "未知活动")
-        finished_at_raw = snapshot.get("finishedAt")
-        finished_at = parse_iso_time(finished_at_raw)
-        entries = snapshot.get("entries", [])
-        player_count = len(entries)
-
-        lines.append("=" * 80)
-        lines.append(f"【第 {round_index} 轮】{event_name}")
-        lines.append(f"结束时间: {finished_at} | 参与人数: {player_count} 人")
-        lines.append("-" * 80)
-        lines.append(
-            f"{pad_right('排名', 10)} {pad_right('玩家昵称', 18)} {pad_right('最终得分', 10)} {pad_right('答题耗时', 14)} 玩家ID"
-        )
-        lines.append("-" * 80)
-
-        if player_count == 0:
-            lines.append("（本轮无有效答题记录）")
-        else:
-            for entry in entries:
-                rank = entry.get("rank", 0)
-                rank_str = f"第 {rank} 名"
-                nickname = entry.get("nickname", "未命名")
-                score = entry.get("score", 0)
-                score_str = f"{score} 分"
-                duration_ms = entry.get("durationMs", 0) or 0
-                duration_sec = duration_ms / 1000.0
-                duration_str = f"{duration_sec:.1f} 秒"
-                player_id = entry.get("playerId", "")
-
-                lines.append(
-                    f"{pad_right(rank_str, 10)} {pad_right(nickname, 18)} {pad_right(score_str, 10)} {pad_right(duration_str, 14)} {player_id}"
-                )
-
-                all_entries.append({
-                    "round_index": round_index,
-                    "round_rank": rank,
-                    "nickname": nickname,
-                    "score": score,
-                    "duration_ms": duration_ms,
-                    "finished_at_raw": finished_at_raw or "",
-                    "finished_at_str": finished_at,
-                    "player_id": player_id,
-                })
-        lines.append("")
-        round_index += 1
-
-    # Grand Summary
-    all_entries.sort(key=lambda x: (
-        -x["score"],
-        x["duration_ms"],
-        x["finished_at_raw"],
-        x["round_rank"],
-        x["nickname"],
+    offline_path = find_file(os.path.join("data", "leaderboards.json"))
+    online_path = find_file(os.path.join("data", "online_leaderboard.json"))
+    txt_path = os.path.join(os.path.dirname(offline_path), "leaderboard_summary.txt")
+    history = load_records(offline_path)
+    online = load_records(online_path)
+    history.sort(key=lambda snapshot: (
+        parse_time(snapshot.get("finishedAt")) is None,
+        parse_time(snapshot.get("finishedAt")) or datetime.min.replace(tzinfo=timezone.utc),
     ))
 
-    unique_nicknames = len(set(x["nickname"] for x in all_entries))
-    total_rounds = len(history)
-    total_plays = len(all_entries)
+    event_names = {}
+    for snapshot in history:
+        event_id = snapshot.get("eventId")
+        event_name = snapshot.get("eventName")
+        if event_id and event_name and event_id not in event_names:
+            event_names[event_id] = event_name
 
-    lines.append("=" * 120)
-    lines.append("【全场总排行榜 · 所有轮次大总结】")
-    lines.append(f"总轮次: {total_rounds} 轮 | 累计答题人次: {total_plays} 人次 | 独立玩家数: {unique_nicknames} 人")
-    lines.append("排名规则: 最终得分降序 > 答题耗时升序 > 轮次时间升序 > 轮内排名")
-    lines.append("-" * 120)
-    lines.append(
-        f"{pad_right('总排名', 10)} {pad_right('玩家昵称', 18)} {pad_right('最终得分', 10)} {pad_right('答题耗时', 14)} {pad_right('所属轮次', 12)} {pad_right('结束时间', 22)} 玩家ID"
-    )
-    lines.append("-" * 120)
-
-    if not all_entries:
-        lines.append("（全场暂无有效答题记录）")
-    else:
-        for idx, entry in enumerate(all_entries, 1):
-            rank_str = f"第 {idx} 名"
-            score_str = f"{entry['score']} 分"
-            duration_sec = entry["duration_ms"] / 1000.0
-            duration_str = f"{duration_sec:.1f} 秒"
-            round_str = f"第 {entry['round_index']} 轮"
-
-            lines.append(
-                f"{pad_right(rank_str, 10)} {pad_right(entry['nickname'], 18)} {pad_right(score_str, 10)} {pad_right(duration_str, 14)} {pad_right(round_str, 12)} {pad_right(entry['finished_at_str'], 22)} {entry['player_id']}"
-            )
-
-    if unique_nicknames < total_plays:
-        by_nickname = {}
-        for entry in all_entries:
-            nick = entry["nickname"]
-            if nick not in by_nickname:
-                by_nickname[nick] = []
-            by_nickname[nick].append(entry)
-
-        lines.append("-" * 120)
-        lines.append(f"【个人最佳成绩总榜 · 奖品发放参考（按昵称去重，共 {unique_nicknames} 人）】")
-        lines.append("规则说明: 依据“每人限制参与一次，奖品先到先得”，多次参与者仅取其单轮最佳成绩参与最终排名")
-        lines.append("-" * 120)
+    lines = []
+    for round_index, snapshot in enumerate(history, 1):
+        entries = snapshot.get("entries") or []
+        round_name = snapshot.get("roundName") or f"第 {round_index} 轮"
+        event_name = snapshot.get("eventName") or snapshot.get("eventId") or "未知活动"
+        lines.append("=" * 80)
+        lines.append(f"【线下轮次榜 · {round_name}】{event_name}")
         lines.append(
-            f"{pad_right('总排名', 10)} {pad_right('玩家昵称', 18)} {pad_right('最高得分', 10)} {pad_right('对应耗时', 14)} {pad_right('产生轮次', 12)} {pad_right('参与次数', 16)} 玩家ID"
+            f"结束时间: {format_time(snapshot.get('finishedAt'))} | 参与人数: {len(entries)} 人"
         )
-        lines.append("-" * 120)
+        lines.append("-" * 80)
+        lines.append(
+            f"{pad_right('排名', 10)} {pad_right('玩家昵称', 18)} {pad_right('得分', 10)} "
+            f"{pad_right('耗时', 14)} {pad_right('已答', 10)} 参与者ID"
+        )
+        lines.append("-" * 80)
+        if not entries:
+            lines.append("（本轮暂无有效答题记录）")
+        else:
+            for entry in entries:
+                duration = integer(entry.get("durationMs")) / 1000.0
+                answered = f"{integer(entry.get('answeredCount'))}/{integer(entry.get('totalQuestions'))}"
+                participant_id = entry.get("participantId") or entry.get("playerId") or ""
+                lines.append(
+                    f"{pad_right('第 ' + str(integer(entry.get('rank'))) + ' 名', 10)} "
+                    f"{pad_right(entry.get('nickname', ''), 18)} "
+                    f"{pad_right(str(integer(entry.get('score'))) + ' 分', 10)} "
+                    f"{pad_right(f'{duration:.1f} 秒', 14)} "
+                    f"{pad_right(answered, 10)} {participant_id}"
+                )
 
-        best_rank = 1
-        for nick, records in by_nickname.items():
-            best = records[0]
-            count = len(records)
-            rank_str = f"第 {best_rank} 名"
-            best_rank += 1
-            score_str = f"{best['score']} 分"
-            duration_sec = best["duration_ms"] / 1000.0
-            duration_str = f"{duration_sec:.1f} 秒"
-            round_str = f"第 {best['round_index']} 轮"
-            count_str = f"共参与 {count} 轮"
+    online_by_event = {}
+    for record in online:
+        event_id = record.get("eventId")
+        if not event_id:
+            continue
+        online_by_event.setdefault(event_id, []).append(record)
 
+    if not online_by_event:
+        lines.append("=" * 80)
+        lines.append("【线上积分榜】")
+        lines.append("（暂无线上锁定记录）")
+    else:
+        for event_id, records in online_by_event.items():
+            canonical = sorted(canonical_online(records), key=online_sort_key)
+            lines.append("=" * 80)
+            lines.append(f"【线上积分榜】{event_names.get(event_id, event_id)}")
             lines.append(
-                f"{pad_right(rank_str, 10)} {pad_right(nick, 18)} {pad_right(score_str, 10)} {pad_right(duration_str, 14)} {pad_right(round_str, 12)} {pad_right(count_str, 16)} {best['player_id']}"
+                f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | "
+                f"锁定人数: {len(canonical)} 人"
             )
+            lines.append("-" * 80)
+            lines.append(
+                f"{pad_right('排名', 10)} {pad_right('玩家昵称', 18)} {pad_right('得分', 10)} "
+                f"{pad_right('耗时', 14)} {pad_right('已答', 10)} 锁定时间"
+            )
+            lines.append("-" * 80)
+            for rank, record in enumerate(canonical, 1):
+                duration = integer(record.get("durationMs")) / 1000.0
+                answered = f"{integer(record.get('answeredCount'))}/{integer(record.get('totalQuestions'))}"
+                lines.append(
+                    f"{pad_right('第 ' + str(rank) + ' 名', 10)} "
+                    f"{pad_right(record.get('nickname', ''), 18)} "
+                    f"{pad_right(str(integer(record.get('score'))) + ' 分', 10)} "
+                    f"{pad_right(f'{duration:.1f} 秒', 14)} "
+                    f"{pad_right(answered, 10)} {format_time(record.get('lockedAt'))}"
+                )
 
-    lines.append("=" * 120)
+    event_ids = []
+    for snapshot in history:
+        event_id = snapshot.get("eventId")
+        if event_id and event_id not in event_ids:
+            event_ids.append(event_id)
+    for record in online:
+        event_id = record.get("eventId")
+        if event_id and event_id not in event_ids:
+            event_ids.append(event_id)
 
-    content = "\n".join(lines) + "\n"
-    with open(txt_path, "w", encoding="utf-8") as f:
-        f.write(content)
+    if not event_ids:
+        lines.append("=" * 80)
+        lines.append("【总榜】")
+        lines.append("规则: 线下各轮最佳成绩之和 + 线上锁定成绩")
+        lines.append("（暂无有效成绩）")
+    else:
+        for event_id in event_ids:
+            entries = aggregate_total(event_id, history, online)
+            lines.append("=" * 80)
+            lines.append(f"【总榜】{event_names.get(event_id, event_id)}")
+            lines.append("规则: 线下各轮最佳成绩之和 + 线上锁定成绩")
+            lines.append("-" * 80)
+            lines.append(
+                f"{pad_right('排名', 10)} {pad_right('玩家昵称', 18)} {pad_right('总分', 10)} "
+                f"{pad_right('线下分', 10)} {pad_right('线上分', 10)} {pad_right('总耗时', 14)} "
+                f"{pad_right('线下轮次', 12)} 线上锁定"
+            )
+            lines.append("-" * 80)
+            if not entries:
+                lines.append("（暂无有效成绩）")
+            else:
+                for rank, entry in enumerate(entries, 1):
+                    duration = entry["totalDurationMs"] / 1000.0
+                    lines.append(
+                        f"{pad_right('第 ' + str(rank) + ' 名', 10)} "
+                        f"{pad_right(entry['nickname'], 18)} "
+                        f"{pad_right(str(entry['totalScore']) + ' 分', 10)} "
+                        f"{pad_right(str(entry['offlineScore']) + ' 分', 10)} "
+                        f"{pad_right(str(entry['onlineScore']) + ' 分', 10)} "
+                        f"{pad_right(f'{duration:.1f} 秒', 14)} "
+                        f"{pad_right(str(entry['offlineRoundCount']) + ' 轮', 12)} "
+                        f"{'是' if entry['onlineLocked'] else '否'}"
+                    )
 
-    print(f"已成功提取并生成 TXT 排行榜汇总（含大总结）：{txt_path}")
-    print(f"共解析轮次：{total_rounds} 轮，累计答题记录：{total_plays} 条")
+    lines.append("=" * 80)
+    with open(txt_path, "w", encoding="utf-8") as file:
+        file.write("\n".join(lines) + "\n")
+    print(f"已生成线下轮次榜、线上积分榜与总榜：{txt_path}")
+
+
+def main():
+    try:
+        generate_summary()
+    except Exception as error:
+        print(f"排行榜解析失败：{error}", file=sys.stderr)
+        sys.exit(1)
+
 
 if __name__ == "__main__":
-    generate_summary()
+    main()
