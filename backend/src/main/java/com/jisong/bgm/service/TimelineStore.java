@@ -203,7 +203,7 @@ public class TimelineStore {
                 Question occurrence = new Question(
                         question.id(), question.audioCode(), question.prompt(), question.type(),
                         question.difficulty(), question.options(), question.correctOption(),
-                        question.workName(), question.explanation(),
+                        question.workName(), question.explanation(), question.author(),
                         item.audioStartMs(), item.audioEndMs());
                 items.add(item.withQuestion(occurrence));
             }
@@ -450,6 +450,9 @@ public class TimelineStore {
         }
         if (isBlank(question.explanation())) {
             throw new IllegalStateException(position + " 缺少 explanation");
+        }
+        if (isBlank(question.author())) {
+            throw new IllegalStateException(position + " 缺少 author");
         }
         if (isBlank(question.audioCode())) {
             throw new IllegalStateException(position + " 缺少 audioCode");

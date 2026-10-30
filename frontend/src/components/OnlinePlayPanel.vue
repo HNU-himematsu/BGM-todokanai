@@ -20,6 +20,10 @@ let completing = false
 let timer
 let clockStartedAt = null
 let activeMs = 0
+const SEEK_TIMEOUT_MS = 12000
+const MEDIA_HAVE_FUTURE_DATA = 3
+const seekingQuestion = ref(false)
+const buffering = ref(false)
 
 const eventId = String(route.query.event || activity.eventId || 'demo')
 const isStart = computed(() => online.phase === 'IDLE')
@@ -60,7 +64,7 @@ const questionWindowCopy = computed(() => {
 onMounted(async () => {
   activity.setSession(eventId, MODES.ONLINE)
   if (!activity.isParticipant) {
-    await router.replace({ path: '/', query: { mode: 'online', event: eventId } })
+    await router.replace({ path: '/online', query: { event: eventId } })
     return
   }
   online.nickname = activity.nickname
@@ -125,6 +129,48 @@ function seekTo(positionMs) {
   }
 }
 
+function waitForMediaEvent(eventName, timeoutMs) {
+  return new Promise((resolve) => {
+    const element = audio.value
+    if (!element) {
+      resolve(false)
+      return
+    }
+    let settled = false
+    let timeout = 0
+    const finish = (value) => {
+      if (settled) return
+      settled = true
+      window.clearTimeout(timeout)
+      element.removeEventListener(eventName, handler)
+      element.removeEventListener('error', onError)
+      resolve(value)
+    }
+    const handler = () => finish(true)
+    const onError = () => finish(false)
+    timeout = window.setTimeout(() => finish(false), timeoutMs)
+    element.addEventListener(eventName, handler, { once: true })
+    element.addEventListener('error', onError, { once: true })
+  })
+}
+
+async function seekToReady(positionMs, timeoutMs = SEEK_TIMEOUT_MS) {
+  const element = audio.value
+  if (!element) return false
+  const targetMs = Math.max(0, Math.min(positionMs, online.questionSet?.audioEndMs || positionMs))
+  if (Math.abs(element.currentTime * 1000 - targetMs) >= 50) {
+    const seeked = waitForMediaEvent('seeked', timeoutMs)
+    try {
+      element.currentTime = targetMs / 1000
+    } catch {
+      return false
+    }
+    if (!await seeked) return false
+  }
+  if (element.readyState >= MEDIA_HAVE_FUTURE_DATA) return true
+  return waitForMediaEvent('canplay', timeoutMs)
+}
+
 function targetPosition() {
   return online.hasResumeProgress ? online.audioPositionMs : (online.questionSet?.audioStartMs || 0)
 }
@@ -169,19 +215,24 @@ async function startOrResume() {
     await ensureMetadata()
     if (resuming) {
       activeMs = online.activeDurationMs
-      seekTo(online.audioPositionMs)
+      if (!await seekToReady(online.audioPositionMs)) throw new Error('音频定位失败')
       online.resumeAttempt()
     } else {
       online.beginAttempt()
       activeMs = 0
-      seekTo(online.questionSet.audioStartMs)
+      if (!await seekToReady(online.questionSet.audioStartMs)) throw new Error('音频定位失败')
     }
+    buffering.value = false
     await audio.value.play()
   } catch (err) {
     stopClock()
     online.phase = 'IDLE'
     online.setVisiblePause(false)
-    message.error(err?.message === '音频加载失败' ? '音频加载失败，请重新加载' : '音频无法播放，请检查浏览器播放权限')
+    message.error(err?.message === '音频加载失败'
+      ? '音频加载失败，请重新加载'
+      : err?.message === '音频定位失败'
+        ? '音频定位失败，请稍后重试'
+        : '音频无法播放，请检查浏览器播放权限')
   }
 }
 
@@ -190,8 +241,21 @@ function onPlay() {
   startClock()
 }
 
+function onWaiting() {
+  if (!isInProgress.value || online.visiblePause) return
+  buffering.value = true
+  stopClock()
+  if (!seekingQuestion.value) syncClock()
+}
+
+function onPlaying() {
+  buffering.value = false
+  if (isInProgress.value && !online.visiblePause && !seekingQuestion.value) startClock()
+}
+
 function onPause() {
   stopClock()
+  if (seekingQuestion.value) return
   if (isInProgress.value) syncClock()
   if (isInProgress.value && !completing && !leaving.value) {
     online.setVisiblePause(true)
@@ -200,7 +264,7 @@ function onPause() {
 }
 
 function onTimeUpdate() {
-  if (!isInProgress.value || !online.questionSet) return
+  if (seekingQuestion.value || !isInProgress.value || !online.questionSet) return
   if (audioPosition() >= online.questionSet.audioEndMs) {
     finishPlayback()
     return
@@ -209,7 +273,7 @@ function onTimeUpdate() {
 }
 
 function tick() {
-  if (!isInProgress.value || !audio.value || audio.value.paused) return
+  if (seekingQuestion.value || !isInProgress.value || !audio.value || audio.value.paused) return
   syncClock()
   if (online.questionSet && audioPosition() >= online.questionSet.audioEndMs) finishPlayback()
 }
@@ -242,7 +306,12 @@ async function resumeFromPause() {
   if (!audio.value) return
   online.setVisiblePause(false)
   activeMs = online.activeDurationMs
-  seekTo(online.audioPositionMs)
+  if (!await seekToReady(online.audioPositionMs)) {
+    online.setVisiblePause(true)
+    message.error('音频定位失败，请稍后重试')
+    return
+  }
+  buffering.value = false
   try {
     await audio.value.play()
   } catch {
@@ -286,7 +355,7 @@ async function reloadAudio() {
   audio.value?.load()
   try {
     await ensureMetadata()
-    seekTo(targetPosition())
+    if (!await seekToReady(targetPosition())) throw new Error('音频定位失败')
   } catch {
     online.setPhaseError('音频仍然无法加载，请检查网络连接')
   }
@@ -299,7 +368,7 @@ async function restartAudioAttempt() {
   audio.value?.load()
   try {
     await ensureMetadata()
-    seekTo(online.questionSet?.audioStartMs || 0)
+    if (!await seekToReady(online.questionSet?.audioStartMs || 0)) throw new Error('音频定位失败')
   } catch {
     online.setPhaseError('音频加载失败，请稍后重试')
   }
@@ -314,17 +383,43 @@ function chooseOption(index) {
   online.selectOption(index)
 }
 
-function goToNextQuestion() {
-  if (!online.canAdvanceQuestion) return
+async function goToNextQuestion() {
+  if (!online.canAdvanceQuestion || seekingQuestion.value) return
   const nextQuestion = online.questions[online.currentIndex + 1]
   if (!nextQuestion) return
-  if (!seekTo(nextQuestion.answerStartMs)) {
-    message.error('音频定位失败，请稍后重试')
-    return
-  }
-  if (!online.advanceToNextQuestion()) return
+  const wasPlaying = Boolean(audio.value && !audio.value.paused)
+  seekingQuestion.value = true
+  stopClock()
   syncClock()
-  online.persistProgress(true)
+  try {
+    if (!await seekToReady(nextQuestion.answerStartMs)) {
+      message.error('音频定位失败，请稍后重试')
+      audio.value?.pause()
+      online.setVisiblePause(true)
+      online.persistProgress(true)
+      return
+    }
+    if (leaving.value) return
+    if (!online.advanceToNextQuestion()) {
+      if (wasPlaying) startClock()
+      return
+    }
+    buffering.value = false
+    if (audio.value?.paused) {
+      try {
+        await audio.value.play()
+      } catch {
+        online.setVisiblePause(true)
+        message.error('音频无法继续播放，请检查播放权限')
+        return
+      }
+    }
+    startClock()
+    syncClock()
+    online.persistProgress(true)
+  } finally {
+    seekingQuestion.value = false
+  }
 }
 
 function formatDuration(ms) {
@@ -340,7 +435,7 @@ function leave() {
     online.persistProgress(true)
   }
   audio.value?.pause()
-  router.push({ path: '/', query: { mode: 'online', event: eventId } })
+  router.push({ path: '/online', query: { event: eventId } })
 }
 </script>
 
@@ -417,6 +512,14 @@ function leave() {
       <template v-else-if="isInProgress">
         <OnlineProgress />
 
+        <a-alert
+          v-if="buffering"
+          class="form-alert"
+          type="info"
+          show-icon
+          message="音频缓冲中，计时已暂停，请稍候…"
+        />
+
         <a-card v-if="online.isWindowOpen && question" class="question-card online-question-card">
           <div class="countdown-track">
             <div class="countdown-fill" :style="{ width: `${remainingPercent}%` }"></div>
@@ -431,6 +534,7 @@ function leave() {
               <Clock3 :size="17" />本题剩余 {{ questionSeconds }} 秒
             </div>
           </div>
+          <p v-if="question.author" class="author-line">出题人：{{ question.author }}</p>
           <h2 class="question-title">{{ question.prompt }}</h2>
           <div class="option-grid online-option-grid">
             <button
@@ -438,6 +542,7 @@ function leave() {
               :key="`${question.id}-${index}`"
               class="option-button"
               :class="{ selected: online.currentAnswer === index }"
+              :disabled="seekingQuestion"
               @click="chooseOption(index)"
             >
               <span class="option-letter">{{ String.fromCharCode(65 + index) }}</span>
@@ -457,12 +562,13 @@ function leave() {
               v-if="online.currentIndex < online.questions.length - 1"
               type="primary"
               size="large"
-              :disabled="!online.canAdvanceQuestion"
-              :title="online.currentAnswer === null ? '请先选择一个答案' : '进入下一题'"
+              :disabled="!online.canAdvanceQuestion || seekingQuestion"
+              :loading="seekingQuestion"
+              :title="online.currentAnswer === null ? '请先选择一个答案' : seekingQuestion ? '音频定位中' : '进入下一题'"
               @click="goToNextQuestion"
             >
-              下一题
-              <ArrowRight :size="16" />
+              {{ seekingQuestion ? '音频定位中' : '下一题' }}
+              <ArrowRight v-if="!seekingQuestion" :size="16" />
             </a-button>
           </div>
         </a-card>
@@ -499,6 +605,8 @@ function leave() {
       playsinline
       @loadedmetadata="onLoadedMetadata"
       @play="onPlay"
+      @playing="onPlaying"
+      @waiting="onWaiting"
       @pause="onPause"
       @timeupdate="onTimeUpdate"
       @ended="onEnded"

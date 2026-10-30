@@ -80,33 +80,40 @@ frontend/
 
 ```text
 https://example.test/
+https://example.test/online?event=demo
+https://example.test/offline?event=demo
 https://example.test/?mode=online&event=demo
 https://example.test/?mode=offline&event=demo
 ```
 
+`/offline`、`/online` 为路径入口，`?mode=offline`、`?mode=online` 为查询入口，两者语义相同。
+线下二维码使用路径入口。
+
 归一规则：
 
-1. 读取 `mode`、`event` 查询参数。
-2. `mode` 转小写；缺省为 `online`。
-3. `mode` 为 `online` 或 `offline` 时采用该值。
-4. 其他值归一为 `online`，页面显示“模式参数无效，已进入线上模式”。
-5. `event` 去空白；空值与缺省值均为 `demo`。
-6. 归一后的模式写入 `sessionStorage` 的 `bgm.mode`。
-7. `JoinView.vue` 根据模式渲染不同登记页；`/play` 只读取已保存的模式与会话凭据。
+1. 优先取路由路径：`/offline` 为线下，`/online` 为线上。
+2. 路径为 `/` 时读取 `mode` 查询参数。
+3. `mode` 转小写；缺省为 `online`。
+4. `mode` 为 `online` 或 `offline` 时采用该值。
+5. 其他值归一为 `online`，页面显示“模式参数无效，已进入线上模式”。
+6. `event` 去空白；空值与缺省值均为 `demo`。
+7. 归一后的模式写入 `sessionStorage` 的 `bgm.mode`。
+8. `JoinView.vue` 根据模式渲染不同登记页；进入 `/play` 时模式随查询参数一并传递。
 
 ### 3.2 路由守卫
 
 | 路由 | 准入条件 | 不满足时 |
 | :--- | :--- | :--- |
-| `/` | 无条件 | 正常显示登记页。 |
-| `/play` | `sessionStorage` 存在有效模式；线上存在 `participantId` 与昵称；线下存在 `playerId` 与昵称 | 回到 `/?mode={当前模式}&event={eventId}`。 |
+| `/`、`/offline`、`/online` | 无条件 | 正常显示登记页。 |
+| `/play` | 查询参数或 `sessionStorage` 存在有效模式；线上存在 `participantId` 与昵称；线下存在 `playerId` 与昵称 | 回到 `/{当前模式}?event={eventId}`。 |
 | `/host` | 主持人密码核验成功并持有会话令牌 | 显示登录表单，不跳转参与者页面。 |
 
-`/play` 刷新时从 `sessionStorage` 读取模式。模式缺失时回到 `/`。主持人路由不读取参与者模式。
+`/play` 的模式按查询参数、`sessionStorage` 顺序取值，取值后回写 `sessionStorage`。
+两处都缺失时回到 `/`。主持人路由不读取参与者模式。
 
 ### 3.3 模式切换
 
-- 线下登记页提供「进入线上模式」按钮，跳转到 `/?mode=online&event={eventId}`。
+- 线下登记页提供「进入线上模式」按钮，跳转到 `/online?event={eventId}`。
 - 线上登记页提供现场二维码说明，不把线上答题直接切换为线下房间。
 - 切换模式不删除 `participantId`、昵称与线上进度。
 - 线下 `playerId` 只属于线下会话；切回线上时保留但不使用。
@@ -454,7 +461,8 @@ t >= questions[last].audioEndMs
 - 当前题关闭后，该题选项不可访问，不提供回看入口。
 - 进度圆点显示已答题、当前题与未到达题，全部圆点不可点击。
 - 当前题窗口开放且已选答案时显示「下一题」按钮；未选答案时按钮禁用，最后一题不显示该按钮。
-- 点击「下一题」立即结束当前题，将音频定位到下一题 `answerStartMs`，切换到下一题并立即保存进度；音频保持播放。
+- 点击「下一题」结束当前题，将音频定位到下一题 `answerStartMs`；定位与缓冲期间保持当前题画面并暂停有效计时，按钮显示加载状态。
+- 音频进入可播放状态后切换到下一题、保存进度并继续播放。
 - 页面不提供上一题、任意题号跳转、暂停、拖动进度、倍速和音量控制。
 - 结果流程在最后一题 `audioEndMs` 到达后启动；全部题目作答窗口可以早于该位置结束。
 - 提前耗尽音频数据时进入 `ERROR`，不伪造题目结束。
@@ -464,7 +472,7 @@ t >= questions[last].audioEndMs
 `activeDurationMs` 只累计音频实际播放的时间：
 
 - `audio.play()` 成功后开始计时。
-- `pause`、页面隐藏、音频错误和答题结束停止计时。
+- `pause`、页面隐藏、音频错误、答题结束以及 seek 与缓冲等待期间停止计时。
 - 恢复播放后继续累计，不清零。
 - `durationMs` 请求字段取 `activeDurationMs` 的整数毫秒值。
 - 用户拖动系统媒体控件导致的其他播放状态变化按音频 `play` / `pause` 事件计入。
@@ -545,8 +553,9 @@ t >= questions[last].audioEndMs
 1. 「下一题」位于当前题卡片底部操作区，不属于只读进度控件。
 2. 按钮仅在当前题窗口开放、当前题已选答案且存在下一题时可用。
 3. 当前题未选答案时按钮保持可见并禁用，最后一题不渲染按钮。
-4. 点击后调用 store 的顺序推进动作，将音频定位到下一题 `answerStartMs`，立即保存进度并继续播放。
-5. 推进过程不出现答案揭晓、暂停遮罩或题间等待页。
+4. 点击后先将音频定位到下一题 `answerStartMs`，等待 `seeked` 与可播放状态；定位期间按钮显示加载态并暂停有效计时。
+5. 定位完成后调用 store 的顺序推进动作，保存进度并继续播放。
+6. 推进过程不出现答案揭晓或暂停遮罩；定位期间显示音频定位状态。
 
 ### 8.3 `OnlineProgress.vue`
 
@@ -620,10 +629,11 @@ t >= questions[last].audioEndMs
 二维码内容：
 
 ```text
-{publicBaseUrl}/?mode=offline&event={eventId}
+{publicBaseUrl}/offline?event={eventId}
 ```
 
 `publicBaseUrl` 取当前页面协议的 origin，或在配置中显式指定。二维码不含主持人令牌、玩家标识或本地进度。
+主持人控制台同时显示该地址文本，扫码失败时可手动输入。
 
 ### 10.3 音频播放
 
@@ -732,6 +742,7 @@ ACCENT = rgb(188, 74, 216) / #BC4AD8
 - 页面切换为后台时主动暂停并保存。
 - 来电、系统媒体按键或其他应用抢占音频后，依据音频事件恢复页面状态。
 - 音频文件需支持 Range 与移动浏览器可解码的编码格式。
+- 音频跳转后等待 `seeked` 与可播放状态，再恢复计时与题目推进；`waiting` 与 `playing` 事件驱动缓冲提示与计时暂停。
 
 ## 13. 性能与资源
 
@@ -746,7 +757,7 @@ ACCENT = rgb(188, 74, 216) / #BC4AD8
 ### 14.1 模式与路由
 
 - 访问 `/` 显示线上登记页。
-- 访问 `/?mode=offline&event=demo` 显示线下登记页。
+- 访问 `/offline?event=demo` 或 `/?mode=offline&event=demo` 显示线下登记页。
 - 无效 `mode` 进入线上模式并显示提示。
 - 线下登记页可进入线上模式。
 - `/play` 刷新后保持当前模式；模式缺失时回到 `/`。
@@ -757,7 +768,7 @@ ACCENT = rgb(188, 74, 216) / #BC4AD8
 - 音频连续播放，题目边界由音频位置触发。
 - 选项在 `answerEndMs` 后失效。
 - 当前题已选答案时「下一题」可用；未选答案时禁用，最后一题不显示。
-- 点击「下一题」后音频定位到下一题 `answerStartMs`，当前题切换，进度立即保存，音频继续播放。
+- 点击「下一题」后音频定位到下一题 `answerStartMs`，定位完成并进入可播放状态后切换当前题、保存进度并继续播放；定位期间暂停有效计时。
 - 跳过音频区间不计入有效作答耗时。
 - 页面不存在任意跳题、回看、暂停与进度拖动控件。
 - 未答题按 0 分提交。

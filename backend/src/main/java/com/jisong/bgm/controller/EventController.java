@@ -20,6 +20,7 @@ import com.jisong.bgm.service.OnlineAttemptService;
 import com.jisong.bgm.service.RangeNotSatisfiableException;
 import com.jisong.bgm.service.ResourceNotFoundException;
 import jakarta.validation.Valid;
+import org.springframework.core.io.AbstractResource;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRange;
@@ -36,8 +37,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.FilterInputStream;
 import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -45,8 +47,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api")
 public class EventController {
-    private static final long MAX_RANGE_CHUNK_BYTES = 1024 * 1024L;
-
     private final ActivityService activityService;
     private final OnlineAttemptService onlineAttemptService;
 
@@ -181,18 +181,93 @@ public class EventController {
         if (contentLength <= 0 || start < 0 || start >= contentLength || end < start) {
             throw new RangeNotSatisfiableException(contentLength, "Range 超出音频文件长度");
         }
-        long rangeLength = Math.min(Math.min(contentLength - start, end - start + 1), MAX_RANGE_CHUNK_BYTES);
-        byte[] chunk = new byte[(int) rangeLength];
-        try (RandomAccessFile file = new RandomAccessFile(audioPath.toFile(), "r")) {
-            file.seek(start);
-            file.readFully(chunk);
-        }
+        long rangeLength = Math.min(contentLength - start, end - start + 1);
+        FileRangeResource body = new FileRangeResource(audioPath, start, rangeLength);
         return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
                 .contentType(mediaType)
                 .header(HttpHeaders.ACCEPT_RANGES, "bytes")
                 .header(HttpHeaders.CONTENT_RANGE,
                         "bytes " + start + "-" + (start + rangeLength - 1) + "/" + contentLength)
                 .contentLength(rangeLength)
-                .body(chunk);
+                .body(body);
+    }
+
+    private static final class FileRangeResource extends AbstractResource {
+        private final Path path;
+        private final long start;
+        private final long length;
+
+        private FileRangeResource(Path path, long start, long length) {
+            this.path = path;
+            this.start = start;
+            this.length = length;
+        }
+
+        @Override
+        public String getDescription() {
+            return "音频区间 [" + start + ", " + (start + length) + ") · " + path;
+        }
+
+        @Override
+        public InputStream getInputStream() throws IOException {
+            InputStream input = Files.newInputStream(path);
+            try {
+                input.skipNBytes(start);
+                return new BoundedInputStream(input, length);
+            } catch (IOException exception) {
+                input.close();
+                throw exception;
+            }
+        }
+
+        @Override
+        public long contentLength() {
+            return length;
+        }
+    }
+
+    private static final class BoundedInputStream extends FilterInputStream {
+        private long remaining;
+
+        private BoundedInputStream(InputStream input, long limit) {
+            super(input);
+            this.remaining = limit;
+        }
+
+        @Override
+        public int read() throws IOException {
+            if (remaining <= 0) {
+                return -1;
+            }
+            int value = super.read();
+            if (value >= 0) {
+                remaining--;
+            }
+            return value;
+        }
+
+        @Override
+        public int read(byte[] buffer, int offset, int length) throws IOException {
+            if (remaining <= 0) {
+                return -1;
+            }
+            int read = super.read(buffer, offset, (int) Math.min(length, remaining));
+            if (read > 0) {
+                remaining -= read;
+            }
+            return read;
+        }
+
+        @Override
+        public long skip(long count) throws IOException {
+            long skipped = super.skip(Math.min(count, remaining));
+            remaining -= skipped;
+            return skipped;
+        }
+
+        @Override
+        public int available() throws IOException {
+            return (int) Math.min(super.available(), remaining);
+        }
     }
 }

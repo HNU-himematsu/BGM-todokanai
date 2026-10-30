@@ -47,7 +47,7 @@ const leaderboardLoading = ref(false)
 const question = computed(() => state.value?.question)
 const round = computed(() => rounds.value.find((item) => item.id === currentRoundId.value))
 const publicBaseUrl = (import.meta.env.VITE_PUBLIC_BASE_URL || window.location.origin).replace(/\/+$/, '')
-const joinUrl = `${publicBaseUrl}/?mode=offline&event=${eventId}`
+const joinUrl = `${publicBaseUrl}/offline?event=${eventId}`
 const summaryTxtUrl = `${publicBaseUrl}/api/events/${eventId}/leaderboard/summary-txt`
 const displayQuestionNo = computed(() => Math.max(0, (state.value?.currentQuestionIndex ?? -1) + 1))
 const statusLabel = computed(() => ({ WAITING: '等待开始', ANSWERING: '答题中', ANSWER_LOCKED: '已锁卷', ANSWER_REVEALED: '答案揭晓', FINISHED: '活动结束' }[state.value?.status] || '连接中'))
@@ -370,12 +370,36 @@ function formatDateTime(value) {
       </a-card>
 
       <a-card class="host-join">
-        <div class="host-join-body"><div><div class="section-title"><span>扫码加入</span><span class="muted">活动房间：{{ eventId }}</span></div><p class="muted">把二维码展示给现场参与者，大家扫码后输入昵称即可加入本轮活动。</p><a-button @click="copyJoinUrl"><Copy :size="16" />复制加入地址</a-button></div><canvas ref="qrCanvas" class="qr-code" aria-label="活动加入二维码"></canvas></div>
+        <div class="host-join-body"><div><div class="section-title"><span>扫码加入</span><span class="muted">活动房间：{{ eventId }}</span></div><p class="muted">把二维码展示给现场参与者，大家扫码后输入昵称即可加入本轮活动。</p><a-button @click="copyJoinUrl"><Copy :size="16" />复制加入地址</a-button><p class="join-url-text">{{ joinUrl }}</p></div><canvas ref="qrCanvas" class="qr-code" aria-label="活动加入二维码"></canvas></div>
       </a-card>
 
       <a-card class="host-preview">
         <div class="section-title"><span>题目预览</span><a-tag v-if="question">{{ question.type === 'ATMOSPHERE' ? '氛围题' : '作品题' }}</a-tag></div>
-        <template v-if="question"><div class="preview-meta"><span>第 {{ displayQuestionNo }} 题</span><span>{{ question.difficulty === 'EASY' ? '简单' : question.difficulty === 'MEDIUM' ? '中等' : '困难' }}</span></div><h2 class="question-title preview-title">{{ question.prompt }}</h2><div class="preview-options"><div v-for="(option, index) in question.options" :key="option"><span>{{ String.fromCharCode(65 + index) }}</span>{{ option }}</div></div><p v-if="question.workName" class="audio-board-meta">作品提示：{{ question.workName }}</p><a-alert v-if="state.status === 'ANSWER_REVEALED' && question.answerIndex != null" class="explanation-alert" type="success" show-icon :message="`正确答案：${String.fromCharCode(65 + question.answerIndex)} · ${question.workName}`" /></template>
+        <template v-if="question">
+          <div class="preview-meta">
+            <span>第 {{ displayQuestionNo }} 题</span>
+            <span>{{ question.difficulty === 'EASY' ? '简单' : question.difficulty === 'MEDIUM' ? '中等' : '困难' }}</span>
+          </div>
+          <h2 class="question-title preview-title">{{ question.prompt }}</h2>
+          <div class="preview-options">
+            <div v-for="(option, index) in question.options" :key="option">
+              <span>{{ String.fromCharCode(65 + index) }}</span>{{ option }}
+            </div>
+          </div>
+          <p v-if="question.workName" class="audio-board-meta">作品提示：{{ question.workName }}</p>
+          <p v-if="question.author" class="audio-board-meta">出题人：{{ question.author }}</p>
+          <a-alert
+            v-if="state.status === 'ANSWER_REVEALED' && question.answerIndex != null"
+            class="explanation-alert"
+            type="success"
+            show-icon
+          >
+            <template #message>正确答案：{{ String.fromCharCode(65 + question.answerIndex) }} · {{ question.workName }}<span v-if="question.author"> · 出题人：{{ question.author }}</span></template>
+            <template #description>
+              <span v-if="question.analysis">{{ question.analysis }}</span>
+            </template>
+          </a-alert>
+        </template>
         <a-empty v-else description="题目尚未上屏" />
       </a-card>
 

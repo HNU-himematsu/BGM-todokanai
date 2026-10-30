@@ -19,7 +19,13 @@ const eventSummary = ref(null)
 
 const modeQuery = computed(() => parseModeQuery(route.query.mode))
 const eventId = computed(() => String(route.query.event || 'demo').trim() || 'demo')
-const isOffline = computed(() => modeQuery.value.mode === MODES.OFFLINE)
+const routeMode = computed(() => {
+  if (route.path === '/offline') return MODES.OFFLINE
+  if (route.path === '/online') return MODES.ONLINE
+  return modeQuery.value.mode
+})
+const modeInvalid = computed(() => route.path === '/' && modeQuery.value.invalid)
+const isOffline = computed(() => routeMode.value === MODES.OFFLINE)
 const eventStatus = computed(() => eventSummary.value?.status || '')
 const offlineClosed = computed(() => isOffline.value && eventStatus.value === 'FINISHED')
 const canJoin = computed(() => nickname.value.trim().length >= 1
@@ -33,7 +39,7 @@ const statusCopy = computed(() => {
   return '等待开始，可加入本轮'
 })
 
-watch([eventId, () => modeQuery.value.mode], async ([nextEventId, nextMode]) => {
+watch([eventId, routeMode], async ([nextEventId, nextMode]) => {
   store.setSession(nextEventId, nextMode)
   nickname.value = store.nickname
   await loadEventSummary()
@@ -66,7 +72,13 @@ async function handleConfirmJoin() {
     if (isOffline.value) await store.joinOffline()
     else await store.joinOnline()
     rulesVisible.value = false
-    await router.push({ path: '/play', query: { event: eventId.value } })
+    await router.push({
+      path: '/play',
+      query: {
+        event: eventId.value,
+        mode: isOffline.value ? 'offline' : 'online',
+      },
+    })
   } catch (err) {
     const text = err.response?.data?.message || '活动暂时无法连接，请稍后再试'
     error.value = text
@@ -77,7 +89,7 @@ async function handleConfirmJoin() {
 }
 
 function switchToOnline() {
-  router.push({ path: '/', query: { mode: 'online', event: eventId.value } })
+  router.push({ path: '/online', query: { event: eventId.value } })
 }
 </script>
 
@@ -99,7 +111,7 @@ function switchToOnline() {
       <h2 class="panel-title">先给自己起个名字</h2>
       <p class="muted">最终排行榜会显示这个昵称。别害羞，名字越有记忆点越好。</p>
       <a-alert
-        v-if="modeQuery.invalid"
+        v-if="modeInvalid"
         class="form-alert"
         type="warning"
         message="模式参数无效，已进入线上模式"

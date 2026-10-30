@@ -1,0 +1,22 @@
+[
+  {
+    "eventId": "demo",
+    "eventName": "历史榜单兼容校验",
+    "roundId": "legacy-round-1",
+    "roundName": "历史轮次",
+    "finishedAt": "2026-09-16T07:03:56Z",
+    "entries": [
+      {
+        "rank": 1,
+        "participantId": "legacy-participant",
+        "playerId": "legacy-player",
+        "nickname": "历史玩家",
+        "score": 10,
+        "durationMs": 12000,
+        "answeredCount": 1,
+        "totalQuestions": 2,
+        "joinedAt": "2026-09-16T07:00:00Z"
+      }
+    ]
+  }
+]

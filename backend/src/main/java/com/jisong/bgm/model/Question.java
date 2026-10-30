@@ -12,6 +12,7 @@ public record Question(
         Integer correctOption,
         String workName,
         String explanation,
+        String author,
         Long audioStartMs,
         Long audioEndMs
 ) {

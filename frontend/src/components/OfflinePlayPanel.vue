@@ -58,14 +58,14 @@ const difficultyLabel = computed(() => ({
 
 onMounted(async () => {
   if (!activity.isParticipant || activity.mode !== MODES.OFFLINE) {
-    await router.replace({ path: '/', query: { mode: 'offline', event: activity.eventId } })
+    await router.replace({ path: '/offline', query: { event: activity.eventId } })
     return
   }
   await refreshState()
   socket.value = createActivitySocket(activity.eventId, async (event) => {
     if (event.type === 'ACTIVITY_RESET') {
       activity.clearOfflinePlayer()
-      await router.replace({ path: '/', query: { mode: 'offline', event: activity.eventId } })
+      await router.replace({ path: '/offline', query: { event: activity.eventId } })
       return
     }
     if (event.type === 'SOCKET_ERROR') return
@@ -127,7 +127,7 @@ async function handleSubmit() {
 
 function leave() {
   activity.clearOfflinePlayer()
-  router.push({ path: '/', query: { mode: 'offline', event: activity.eventId } })
+  router.push({ path: '/offline', query: { event: activity.eventId } })
 }
 </script>
 
@@ -216,7 +216,10 @@ function leave() {
         </div>
         <a-alert v-if="isRevealing && question.analysis" class="explanation-alert" type="info" show-icon>
           <template #message><strong>{{ question.workName }}</strong></template>
-          <template #description>{{ question.analysis }}</template>
+          <template #description>
+            <p v-if="question.author" class="author-line">出题人：{{ question.author }}</p>
+            <p class="analysis-line">{{ question.analysis }}</p>
+          </template>
         </a-alert>
       </a-card>
 

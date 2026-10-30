@@ -230,7 +230,7 @@ Range: bytes=0-1048575
 
 - 无 `Range` 时返回 `200 OK` 和完整音频。
 - 有效 `Range` 时返回 `206 Partial Content`、`Content-Range`、`Accept-Ranges: bytes` 与对应字节片段。
-- 单个 Range 请求最大返回 1 MiB，客户端通过连续 Range 请求加载完整音频。
+- 单个 Range 请求按请求区间返回完整片段；开放式区间返回至文件末尾。多区间请求返回第一个区间。
 - `Content-Type` 根据音频文件扩展名生成，常见值为 `audio/mpeg`、`audio/wav`、`audio/ogg`。
 - 文件缺失或不可读时返回 `404` 或 `500`，响应体为 `ApiResponse`。
 
@@ -721,6 +721,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
 | `options` | String[] | 四个选项。 |
 | `workName` | String / null | 作品名；仅 `ANSWER_REVEALED`、`FINISHED` 与主持人快照可见。 |
 | `analysis` | String / null | 解析；仅 `ANSWER_REVEALED` 与 `FINISHED` 可见。 |
+| `author` | String / null | 出题人署名；仅 `ANSWER_REVEALED`、`FINISHED` 与主持人快照可见。 |
 | `answerIndex` | Integer / null | 正确选项下标；仅 `ANSWER_REVEALED` 与 `FINISHED` 可见。 |
 
 状态约束：
@@ -945,7 +946,7 @@ X-Host-Token: 6dc1e7aa-3f7d-4c61-92e4-8ef317cd09a4
         "options": ["《CLANNAD》", "《白色相簿2》", "《命运石之门》", "《千恋＊万花》"],
         "workName": "《示例作品》",
         "analysis": null,
-        "author": null,
+        "author": "Munch",
         "answerIndex": null
       },
       "hasAnswered": false,

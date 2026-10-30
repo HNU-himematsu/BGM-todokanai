@@ -22,7 +22,7 @@ class LeaderboardStoreCompatibilityTests {
         ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
         LeaderboardStore store = new LeaderboardStore(
                 objectMapper,
-                "data/leaderboards.json",
+                "src/test/resources/leaderboards-legacy.json",
                 temporaryDirectory.resolve("online_leaderboard.json").toString(),
                 temporaryDirectory.resolve("leaderboard_summary.txt").toString());
 

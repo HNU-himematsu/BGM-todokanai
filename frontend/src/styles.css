@@ -607,6 +607,17 @@ p {
   margin-top: 22px;
 }
 
+.author-line {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.analysis-line {
+  margin: 0;
+}
+
 .score-panel {
   align-self: start;
   border-left: 1px solid var(--line);
@@ -951,6 +962,15 @@ p {
   width: 156px;
   height: 156px;
   flex: 0 0 auto;
+}
+
+.join-url-text {
+  max-width: 100%;
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: break-all;
 }
 
 .section-title {

@@ -97,7 +97,7 @@ Vite 把 `/api` 与 `/ws` 代理到 `http://localhost:8080`。
 | :--- | :--- |
 | 线上 | `http://localhost:5173/` |
 | 显式线上 | `http://localhost:5173/?mode=online&event=demo` |
-| 线下 | `http://localhost:5173/?mode=offline&event=demo` |
+| 线下 | `http://localhost:5173/offline?event=demo` |
 | 主持人 | `http://localhost:5173/host` |
 
 手机与电脑位于同一局域网时，可把 `localhost` 替换为电脑局域网地址。跨设备访问前确认系统防火墙允许 Vite 端口。
@@ -147,6 +147,16 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
+    location ~ ^/api/events/[^/]+/audio$ {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 120s;
+    }
+
     location /api/ {
         proxy_pass http://127.0.0.1:8080;
         proxy_set_header Host $host;
@@ -170,7 +180,7 @@ server {
 
 - `/` 返回前端 SPA。
 - `/api/health` 返回后端健康信息。
-- `/api/events/demo/audio` 支持 Range。
+- `/api/events/demo/audio` 支持 Range，音频路由关闭代理缓冲并直接透传客户端区间请求。
 - `/ws` 返回 WebSocket 升级响应。
 - 刷新 `/host` 不出现 404。
 
@@ -213,7 +223,7 @@ https://xxxx-xxxx-xxxx.trycloudflare.com
 线下二维码：
 
 ```text
-{publicBaseUrl}/?mode=offline&event=demo
+{publicBaseUrl}/offline?event=demo
 ```
 
 主持人入口：
@@ -320,7 +330,7 @@ https://xxxx-xxxx-xxxx.trycloudflare.com
 ## 11. 部署验收
 
 - 根地址进入线上模式。
-- 线下二维码包含 `mode=offline`。
+- 线下二维码指向 `/offline` 路径。
 - 同一 origin 提供页面、API、音频与 WebSocket。
 - 手机可加载音频并自动出题。
 - 页面隐藏后可恢复进度。

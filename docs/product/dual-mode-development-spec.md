@@ -42,10 +42,11 @@
 | 入口 | 地址 | 模式 |
 | :--- | :--- | :--- |
 | 网页默认入口 | `/` | 线上模式 |
-| 现场二维码 | `/?mode=offline&event=demo` | 线下模式 |
-| 显式线上入口 | `/?mode=online&event=demo` | 线上模式 |
+| 现场二维码 | `/offline?event=demo` | 线下模式 |
+| 显式线上入口 | `/online?event=demo` | 线上模式 |
 
-`event` 参数缺省值为 `demo`。`mode` 参数缺省值为 `online`。未知的 `mode` 值按 `online` 处理，并在页面显示提示。
+`event` 参数缺省值为 `demo`。`/?mode=offline` 与 `/?mode=online` 作为既有二维码与手工输入的等效查询入口保留。
+`mode` 参数缺省值为 `online`。未知的 `mode` 值按 `online` 处理，并在页面显示提示。
 
 ### 3.2 页面路由
 
@@ -260,7 +261,8 @@ questionId, audioStartMs, audioEndMs, answerStartMs, answerEndMs
 - 音频从第一题 `audioStartMs` 开始播放，连续播放到最后一题 `audioEndMs`。
 - 当前题在 `answerStartMs` 上屏，在 `answerEndMs` 锁定。
 - 当前题作答窗口开放且已有选中答案时，「下一题」按钮可用。
-- 点击「下一题」立即结束当前题，将音频定位到下一题 `answerStartMs`，并把下一题设为当前题。
+- 点击「下一题」结束当前题，将音频定位到下一题 `answerStartMs`；定位与缓冲期间暂停 `activeDurationMs` 计时，按钮显示加载状态。
+- 音频进入可播放状态后把下一题设为当前题、保存进度并继续播放。
 - 当前题未选择答案时，「下一题」按钮禁用。
 - 未点击「下一题」时，音频继续播放，题目按 `answerEndMs` 与下一题 `answerStartMs` 自动推进。
 - 最后一题不显示「下一题」；最后一题音频播放到 `audioEndMs` 后进入结果页。
@@ -393,7 +395,7 @@ questionId, audioStartMs, audioEndMs, answerStartMs, answerEndMs
 
 线下模式按以下流程运行：
 
-1. 参与者扫描二维码进入 `/?mode=offline&event=demo`，输入昵称加入。
+1. 参与者扫描二维码进入 `/offline?event=demo`，输入昵称加入。
 2. 主持人登录 `/host`，选择轮次并点击开始播放。
 3. 控制台将音频定位到 `round.startMs` 并播放，同时调用启动接口建立时间轴零点 `T0`。
 4. 服务端按 `T0 + (atMs - startMs)` 触发 `LOAD`、`NEXT`、`LOCK`、`REVEAL`、`FINISH`。
@@ -525,7 +527,8 @@ questionId, audioStartMs, audioEndMs, answerStartMs, answerEndMs
 
 ### 10.5 主持人界面
 
-- 二维码地址固定为 `${publicBaseUrl}/?mode=offline&event=${eventId}`。
+- 二维码地址固定为 `${publicBaseUrl}/offline?event=${eventId}`。
+- 二维码旁同时显示该地址文本。
 - 控制台继续提供轮次选择、开始、暂停、恢复、锁卷、揭晓、下一题、重置。
 - 榜单区域增加「本轮榜 / 线上榜 / 总榜」切换。
 - 线上锁定触发 `ONLINE_SCORE_LOCKED` 广播后，主持人页面刷新线上榜与总榜。
@@ -598,9 +601,9 @@ questionId, audioStartMs, audioEndMs, answerStartMs, answerEndMs
 ### 15.1 模式与入口
 
 - 访问 `/` 进入线上模式。
-- 访问 `/?mode=offline&event=demo` 进入线下模式。
+- 访问 `/offline?event=demo` 或 `/?mode=offline&event=demo` 进入线下模式。
 - 线下登记页可跳转到线上模式。
-- 主持人二维码包含 `mode=offline&event=demo`。
+- 主持人二维码指向 `/offline?event=demo`。
 
 ### 15.2 线上答题
 

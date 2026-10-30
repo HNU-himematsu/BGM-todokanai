@@ -13,6 +13,7 @@ public record QuestionView(
         List<String> options,
         String workName,
         String analysis,
+        String author,
         Integer answerIndex
 ) {
 }

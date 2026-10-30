@@ -484,15 +484,16 @@ public class ActivityService {
         }
         Question question = activity.currentQuestion;
         boolean revealAnswer = activity.answerRevealed;
-        boolean showWorkName = hostView || revealAnswer;
+        boolean showPrivateMeta = hostView || revealAnswer;
         QuestionView questionView = question == null ? null : new QuestionView(
                 question.id(),
                 question.prompt(),
                 question.difficulty(),
                 question.type(),
                 question.options(),
-                showWorkName ? question.workName() : null,
+                showPrivateMeta ? question.workName() : null,
                 revealAnswer ? question.explanation() : null,
+                showPrivateMeta ? question.author() : null,
                 revealAnswer ? question.correctOption() : null);
         AnswerRecord answer = player == null || question == null
                 ? null

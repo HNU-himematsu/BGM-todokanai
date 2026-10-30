@@ -100,6 +100,7 @@ class ActivityFlowTests {
         assertThat(answering.get("question").get("answerIndex").isNull()).isTrue();
         assertThat(answering.get("question").get("analysis").isNull()).isTrue();
         assertThat(answering.get("question").get("workName").isNull()).isTrue();
+        assertThat(answering.get("question").get("author").isNull()).isTrue();
         assertThat(answering.get("canAnswer").asBoolean()).isTrue();
         long audioStart = answering.get("questionAudioStartEpochMs").asLong();
         long audioEnd = answering.get("questionAudioEndEpochMs").asLong();
@@ -116,6 +117,7 @@ class ActivityFlowTests {
         assertThat(hostState.get("players")).hasSize(2);
         assertThat(hostState.get("state").get("answeredCount").asInt()).isEqualTo(1);
         assertThat(hostState.get("state").get("question").get("workName").asText()).isEqualTo("联调作品甲");
+        assertThat(hostState.get("state").get("question").get("author").asText()).isEqualTo("联调出题人甲");
         assertThat(hostState.get("rounds")).hasSize(2);
 
         JsonNode paused = data(post("/api/events/demo/host/pause").header(TOKEN_HEADER, token));
@@ -132,6 +134,7 @@ class ActivityFlowTests {
         JsonNode revealed = awaitStatus(playerId, "ANSWER_REVEALED", 4000);
         assertThat(revealed.get("question").get("answerIndex").asInt()).isEqualTo(1);
         assertThat(revealed.get("question").get("analysis").asText()).isEqualTo("联调第一题解析");
+        assertThat(revealed.get("question").get("author").asText()).isEqualTo("联调出题人甲");
 
         JsonNode finished = awaitStatus(playerId, "FINISHED", 6000);
         assertThat(finished.get("playerScore").asInt()).isEqualTo(10);

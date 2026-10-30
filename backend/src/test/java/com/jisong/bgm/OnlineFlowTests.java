@@ -76,6 +76,7 @@ class OnlineFlowTests {
         assertThat(questions.get(0).get("audioEndMs").asLong()).isEqualTo(2000L);
         assertThat(questions.get(0).get("answerStartMs").asLong()).isEqualTo(100L);
         assertThat(questions.get(0).get("answerEndMs").asLong()).isEqualTo(1500L);
+        assertThat(questions.get(0).get("author").asText()).isEqualTo("联调出题人甲");
         assertThat(questions.get(1).get("id").asText()).isEqualTo("t-02");
         assertThat(questions.get(1).get("audioStartMs").asLong()).isEqualTo(2000L);
         for (JsonNode question : questions) {
