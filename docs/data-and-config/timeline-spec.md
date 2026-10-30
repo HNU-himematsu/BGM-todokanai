@@ -13,6 +13,8 @@
 
 `timeline.json` 定义完整音频内的线下轮次、题目引用、题目音频片段、作答窗口与状态动作。线上题集由同一编排文件生成，不维护第二份题目顺序文件。
 
+「姬松活动」本次交付素材的实测数值、音频裁切命令、40 题字段映射与联调顺序见 [`jisong-event-integration.md`](jisong-event-integration.md)。
+
 素材未就绪时，后端仍可加载并校验结构；音频文件不可读时，音频接口与线上开始答题返回明确错误。题库与编排通过后，接口才可提供完整答题数据。
 
 ## 2. 顶层结构
@@ -130,6 +132,7 @@ FINISH
     "correctOption": 1,
     "workName": "《白色相簿2》",
     "explanation": "该旋律对应作品《白色相簿2》。",
+    "author": "Munch",
     "audioCode": "TRACK-01"
   }
 ]
@@ -145,6 +148,7 @@ FINISH
 | `correctOption` | Integer | 0 至 3 | 正确选项下标。 |
 | `workName` | String | 非空 | 作品名；线下揭晓与主持人可见，线上不返回。 |
 | `explanation` | String | 非空 | 解析；线下揭晓可见，线上不返回。 |
+| `author` | String | 非空 | 出题人署名；线下揭晓、主持人控制台与线上题集均可见。 |
 | `audioCode` | String | 非空 | 素材核对编号。 |
 
 `audioCode` 用于运营核对音频素材。题目与音频的播放位置关系由 `timeline.json` 的 `LOAD` 条目定义。
@@ -176,6 +180,7 @@ FINISH
   "type": "WORK",
   "difficulty": "MEDIUM",
   "options": ["《CLANNAD》", "《白色相簿2》", "《命运石之门》", "《千恋＊万花》"],
+  "author": "Munch",
   "audioStartMs": 0,
   "audioEndMs": 15000,
   "answerStartMs": 1000,
@@ -300,7 +305,7 @@ audioStartMs <= answerStartMs < answerEndMs <= audioEndMs
 
 24. 题目 `id` 全题库唯一。
 25. 题目 `id` 不包含逗号、换行或路径分隔符。
-26. `prompt`、`workName`、`explanation`、`audioCode` 非空。
+26. `prompt`、`workName`、`explanation`、`author`、`audioCode` 非空。
 27. `options` 长度为 4，每项非空。
 28. `correctOption` 为 0 至 3。
 29. `type`、`difficulty` 属于定义枚举。

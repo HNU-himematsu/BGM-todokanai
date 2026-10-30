@@ -27,7 +27,7 @@ WAITING ──NEXT──> ANSWERING ──LOCK──> ANSWER_LOCKED ──REVEAL
 | `WAITING` | 活动初始化、重置或切换轮次后的就绪状态。允许参与者加入。 |
 | `ANSWERING` | `NEXT` 上屏当前题，开放作答。服务端下发脱敏题目。 |
 | `ANSWER_LOCKED` | `LOCK` 关闭作答，不公布答案。锁卷时为未提交玩家补记耗时。 |
-| `ANSWER_REVEALED` | `REVEAL` 公布正确答案、解析与作品名。 |
+| `ANSWER_REVEALED` | `REVEAL` 公布正确答案、解析、作品名与出题人。 |
 | `FINISHED` | `FINISH` 结算本轮并归档线下榜单。拒绝新玩家加入。 |
 
 ### 2.2 轮次与时间轴

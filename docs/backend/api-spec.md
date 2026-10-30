@@ -277,6 +277,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
         "type": "WORK",
         "difficulty": "MEDIUM",
         "options": ["《CLANNAD》", "《白色相簿2》", "《命运石之门》", "《千恋＊万花》"],
+        "author": "Munch",
         "audioStartMs": 0,
         "audioEndMs": 15000,
         "answerStartMs": 1000,
@@ -289,6 +290,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
         "type": "ATMOSPHERE",
         "difficulty": "EASY",
         "options": ["放学后的海边散步", "最终决战前夜", "密室推理现场", "热闹的祭典舞台"],
+        "author": "Munch",
         "audioStartMs": 15000,
         "audioEndMs": 30000,
         "answerStartMs": 15000,
@@ -319,6 +321,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
 | `prompt` | String | 题干。 |
 | `type` | String | `WORK` 或 `ATMOSPHERE`。 |
 | `difficulty` | String | `EASY`、`MEDIUM` 或 `HARD`。 |
+| `author` | String | 出题人署名。 |
 | `options` | String[] | 四个选项。 |
 | `audioStartMs` | Long | 本题音频片段起点。 |
 | `audioEndMs` | Long | 本题音频片段终点。 |
@@ -327,7 +330,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
 
 脱敏规则：
 
-- 响应不得包含 `correctOption`、`workName`、`explanation`。
+- 响应不得包含 `correctOption`、`workName`、`explanation`；`author` 随题下发。
 - 响应不得包含逐题正确性、得分或排名。
 - 题目数组不得包含重复 `id`，并覆盖题库全部 `id`。
 - 相邻题目的 `audioEndMs` 与下一题的 `audioStartMs` 相等。
@@ -670,6 +673,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
       "options": ["《CLANNAD》", "《白色相簿2》", "《命运石之门》", "《千恋＊万花》"],
       "workName": null,
       "analysis": null,
+      "author": null,
       "answerIndex": null
     },
     "hasAnswered": false,
@@ -724,7 +728,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
 - `WAITING`：参与者在册，尚未上屏题目。
 - `ANSWERING`：当前题开放作答。
 - `ANSWER_LOCKED`：当前题关闭作答，正确答案保持隐藏。
-- `ANSWER_REVEALED`：正确答案、解析和作品名公开。
+- `ANSWER_REVEALED`：正确答案、解析、作品名与出题人公开。
 - `FINISHED`：本轮完成结算并生成线下快照。
 - 暂停期间墙上时刻字段冻结；恢复后按暂停时长平移。
 
@@ -941,6 +945,7 @@ X-Host-Token: 6dc1e7aa-3f7d-4c61-92e4-8ef317cd09a4
         "options": ["《CLANNAD》", "《白色相簿2》", "《命运石之门》", "《千恋＊万花》"],
         "workName": "《示例作品》",
         "analysis": null,
+        "author": null,
         "answerIndex": null
       },
       "hasAnswered": false,
@@ -978,7 +983,7 @@ X-Host-Token: 6dc1e7aa-3f7d-4c61-92e4-8ef317cd09a4
 }
 ```
 
-主持人快照允许展示 `workName`，用于现场提示。正确答案与解析仍只在揭晓状态下公开。`players[].answered` 表示该玩家是否已提交当前题。
+主持人快照允许展示 `workName` 与 `author`，用于现场提示。正确答案与解析仍只在揭晓状态下公开。`players[].answered` 表示该玩家是否已提交当前题。
 
 ### 6.6 线下动作接口
 
@@ -990,7 +995,7 @@ X-Host-Token: 6dc1e7aa-3f7d-4c61-92e4-8ef317cd09a4
 | `POST /api/events/{eventId}/host/pause` | 无 | 时间轴运行中 | 注销挂起任务并冻结墙上时刻，广播 `ACTIVITY_PAUSED`。 |
 | `POST /api/events/{eventId}/host/resume` | 无 | 时间轴已暂停 | 平移时间基准并重排剩余任务，广播 `ACTIVITY_RESUMED`。 |
 | `POST /api/events/{eventId}/host/lock` | 无 | `ANSWERING` | 关闭当前题作答并补记缺席耗时，广播 `ANSWER_LOCKED`。 |
-| `POST /api/events/{eventId}/host/reveal` | 无 | `ANSWER_LOCKED` | 公开当前题答案与解析，广播 `ANSWER_REVEALED`。 |
+| `POST /api/events/{eventId}/host/reveal` | 无 | `ANSWER_LOCKED` | 公开当前题答案、解析与出题人，广播 `ANSWER_REVEALED`。 |
 | `POST /api/events/{eventId}/host/next` | 无 | `WAITING` 或 `ANSWER_REVEALED`，待上屏题目存在 | 上屏下一题并开放作答，广播 `QUESTION_STARTED`。 |
 | `POST /api/events/{eventId}/host/reset` | 无 | 任意状态 | 清空在线玩家、答题记录与时间轴，回到 `WAITING`，广播 `ACTIVITY_RESET`。 |
 
@@ -1024,7 +1029,7 @@ X-Host-Token: 6dc1e7aa-3f7d-4c61-92e4-8ef317cd09a4
 | `ACTIVITY_STARTED` | 线下时间轴启动 | 线下参与者与主持人刷新快照，主持人校准音频播放。 |
 | `QUESTION_STARTED` | 线下 `NEXT` 上屏 | 线下参与者刷新当前题与作答状态。 |
 | `ANSWER_LOCKED` | 线下 `LOCK` 关闭作答 | 线下参与者禁用选项并刷新提交状态。 |
-| `ANSWER_REVEALED` | 线下 `REVEAL` 公开答案 | 线下参与者刷新答案、解析与作品名。 |
+| `ANSWER_REVEALED` | 线下 `REVEAL` 公开答案 | 线下参与者刷新答案、解析、作品名与出题人。 |
 | `ACTIVITY_FINISHED` | 线下 `FINISH` 完成结算 | 线下参与者与主持人刷新本轮榜与结算快照。 |
 | `ROUND_ENDED` | 到达轮次 `endMs` | 主持人暂停音频；页面保留当前结算数据。 |
 | `ACTIVITY_RESET` | 重置活动或切换轮次 | 线下参与者返回登记页；主持人刷新轮次与房间状态。 |

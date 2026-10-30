@@ -31,7 +31,7 @@ backend/data/
 
 - 全部题目使用唯一 `id`。
 - 每题包含四个选项与 0 至 3 的正确选项下标。
-- `workName` 与 `explanation` 完整，供线下揭晓使用。
+- `workName`、`explanation` 与 `author` 完整，供线下揭晓使用。
 - `type` 为 `WORK` 或 `ATMOSPHERE`。
 - `difficulty` 为 `EASY`、`MEDIUM` 或 `HARD`。
 

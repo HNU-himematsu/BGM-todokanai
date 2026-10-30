@@ -50,7 +50,7 @@
 - 请求：`GET /api/events/{eventId}/online/questions`。
 - 服务端从 `timeline.json` 生成拉平题集，按 `questionId` 去重。
 - 响应包含 `questionSetVersion`、`totalQuestions`、`audioUrl` 与题目数组。
-- 题目数组不包含 `correctOption`、`workName`、`explanation`。
+- 题目数组包含 `author`，不包含 `correctOption`、`workName`、`explanation`。
 
 ### 2.3 线上本地推进
 

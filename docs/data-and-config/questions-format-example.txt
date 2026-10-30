@@ -39,6 +39,7 @@
 - 正确答案：A、B、C 或 D。
 - 作品名：音乐来源作品；线上不下发，线下揭晓时展示。
 - 解析：线下揭晓时展示的说明；线上不下发。
+- 题目作者：出题人署名；线下揭晓、主持人控制台与线上答题页展示。
 
 时间关系：
 
@@ -180,6 +181,7 @@ FINISH：00:59.000
     "correctOption": 1,
     "workName": "星屑列车",
     "explanation": "这段旋律出自《星屑列车》的游戏原声。",
+    "author": "示例出题人",
     "audioCode": "TRACK-01"
   },
   {
@@ -191,6 +193,7 @@ FINISH：00:59.000
     "correctOption": 0,
     "workName": "示例作品 A",
     "explanation": "明亮、舒缓的和声更接近日常与海边散步的氛围。",
+    "author": "示例出题人",
     "audioCode": "TRACK-02"
   },
   {
@@ -202,6 +205,7 @@ FINISH：00:59.000
     "correctOption": 2,
     "workName": "示例作品 C",
     "explanation": "持续上行的和声和悬念感，适合真相揭晓前后的情节。",
+    "author": "示例出题人",
     "audioCode": "TRACK-03"
   },
   {
@@ -213,6 +217,7 @@ FINISH：00:59.000
     "correctOption": 0,
     "workName": "白色相簿2",
     "explanation": "该旋律对应作品《白色相簿2》。",
+    "author": "示例出题人",
     "audioCode": "TRACK-04"
   }
 ]

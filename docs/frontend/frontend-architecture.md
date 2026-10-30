@@ -588,7 +588,7 @@ t >= questions[last].audioEndMs
 | `WAITING` | 等待主持人开始，显示活动名称与当前轮次提示。 |
 | `ANSWERING` | 显示当前题、四个选项、本题剩余音频时间与提交状态。 |
 | `ANSWER_LOCKED` | 选项只读，提示等待揭晓，不显示正确答案。 |
-| `ANSWER_REVEALED` | 显示正确选项、解析与作品名。 |
+| `ANSWER_REVEALED` | 显示正确选项、解析、作品名与出题人。 |
 | `FINISHED` | 显示本轮得分、耗时、名次与本轮榜。 |
 
 线下提交：
