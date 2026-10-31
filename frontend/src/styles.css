@@ -1338,6 +1338,10 @@ p {
   margin-bottom: 16px;
 }
 
+.online-progress-card .ant-card-body {
+  padding: 20px 24px;
+}
+
 .online-progress-head {
   display: flex;
   justify-content: space-between;
@@ -1345,11 +1349,41 @@ p {
   align-items: center;
   margin-bottom: 12px;
   font-size: 13px;
+  cursor: pointer;
+}
+
+.online-progress-head:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
 }
 
 .online-progress-head strong {
   color: var(--ink);
   font-size: 15px;
+}
+
+.online-progress-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.online-progress-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #9a9a9a;
+  font-size: 12px;
+  transition: color 160ms ease;
+}
+
+.online-progress-head:hover .online-progress-toggle,
+.online-progress-head:focus-visible .online-progress-toggle {
+  color: var(--accent-dark);
+}
+
+.online-progress-toggle svg {
+  display: block;
 }
 
 .question-dots {
@@ -1806,5 +1840,50 @@ p {
   .rules-modal .ant-modal-content {
     max-height: min(88vh, 88dvh);
     padding: 20px 16px 16px;
+  }
+
+  .online-progress-card .ant-card-body {
+    padding: 16px;
+  }
+
+  .online-progress-head {
+    align-items: center;
+    flex-direction: row;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .online-progress-meta {
+    gap: 8px;
+  }
+
+  .online-progress-toggle {
+    position: relative;
+    width: 26px;
+    height: 26px;
+    justify-content: center;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #ffffff;
+  }
+
+  .online-progress-toggle::after {
+    content: "";
+    position: absolute;
+    inset: -9px;
+  }
+
+  .online-progress-toggle-label {
+    display: none;
+  }
+
+  .question-dots {
+    gap: 6px;
+    margin-top: 12px;
+  }
+
+  .question-dot {
+    width: 24px;
+    height: 24px;
   }
 }
