@@ -46,6 +46,10 @@ backend/data/
 | 编码 | MP3 |
 | 体积 | 约 42 MB |
 | 文件名 | `event-demo.mp3`，单段文件名，不含目录与空格 |
+| 码率 | CBR 192 kbps；保留 VBR 时全文件最高与最低码率之比不超过 2 |
+| 定位精度 | 定位落点与素材内容的时间偏差不超过 0.5 秒 |
+
+码率、静音垫与定位精度的定义、测量方法与修复方案见 [`audio-seek-quality.md`](audio-seek-quality.md)。
 
 ### 4.2 尾部裁切
 
@@ -68,6 +72,9 @@ ffprobe -v error -show_entries format=duration,size,bit_rate -show_entries strea
 - `duration` 落在 2592.900～2593.100 之间。
 - `sample_rate=44100`，`channels=2`。
 - 文件可被浏览器直接解码，拖到最后 5 秒为静音。
+- `bit_rate` 与目标码率一致；VBR 素材的最高与最低码率之比不超过 2。
+- Xing/Info TOC 与帧表一致，或素材为 CBR。
+- 每题尾部静音不超过 1.0 秒；保留素材自带静音垫时，该项由 [`audio-seek-quality.md`](audio-seek-quality.md) 的方案 B 达成，方案 A 的验收以定位精度为准。
 
 ### 4.4 素材侧的约束
 
@@ -381,3 +388,4 @@ Invoke-RestMethod -Method Head http://localhost:8080/api/events/demo/audio
 3. 四轮分轨文件不在交付目录；单独重导某一轮需向素材方索取原始分轨。
 4. Q-24 的四段音频按 A、B、C、D 依次拼接，与四个选项一一对应；题库中该题题干末尾包含「音频按选项 A 至 D 顺序播放。」，与四段音频的对应关系一致。
 5. 轮首题的 `NEXT` 比片段起点晚 1 毫秒，`audioStartMs` 取片段起点，线上作答窗口从 1 毫秒开始。
+6. 单文件编排的定位依赖浏览器按 Xing TOC 估算字节位置。32 kbps 静音垫与 160～192 kbps 音乐混拼的 VBR 素材，定位落点偏差可达 20 秒，表现为切题后长时间无声；素材需满足 [`audio-seek-quality.md`](audio-seek-quality.md) 的可定位性要求。

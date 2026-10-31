@@ -264,6 +264,8 @@ audioStartMs <= answerStartMs < answerEndMs <= audioEndMs
 - MIME 类型根据扩展名生成。
 - 文件缺失、权限不可读或内容无法解码时，线上页面显示素材错误，主持人显示音频播放错误。
 - 音频实际总时长与最后一题 `audioEndMs` 的差值不超过 100 毫秒；该项由素材制作与上线前检查确认，后端结构校验不解析音频波形。
+- 音频定位落点与素材内容的时间偏差不超过 0.5 秒；码率一致性与 Xing TOC 精度要求见 [`audio-seek-quality.md`](audio-seek-quality.md)。
+- 每题音频片段尾部的静音不超过 1.0 秒。
 
 ## 8. 校验规则
 

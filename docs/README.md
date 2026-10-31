@@ -34,6 +34,7 @@
 
 ### 5. 数据与配置篇 (`data-and-config/`)
 - [`timeline-spec.md`](data-and-config/timeline-spec.md)：编排文件规范与制作指南，说明 `timeline.json` 的轮次、题目音频片段、线上题集生成规则，以及 `questions.json` 的题目内容格式。
+- [`audio-seek-quality.md`](data-and-config/audio-seek-quality.md)：音频可定位性规格，说明切题定位落点偏差的实测结论、修复方案、校验工具与验收指标。
 - [`questions-format-example.txt`](data-and-config/questions-format-example.txt)：题库与编排的人工录入模板，包含两轮四题的时间、动作、选项、答案与线上题集映射示例。
 - [`leaderboard-and-storage.md`](data-and-config/leaderboard-and-storage.md)：排行榜存储格式与解析说明，包含线下快照、线上锁定记录、总榜聚合与 Python 离线脚本。
 - [`jisong-event-integration.md`](data-and-config/jisong-event-integration.md)：姬松活动素材接入规范，说明 `总音频.mp3` 与 `编排.docx` 的成品规格、音频裁切、四轮区间、40 题生成值、出题人署名展示与启动自检、联调、回滚流程。
