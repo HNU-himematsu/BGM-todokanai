@@ -25,6 +25,9 @@ install -d -m 755 "$BASE_DIR" "$BASE_DIR/releases" "$BASE_DIR/bin"
 install -d -m 750 -o "$SERVICE_USER" -g "$SERVICE_USER" "$BASE_DIR/shared" "$BASE_DIR/shared/data"
 install -d -m 755 /etc/bgm-guess
 
+chown root:"$DEPLOY_USER" "$BASE_DIR"
+chmod 775 "$BASE_DIR"
+
 install -m 644 "$REPO_DIR/deploy/systemd/bgm-guess.service" "/etc/systemd/system/$SERVICE_NAME.service"
 install -m 755 "$REPO_DIR/deploy/activate-release.sh" "$BASE_DIR/bin/activate-release.sh"
 

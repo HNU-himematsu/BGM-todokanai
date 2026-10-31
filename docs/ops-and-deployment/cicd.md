@@ -166,6 +166,7 @@ sudo bash deploy/bootstrap-server.sh
 
 - 创建 `bgm` 服务用户与 `deploy` 发布用户。
 - 创建 `/opt/bgm-guess` 目录结构与 `/etc/bgm-guess`。
+- 将 `/opt/bgm-guess` 设为 `root:deploy`、`775`，使 `deploy` 用户可切换 `current` 软链接。
 - 安装 systemd 单元与激活脚本。
 - 生成 `/etc/bgm-guess/bgm-guess.env` 模板。
 

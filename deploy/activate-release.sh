@@ -25,6 +25,8 @@ if [[ ! -f "$RELEASE_DIR/dist/index.html" ]]; then
   exit 1
 fi
 
+chmod -R a+rX "$RELEASE_DIR"
+
 PREVIOUS="$(readlink -f "$CURRENT_LINK" 2>/dev/null || true)"
 
 ln -sfn "$RELEASE_DIR" "$CURRENT_LINK.new"
