@@ -68,7 +68,7 @@ public class OnlineAttemptService {
         return new OnlineQuestionSet(
                 timeline.eventId(),
                 timeline.eventName(),
-                "/api/events/" + eventId + "/audio",
+                timelineStore.audioUrl(),
                 timelineStore.questionSetVersion(),
                 timelineStore.onlineQuestions().get(0).audioStartMs(),
                 timelineStore.onlineQuestions().get(timelineStore.onlineQuestions().size() - 1).audioEndMs(),

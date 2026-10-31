@@ -1,0 +1,159 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: 'Existing release id to activate; leave empty to build and deploy the selected ref'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  DEPLOY_ROOT: /opt/bgm-guess
+  SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
+
+jobs:
+  build:
+    name: Build release
+    if: ${{ github.event_name == 'push' || inputs.release_id == '' }}
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.assemble.outputs.release_id }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          VITE_PUBLIC_BASE_URL: ${{ vars.PUBLIC_BASE_URL || 'https://game.himematsu.cn' }}
+        run: npm run build
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+
+      - name: Build backend
+        working-directory: backend
+        run: mvn -B -ntp clean package
+
+      - name: Assemble release
+        id: assemble
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_id="$(date -u +%Y%m%d%H%M%S)-${GITHUB_SHA::7}"
+          tarball="release-${release_id}.tar.gz"
+
+          rm -rf staging
+          mkdir -p staging/dist staging/deploy
+          cp backend/target/bgm-guess-backend-0.0.1-SNAPSHOT.jar staging/app.jar
+          cp -a frontend/dist/. staging/dist/
+          cp deploy/activate-release.sh staging/deploy/
+          chmod +x staging/deploy/activate-release.sh
+          tar -czf "$tarball" -C staging .
+
+          echo "release_id=$release_id" >> "$GITHUB_OUTPUT"
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ steps.assemble.outputs.release_id }}
+          path: release-${{ steps.assemble.outputs.release_id }}.tar.gz
+          retention-days: 7
+
+  deploy:
+    name: Activate release
+    needs: build
+    if: ${{ always() && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Resolve release
+        id: resolve
+        env:
+          INPUT_RELEASE_ID: ${{ inputs.release_id }}
+          BUILD_RELEASE_ID: ${{ needs.build.outputs.release_id }}
+        run: |
+          set -euo pipefail
+          release_id="${INPUT_RELEASE_ID:-}"
+          if [ -n "$release_id" ]; then
+            rollback=1
+          else
+            release_id="$BUILD_RELEASE_ID"
+            rollback=0
+          fi
+
+          if [ -z "$release_id" ]; then
+            echo "release id is empty; the build job did not produce a release" >&2
+            exit 1
+          fi
+          if ! printf '%s' "$release_id" | grep -Eq '^[A-Za-z0-9._-]+$'; then
+            echo "invalid release id: $release_id" >&2
+            exit 1
+          fi
+
+          echo "release_id=$release_id" >> "$GITHUB_OUTPUT"
+          echo "rollback=$rollback" >> "$GITHUB_OUTPUT"
+
+      - name: Download release artifact
+        if: steps.resolve.outputs.rollback == '0'
+        uses: actions/download-artifact@v4
+        with:
+          name: release-${{ steps.resolve.outputs.release_id }}
+
+      - name: Configure SSH
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SSH_HOST:-}" ] || [ -z "${SSH_PRIVATE_KEY:-}" ]; then
+            echo "SSH_HOST and SSH_PRIVATE_KEY are required" >&2
+            exit 1
+          fi
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> "$HOME/.ssh/known_hosts"
+
+      - name: Publish release
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          RELEASE_ID: ${{ steps.resolve.outputs.release_id }}
+          ROLLBACK: ${{ steps.resolve.outputs.rollback }}
+        run: |
+          set -euo pipefail
+          remote="$SSH_USER@$SSH_HOST"
+
+          if [ "$ROLLBACK" = "1" ]; then
+            ssh -p "$SSH_PORT" "$remote" "bash '$DEPLOY_ROOT/bin/activate-release.sh' '$RELEASE_ID'"
+            exit 0
+          fi
+
+          scp -P "$SSH_PORT" "release-$RELEASE_ID.tar.gz" "$remote:$DEPLOY_ROOT/releases/"
+          ssh -p "$SSH_PORT" "$remote" "set -euo pipefail; cd '$DEPLOY_ROOT/releases'; rm -rf '$RELEASE_ID'; mkdir -p '$RELEASE_ID'; tar -xzf 'release-$RELEASE_ID.tar.gz' -C '$RELEASE_ID'; rm -f 'release-$RELEASE_ID.tar.gz'; bash '$RELEASE_ID/deploy/activate-release.sh' '$RELEASE_ID'"

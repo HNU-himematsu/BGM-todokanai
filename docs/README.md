@@ -43,4 +43,7 @@
 
 ### 7. 运维保障篇 (`ops-and-deployment/`)
 - [`local-and-tunnel-guide.md`](ops-and-deployment/local-and-tunnel-guide.md)：本地启动与内网穿透指南，说明前后端启动参数与 Cloudflare Tunnel 配置。
+- [`cicd.md`](ops-and-deployment/cicd.md)：自动化构建与发布，说明 GitHub Actions、服务器目录、systemd、Nginx、回滚与一次性初始化。
+- [`oss-audio.md`](ops-and-deployment/oss-audio.md)：外部音频部署，说明阿里云 OSS 直连、CORS、Range、缓存与发布配置。
+- [`deployment-status.md`](ops-and-deployment/deployment-status.md)：部署状态与上线清单，记录代码、服务器、OSS、流水线状态与验收项。
 - [`troubleshooting.md`](ops-and-deployment/troubleshooting.md)：故障排查手册与应急预案，说明弱网断线、操作失误及数据备份处理方案。

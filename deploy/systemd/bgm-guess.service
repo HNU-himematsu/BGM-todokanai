@@ -1,0 +1,24 @@
+[Unit]
+Description=BGM Guess backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bgm
+Group=bgm
+WorkingDirectory=/opt/bgm-guess/current
+EnvironmentFile=/etc/bgm-guess/bgm-guess.env
+ExecStart=/usr/bin/java -Xms256m -Xmx768m -jar /opt/bgm-guess/current/app.jar
+Restart=on-failure
+RestartSec=3
+SuccessExitStatus=143
+LimitNOFILE=65535
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/bgm-guess/shared/data
+
+[Install]
+WantedBy=multi-user.target

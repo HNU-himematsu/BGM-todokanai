@@ -43,10 +43,12 @@ public class TimelineStore {
     private final List<OnlineQuestionWindow> onlineQuestions;
     private final String questionSetVersion;
     private final Path audioPath;
+    private final String audioUrl;
 
     public TimelineStore(
             ObjectMapper objectMapper,
-            @Value("${app.timeline-file:data/timeline.json}") String filePath
+            @Value("${app.timeline-file:data/timeline.json}") String filePath,
+            @Value("${app.audio-url:}") String audioUrl
     ) {
         Path path = resolveFile(filePath);
         Timeline rawTimeline = readTimeline(objectMapper, path);
@@ -60,7 +62,8 @@ public class TimelineStore {
         validateOnlineQuestions(this.onlineQuestions, this.questionBank);
         this.questionSetVersion = calculateQuestionSetVersion(this.onlineQuestions);
         this.audioPath = resolveAudioPath(path, this.timeline.audioFile());
-        if (!Files.isReadable(audioPath)) {
+        this.audioUrl = isBlank(audioUrl) ? "" : audioUrl.trim();
+        if (isBlank(this.audioUrl) && !Files.isReadable(audioPath)) {
             log.warn("编排文件声明的音频文件不可读，音频流与线上题集接口将返回素材错误：{}", audioPath);
         }
     }
@@ -73,7 +76,17 @@ public class TimelineStore {
         return audioPath;
     }
 
+    public String audioUrl() {
+        if (!isBlank(audioUrl)) {
+            return audioUrl;
+        }
+        return "/api/events/" + timeline.eventId() + "/audio";
+    }
+
     public void requireAudioReadable() {
+        if (!isBlank(audioUrl)) {
+            return;
+        }
         if (audioPath == null || !Files.isReadable(audioPath)) {
             throw new ResourceNotFoundException("音频文件不可读：" + audioPath);
         }

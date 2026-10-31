@@ -65,6 +65,8 @@ export async function hostLogout(token) {
 }
 
 export function getAudioUrl(eventId) {
+  const configured = import.meta.env.VITE_AUDIO_URL
+  if (configured) return configured
   const base = (import.meta.env.VITE_API_BASE || '/api').replace(/\/$/, '')
   return `${base}/events/${encodeURIComponent(eventId)}/audio`
 }

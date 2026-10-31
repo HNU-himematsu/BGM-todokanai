@@ -40,6 +40,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -150,6 +151,13 @@ public class EventController {
             @PathVariable String eventId,
             @RequestHeader(value = HttpHeaders.RANGE, required = false) String rangeHeader
     ) throws IOException {
+        String audioUrl = activityService.audioUrl(eventId);
+        if (audioUrl != null
+                && (audioUrl.startsWith("http://") || audioUrl.startsWith("https://"))) {
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .location(URI.create(audioUrl))
+                    .build();
+        }
         Path audioPath = activityService.audioPath(eventId);
         if (audioPath == null || !Files.isReadable(audioPath)) {
             throw new ResourceNotFoundException("音频文件不可读：" + audioPath);
