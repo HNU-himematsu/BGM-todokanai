@@ -124,22 +124,36 @@ class ActivityFlowTests {
         assertThat(paused.get("timelineRunning").asBoolean()).isFalse();
         assertThat(paused.get("status").asText()).isEqualTo("ANSWERING");
         Thread.sleep(300);
-        JsonNode resumed = data(post("/api/events/demo/host/resume").header(TOKEN_HEADER, token));
-        assertThat(resumed.get("timelineRunning").asBoolean()).isTrue();
-
-        JsonNode locked = awaitStatus(playerId, "ANSWER_LOCKED", 4000);
+        perform(post("/api/events/demo/host/lock").header(TOKEN_HEADER, token));
+        JsonNode locked = state(playerId);
+        assertThat(locked.get("status").asText()).isEqualTo("ANSWER_LOCKED");
         assertThat(locked.get("question").get("answerIndex").isNull()).isTrue();
         assertThat(locked.get("canAnswer").asBoolean()).isFalse();
 
-        JsonNode revealed = awaitStatus(playerId, "ANSWER_REVEALED", 4000);
+        perform(post("/api/events/demo/host/reveal").header(TOKEN_HEADER, token));
+        JsonNode revealed = state(playerId);
+        assertThat(revealed.get("status").asText()).isEqualTo("ANSWER_REVEALED");
         assertThat(revealed.get("question").get("answerIndex").asInt()).isEqualTo(1);
         assertThat(revealed.get("question").get("analysis").asText()).isEqualTo("联调第一题解析");
         assertThat(revealed.get("question").get("author").asText()).isEqualTo("联调出题人甲");
 
+        JsonNode revealSnapshot = data(get("/api/events/demo/host/state").header(TOKEN_HEADER, token));
+        assertThat(revealSnapshot.get("canAdvanceQuestion").asBoolean()).isTrue();
+        JsonNode advanced = data(post("/api/events/demo/host/next").header(TOKEN_HEADER, token));
+        assertThat(advanced.get("status").asText()).isEqualTo("ANSWERING");
+        assertThat(advanced.get("currentQuestionIndex").asInt()).isEqualTo(1);
+        assertThat(advanced.get("question").get("id").asText()).isEqualTo("t-02");
+        assertThat(advanced.get("audioPositionMs").asLong()).isEqualTo(2000L);
+
+        JsonNode resumed = data(post("/api/events/demo/host/resume").header(TOKEN_HEADER, token));
+        assertThat(resumed.get("timelineRunning").asBoolean()).isTrue();
+        assertThat(resumed.get("status").asText()).isEqualTo("ANSWERING");
+        assertThat(resumed.get("question").get("id").asText()).isEqualTo("t-02");
+
         JsonNode finished = awaitStatus(playerId, "FINISHED", 6000);
         assertThat(finished.get("playerScore").asInt()).isEqualTo(10);
         assertThat(finished.get("playerRank").asInt()).isEqualTo(1);
-        assertThat(finished.get("playerDurationMs").asLong()).isGreaterThanOrEqualTo(1000L);
+        assertThat(finished.get("playerDurationMs").asLong()).isGreaterThan(0L);
         assertThat(finished.get("leaderboard")).hasSize(2);
 
         JsonNode leaderboard = data(get("/api/events/demo/leaderboard"));

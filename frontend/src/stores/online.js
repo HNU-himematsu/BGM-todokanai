@@ -68,6 +68,9 @@ export const useOnlineStore = defineStore('online', () => {
     && currentAnswer.value !== null
     && currentIndex.value >= 0
     && currentIndex.value < questions.value.length - 1)
+  const canFinishAttempt = computed(() => phase.value === 'IN_PROGRESS'
+    && currentAnswer.value !== null
+    && currentIndex.value === questions.value.length - 1)
   const canLock = computed(() => phase.value === 'RESULT_READY' && !locking.value)
   const hasResumeProgress = computed(() => Boolean(attemptId.value)
     && (currentIndex.value >= 0 || answeredCount.value > 0))
@@ -443,6 +446,7 @@ export const useOnlineStore = defineStore('online', () => {
     progressPercent,
     isWindowOpen,
     canAdvanceQuestion,
+    canFinishAttempt,
     canLock,
     hasResumeProgress,
     questionSetVersion,

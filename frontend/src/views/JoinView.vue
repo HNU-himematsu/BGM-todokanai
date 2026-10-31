@@ -203,7 +203,7 @@ function switchToOnline() {
             <div class="rule-icon"><Music :size="20" /></div>
             <div class="rule-content">
               <div class="rule-title">1. 连续播放音频</div>
-              <p class="rule-desc">开始后按题集顺序连续播放音频，题目随播放位置自动上屏；已选答案后可点击「下一题」按顺序推进，不能暂停、任意跳题或回看。</p>
+              <p class="rule-desc">开始后按题集顺序连续播放音频，题目随播放位置自动上屏；已选答案后可点击「下一题」按顺序推进，最后一题可结束答题，不能暂停、任意跳题或回看。</p>
             </div>
           </div>
           <div class="rule-item">

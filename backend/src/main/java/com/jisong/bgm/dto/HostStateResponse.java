@@ -7,7 +7,9 @@ public record HostStateResponse(
         List<HostPlayerView> players,
         List<RoundView> rounds,
         String currentRoundId,
-        boolean timelineRunning
+        boolean timelineRunning,
+        boolean canAdvanceQuestion,
+        boolean canFinishRound
 ) {
     public HostStateResponse {
         players = players == null ? List.of() : List.copyOf(players);

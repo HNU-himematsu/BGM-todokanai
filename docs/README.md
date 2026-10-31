@@ -37,7 +37,7 @@
 - [`audio-seek-quality.md`](data-and-config/audio-seek-quality.md)：音频可定位性规格，说明切题定位落点偏差的实测结论、修复方案、校验工具与验收指标。
 - [`questions-format-example.txt`](data-and-config/questions-format-example.txt)：题库与编排的人工录入模板，包含两轮四题的时间、动作、选项、答案与线上题集映射示例。
 - [`leaderboard-and-storage.md`](data-and-config/leaderboard-and-storage.md)：排行榜存储格式与解析说明，包含线下快照、线上锁定记录、总榜聚合与 Python 离线脚本。
-- [`jisong-event-integration.md`](data-and-config/jisong-event-integration.md)：姬松活动素材接入规范，说明 `总音频.mp3` 与 `编排.docx` 的成品规格、音频裁切、四轮区间、40 题生成值、出题人署名展示与启动自检、联调、回滚流程。
+- [`jisong-event-integration.md`](data-and-config/jisong-event-integration.md)：姬松活动素材接入规范，说明 `bgm-music.mp3` 与 `编排.docx` 的成品规格、音频裁切、四轮区间、40 题生成值、出题人署名展示与启动自检、联调、回滚流程。
 
 ### 6. 功能规格篇 (`product/`)
 - [`dual-mode-development-spec.md`](product/dual-mode-development-spec.md)：双模式开发主规格，完整定义线上/线下入口、身份、答题流程、时间轴、接口、本地进度、榜单、异常、验收标准与开发任务。

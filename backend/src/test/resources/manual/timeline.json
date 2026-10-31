@@ -1,0 +1,76 @@
+{
+  "eventId": "demo",
+  "eventName": "手动兜底联调",
+  "audioFile": "unused-audio.mp3",
+  "rounds": [
+    {
+      "id": "round-1",
+      "name": "手动兜底轮次",
+      "startMs": 0,
+      "endMs": 7200,
+      "items": [
+        {
+          "atMs": 0,
+          "action": "LOAD",
+          "questionId": "t-01",
+          "audioStartMs": 0,
+          "audioEndMs": 2400
+        },
+        {
+          "atMs": 100,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 1200,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 2000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 2200,
+          "action": "LOAD",
+          "questionId": "t-02",
+          "audioStartMs": 2400,
+          "audioEndMs": 4800
+        },
+        {
+          "atMs": 2400,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 3600,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 4200,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 4600,
+          "action": "LOAD",
+          "questionId": "t-03",
+          "audioStartMs": 4800,
+          "audioEndMs": 7200
+        },
+        {
+          "atMs": 4800,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 6000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 6600,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 7200,
+          "action": "FINISH"
+        }
+      ]
+    }
+  ]
+}

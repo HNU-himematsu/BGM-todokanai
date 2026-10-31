@@ -16,7 +16,7 @@ const online = useOnlineStore()
 const audio = ref(null)
 const audioReady = ref(false)
 const leaving = ref(false)
-let completing = false
+const completing = ref(false)
 let timer
 let clockStartedAt = null
 let activeMs = 0
@@ -33,6 +33,7 @@ const isLocked = computed(() => online.phase === 'LOCKED')
 const isError = computed(() => online.phase === 'ERROR')
 const question = computed(() => online.currentQuestion)
 const lastQuestion = computed(() => online.questions[online.questions.length - 1] || null)
+const isLastQuestion = computed(() => online.currentIndex === online.questions.length - 1)
 const questionSeconds = computed(() => Math.ceil(online.questionRemainingMs / 1000))
 const remainingPercent = computed(() => {
   if (!question.value) return 0
@@ -55,7 +56,7 @@ const difficultyLabel = computed(() => ({
 const questionWindowCopy = computed(() => {
   if (online.isWindowOpen) return '本题开放作答，可在结束前修改选项'
   if (online.currentIndex >= 0 && lastQuestion.value && online.audioPositionMs >= lastQuestion.value.answerEndMs) {
-    return '全部题目已结束，等待音频播放完毕'
+    return online.canFinishAttempt ? '最后一题已结束，可结束答题或等待音频播放完毕' : '全部题目已结束，等待音频播放完毕'
   }
   if (online.currentIndex >= 0) return '本题已结束，下一题即将开始'
   return '音频已开始，第一题即将上屏'
@@ -257,7 +258,7 @@ function onPause() {
   stopClock()
   if (seekingQuestion.value) return
   if (isInProgress.value) syncClock()
-  if (isInProgress.value && !completing && !leaving.value) {
+  if (isInProgress.value && !completing.value && !leaving.value) {
     online.setVisiblePause(true)
     online.persistProgress(true)
   }
@@ -279,15 +280,26 @@ function tick() {
 }
 
 async function finishPlayback() {
-  if (completing || !online.questionSet) return
-  completing = true
+  if (completing.value || !online.questionSet) return
+  completing.value = true
   stopClock()
   audio.value?.pause()
   seekTo(online.questionSet.audioEndMs)
   online.updateClock(online.questionSet.audioEndMs, currentActiveDuration())
   online.completeAttempt()
   await online.previewScore()
-  completing = false
+  completing.value = false
+}
+
+async function finishAttemptEarly() {
+  if (completing.value || !online.canFinishAttempt) return
+  completing.value = true
+  stopClock()
+  audio.value?.pause()
+  online.updateClock(audioPosition(), currentActiveDuration())
+  online.completeAttempt()
+  await online.previewScore()
+  completing.value = false
 }
 
 function onEnded() {
@@ -559,7 +571,7 @@ function leave() {
               <span class="muted">{{ online.answeredCount }} 已答 / {{ online.unansweredCount }} 未答</span>
             </div>
             <a-button
-              v-if="online.currentIndex < online.questions.length - 1"
+              v-if="!isLastQuestion"
               type="primary"
               size="large"
               :disabled="!online.canAdvanceQuestion || seekingQuestion"
@@ -570,6 +582,17 @@ function leave() {
               {{ seekingQuestion ? '音频定位中' : '下一题' }}
               <ArrowRight v-if="!seekingQuestion" :size="16" />
             </a-button>
+            <a-button
+              v-else-if="isLastQuestion"
+              type="primary"
+              size="large"
+              :disabled="!online.canFinishAttempt || seekingQuestion"
+              :loading="completing"
+              @click="finishAttemptEarly"
+            >
+              结束答题
+              <ArrowRight :size="16" />
+            </a-button>
           </div>
         </a-card>
 
@@ -579,6 +602,16 @@ function leave() {
             <span class="section-kicker" lang="ja">音を聴いてください</span>
             <h2 class="panel-title">{{ questionWindowCopy }}</h2>
             <p class="muted">音频连续播放中，请留意旋律。题目会按题集顺序自动上屏。</p>
+            <a-button
+              v-if="online.canFinishAttempt"
+              type="primary"
+              size="large"
+              :loading="completing"
+              @click="finishAttemptEarly"
+            >
+              结束答题
+              <ArrowRight :size="16" />
+            </a-button>
           </div>
         </a-card>
       </template>
@@ -593,7 +626,7 @@ function leave() {
 
       <div class="online-audio-note">
         <ShieldCheck :size="14" />
-        <span>答题进度保存在当前浏览器；已选答案后可点击「下一题」按顺序推进。</span>
+        <span>答题进度保存在当前浏览器；已选答案后可点击「下一题」按顺序推进，最后一题可结束答题。</span>
       </div>
     </div>
 

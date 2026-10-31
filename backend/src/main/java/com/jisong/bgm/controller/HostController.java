@@ -124,6 +124,15 @@ public class HostController {
         return ApiResponse.ok(activityService.nextQuestion(eventId));
     }
 
+    @PostMapping("/events/{eventId}/host/finish")
+    public ApiResponse<EventState> finish(
+            @PathVariable String eventId,
+            @RequestHeader(value = "X-Host-Token", required = false) String token
+    ) {
+        hostAuthService.requireValid(token);
+        return ApiResponse.ok(activityService.finishCurrentRound(eventId));
+    }
+
     @PostMapping("/events/{eventId}/host/reset")
     public ApiResponse<EventState> reset(
             @PathVariable String eventId,

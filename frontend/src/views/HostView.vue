@@ -25,9 +25,12 @@ const hostToken = ref(getHostToken())
 const authenticated = ref(Boolean(hostToken.value))
 const password = ref('')
 const state = ref(null)
+const canAdvanceQuestion = ref(false)
+const canFinishRound = ref(false)
 const players = ref([])
 const rounds = ref([])
 const currentRoundId = ref(null)
+const nextRoundId = ref(null)
 const timelineRunning = ref(false)
 const timelineStarted = ref(false)
 const roundEnded = ref(false)
@@ -74,6 +77,45 @@ function seekTo(ms) {
   audioPosition.value = ms / 1000
 }
 
+function waitForAudioEvent(eventName, timeoutMs = 2000) {
+  return new Promise((resolve) => {
+    const element = audio.value
+    if (!element) {
+      resolve(false)
+      return
+    }
+    let settled = false
+    let timeout = 0
+    const finish = (value) => {
+      if (settled) return
+      settled = true
+      window.clearTimeout(timeout)
+      element.removeEventListener(eventName, handler)
+      element.removeEventListener('error', onError)
+      resolve(value)
+    }
+    const handler = () => finish(true)
+    const onError = () => finish(false)
+    timeout = window.setTimeout(() => finish(false), timeoutMs)
+    element.addEventListener(eventName, handler, { once: true })
+    element.addEventListener('error', onError, { once: true })
+  })
+}
+
+async function seekToReady(positionMs) {
+  const element = audio.value
+  if (!element || !Number.isFinite(positionMs)) return false
+  const targetMs = Math.max(0, positionMs)
+  if (Math.abs(element.currentTime * 1000 - targetMs) >= 50) {
+    const seeked = waitForAudioEvent('seeked')
+    seekTo(targetMs)
+    if (!await seeked) return false
+  } else {
+    audioPosition.value = targetMs / 1000
+  }
+  return element.readyState >= 2 || waitForAudioEvent('canplay')
+}
+
 function syncAudio(eventType) {
   if (!audio.value || !round.value) return
   if (eventType === 'ACTIVITY_RESET') {
@@ -101,6 +143,7 @@ async function onSocketEvent(event) {
   if (event.type === 'ROUND_ENDED') {
     timelineStarted.value = true
     roundEnded.value = true
+    nextRoundId.value = currentRoundId.value
   }
   if (event.type === 'ACTIVITY_RESET') {
     timelineStarted.value = false
@@ -128,14 +171,21 @@ async function refresh() {
       getLeaderboard(eventId),
     ])
     state.value = snapshot?.state ?? null
+    canAdvanceQuestion.value = Boolean(snapshot?.canAdvanceQuestion)
+    canFinishRound.value = Boolean(snapshot?.canFinishRound)
     players.value = snapshot?.players ?? []
     rounds.value = snapshot?.rounds ?? roundList?.rounds ?? []
     currentRoundId.value = snapshot?.currentRoundId ?? roundList?.currentRoundId ?? null
-    roundLeaderboard.value = currentLeaderboard || state.value?.leaderboard || []
     timelineRunning.value = Boolean(snapshot?.timelineRunning)
+    if (state.value?.status === 'FINISHED' && !timelineRunning.value) {
+      roundEnded.value = true
+      nextRoundId.value = currentRoundId.value
+    }
+    roundLeaderboard.value = currentLeaderboard || state.value?.leaderboard || []
     if (timelineRunning.value || ['ANSWERING', 'ANSWER_LOCKED', 'ANSWER_REVEALED', 'FINISHED'].includes(state.value?.status)) timelineStarted.value = true
     if (state.value?.status === 'WAITING' && !timelineRunning.value && !roundEnded.value) timelineStarted.value = false
     error.value = ''
+    return snapshot
   } catch (err) {
     if (err.response?.status === 401) {
       socket.value?.deactivate()
@@ -147,6 +197,7 @@ async function refresh() {
     } else {
       error.value = err.response?.data?.message || '无法获取主持人状态，请确认服务已启动'
     }
+    return null
   }
 }
 
@@ -215,7 +266,8 @@ async function action(name) {
   busy.value = true
   error.value = ''
   try {
-    await hostAction(eventId, name, hostToken.value)
+    const result = await hostAction(eventId, name, hostToken.value)
+    if (result) state.value = result
     if (name === 'start') {
       timelineStarted.value = true
       roundEnded.value = false
@@ -229,13 +281,48 @@ async function action(name) {
       roundEnded.value = false
       syncAudio('ACTIVITY_RESET')
     }
+    if (name === 'finish') {
+      timelineStarted.value = true
+      roundEnded.value = true
+      nextRoundId.value = currentRoundId.value
+      syncAudio('ROUND_ENDED')
+      await refreshLeaderboards()
+    }
     await refresh()
+    if (name === 'next' && result?.audioPositionMs != null) {
+      if (!await seekToReady(Number(result.audioPositionMs))) {
+        audio.value?.pause()
+        error.value = '题目已切换，但音频定位失败，请刷新控制台后重试'
+      } else if (timelineRunning.value) {
+        try { await audio.value?.play() } catch { error.value = '音频无法继续播放，请检查浏览器播放权限' }
+      }
+    }
   } catch (err) {
     if (name === 'start') audio.value?.pause()
     showActionError(err)
   } finally {
     busy.value = false
   }
+}
+
+async function beginSelectedRound() {
+  if (!roundEnded.value || !nextRoundId.value || busy.value) return
+  busy.value = true
+  error.value = ''
+  try {
+    await selectHostRound(eventId, nextRoundId.value, hostToken.value)
+    timelineStarted.value = false
+    roundEnded.value = false
+    await refresh()
+    audio.value?.pause()
+    seekTo(round.value?.startMs ?? 0)
+  } catch (err) {
+    showActionError(err)
+    return
+  } finally {
+    busy.value = false
+  }
+  await action('start')
 }
 
 function confirmReset() {
@@ -280,10 +367,35 @@ async function drawJoinQr() {
 
 async function copyJoinUrl() {
   try {
-    await navigator.clipboard.writeText(joinUrl)
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(joinUrl)
+    } else {
+      throw new Error('Clipboard API unavailable')
+    }
+    error.value = ''
     message.success('已复制加入地址')
   } catch {
-    error.value = '复制失败，请手动复制加入地址'
+    try {
+      const input = document.createElement('textarea')
+      input.value = joinUrl
+      input.setAttribute('readonly', '')
+      input.style.position = 'fixed'
+      input.style.opacity = '0'
+      document.body.appendChild(input)
+      let copied = false
+      try {
+        input.select()
+        input.setSelectionRange(0, input.value.length)
+        copied = document.execCommand('copy')
+      } finally {
+        input.remove()
+      }
+      if (!copied) throw new Error('Copy command failed')
+      error.value = ''
+      message.success('已复制加入地址')
+    } catch {
+      error.value = '无法自动复制，请选中下方地址并手动复制'
+    }
   }
 }
 
@@ -332,11 +444,22 @@ function formatDateTime(value) {
       </a-space>
     </div>
 
+    <a-alert v-if="error" class="form-alert" type="error" :message="error" show-icon />
+
     <div v-if="state" class="host-grid">
       <a-card class="host-control">
         <div class="section-title"><span>轮次与播放</span><a-button size="small" title="刷新状态" :loading="leaderboardLoading" @click="refreshAll"><RefreshCw :size="15" /></a-button></div>
-        <div class="field-label round-label">当前轮次</div>
-        <a-select class="round-picker" :value="currentRoundId" :disabled="busy || !canSwitchRound" @change="changeRound">
+        <div class="field-label round-label">{{ roundEnded ? '开启轮次' : '当前轮次' }}</div>
+        <a-select
+          v-if="roundEnded"
+          class="round-picker"
+          v-model:value="nextRoundId"
+          :disabled="busy"
+          aria-label="选择要开启的轮次"
+        >
+          <a-select-option v-for="item in rounds" :key="item.id" :value="item.id">{{ item.name }} · {{ formatTime(item.startMs) }}–{{ formatTime(item.endMs) }}</a-select-option>
+        </a-select>
+        <a-select v-else class="round-picker" :value="currentRoundId" :disabled="busy || !canSwitchRound" @change="changeRound">
           <a-select-option v-for="item in rounds" :key="item.id" :value="item.id">{{ item.name }} · {{ formatTime(item.startMs) }}–{{ formatTime(item.endMs) }}</a-select-option>
         </a-select>
         <div class="host-progress">
@@ -345,6 +468,7 @@ function formatDateTime(value) {
         </div>
         <div class="control-actions">
           <a-button v-if="canStart" type="primary" size="large" :loading="busy" @click="action('start')"><Play :size="18" />开始播放</a-button>
+          <a-button v-if="roundEnded" type="primary" size="large" :disabled="!nextRoundId" :loading="busy" @click="beginSelectedRound"><Play :size="18" />开启下一轮</a-button>
           <a-button v-if="timelineRunning" size="large" :loading="busy" @click="action('pause')"><Pause :size="18" />暂停</a-button>
           <a-button v-if="timelineStarted && !timelineRunning && !roundEnded" type="primary" size="large" :loading="busy" @click="action('resume')"><Play :size="18" />恢复</a-button>
           <a-button size="large" :loading="busy" @click="confirmReset"><ListRestart :size="18" />重置活动</a-button>
@@ -354,7 +478,8 @@ function formatDateTime(value) {
           <a-space wrap>
             <a-button :disabled="busy || state.status !== 'ANSWERING'" @click="action('lock')">锁卷</a-button>
             <a-button :disabled="busy || state.status !== 'ANSWER_LOCKED'" @click="action('reveal')"><Eye :size="15" />揭晓答案</a-button>
-            <a-button :disabled="busy || !['WAITING', 'ANSWER_REVEALED'].includes(state.status)" @click="action('next')">下一题<ChevronRight :size="15" /></a-button>
+            <a-button v-if="!canFinishRound" :disabled="busy || !canAdvanceQuestion" @click="action('next')">下一题<ChevronRight :size="15" /></a-button>
+            <a-button v-else type="primary" :loading="busy" @click="action('finish')">结束本轮<ChevronRight :size="15" /></a-button>
           </a-space>
         </div>
       </a-card>
@@ -472,6 +597,5 @@ function formatDateTime(value) {
         </a-tabs>
       </a-card>
     </div>
-    <a-alert v-if="error" class="form-alert" type="error" :message="error" show-icon />
   </section>
 </template>

@@ -1,0 +1,53 @@
+[
+  {
+    "id": "t-01",
+    "audioCode": "TEST-01",
+    "prompt": "手动兜底第一题题干",
+    "type": "ATMOSPHERE",
+    "difficulty": "EASY",
+    "options": [
+      "选项甲",
+      "选项乙",
+      "选项丙",
+      "选项丁"
+    ],
+    "correctOption": 1,
+    "workName": "手动兜底作品甲",
+    "explanation": "手动兜底第一题解析",
+    "author": "手动兜底出题人甲"
+  },
+  {
+    "id": "t-02",
+    "audioCode": "TEST-02",
+    "prompt": "手动兜底第二题题干",
+    "type": "ATMOSPHERE",
+    "difficulty": "EASY",
+    "options": [
+      "选项甲",
+      "选项乙",
+      "选项丙",
+      "选项丁"
+    ],
+    "correctOption": 0,
+    "workName": "手动兜底作品乙",
+    "explanation": "手动兜底第二题解析",
+    "author": "手动兜底出题人乙"
+  },
+  {
+    "id": "t-03",
+    "audioCode": "TEST-03",
+    "prompt": "手动兜底第三题题干",
+    "type": "ATMOSPHERE",
+    "difficulty": "MEDIUM",
+    "options": [
+      "选项甲",
+      "选项乙",
+      "选项丙",
+      "选项丁"
+    ],
+    "correctOption": 2,
+    "workName": "手动兜底作品丙",
+    "explanation": "手动兜底第三题解析",
+    "author": "手动兜底出题人丙"
+  }
+]

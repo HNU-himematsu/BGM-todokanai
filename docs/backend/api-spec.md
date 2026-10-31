@@ -937,6 +937,7 @@ X-Host-Token: 6dc1e7aa-3f7d-4c61-92e4-8ef317cd09a4
       "questionAudioEndEpochMs": 1791358952000,
       "answerRevealed": false,
       "timelineRunning": true,
+      "audioPositionMs": 45000,
       "canAnswer": false,
       "question": {
         "id": "q-01",
@@ -979,10 +980,18 @@ X-Host-Token: 6dc1e7aa-3f7d-4c61-92e4-8ef317cd09a4
       }
     ],
     "currentRoundId": "round-1",
-    "timelineRunning": true
+    "timelineRunning": true,
+    "canAdvanceQuestion": false,
+    "canFinishRound": false
   }
 }
 ```
+
+`canAdvanceQuestion` 仅当时间轴已启动、主持人状态为 `WAITING` 或 `ANSWER_REVEALED` 且本轮存在下一题时为 `true`。控制台使用该字段控制「下一题」按钮。下一题尚未预加载时，主持人动作直接读取本轮编排中的下一道题，并取消该题尚未触发的 `LOAD` 与 `NEXT` 条目；后续题目的自动触发保持不变。
+
+`canFinishRound` 仅当时间轴已启动、当前题为本轮最后一题且状态为 `ANSWER_REVEALED` 时为 `true`。控制台使用该字段控制「结束本轮」按钮。
+
+`audioPositionMs` 为当前时间轴对应的音频毫秒位置；时间轴尚未启动时为 `null`。主持人播放器使用该字段校准播放位置。
 
 主持人快照允许展示 `workName` 与 `author`，用于现场提示。正确答案与解析仍只在揭晓状态下公开。`players[].answered` 表示该玩家是否已提交当前题。
 
@@ -997,8 +1006,11 @@ X-Host-Token: 6dc1e7aa-3f7d-4c61-92e4-8ef317cd09a4
 | `POST /api/events/{eventId}/host/resume` | 无 | 时间轴已暂停 | 平移时间基准并重排剩余任务，广播 `ACTIVITY_RESUMED`。 |
 | `POST /api/events/{eventId}/host/lock` | 无 | `ANSWERING` | 关闭当前题作答并补记缺席耗时，广播 `ANSWER_LOCKED`。 |
 | `POST /api/events/{eventId}/host/reveal` | 无 | `ANSWER_LOCKED` | 公开当前题答案、解析与出题人，广播 `ANSWER_REVEALED`。 |
-| `POST /api/events/{eventId}/host/next` | 无 | `WAITING` 或 `ANSWER_REVEALED`，待上屏题目存在 | 上屏下一题并开放作答，广播 `QUESTION_STARTED`。 |
+| `POST /api/events/{eventId}/host/next` | 无 | `WAITING` 或 `ANSWER_REVEALED`，本轮存在下一题 | 上屏下一题并开放作答，把时间基准对齐到新题 `audioStartMs` 并重排剩余任务，广播 `QUESTION_STARTED`。 |
+| `POST /api/events/{eventId}/host/finish` | 无 | `ANSWER_REVEALED`，当前题为本轮最后一题 | 立即结算本轮并归档线下榜，停止时间轴并广播 `ACTIVITY_FINISHED` 与 `ROUND_ENDED`。 |
 | `POST /api/events/{eventId}/host/reset` | 无 | 任意状态 | 清空在线玩家、答题记录与时间轴，回到 `WAITING`，广播 `ACTIVITY_RESET`。 |
+
+轮次结束后，主持人可调用现有 `POST /api/events/{eventId}/host/round` 选择任一已配置轮次，再调用 `POST /api/events/{eventId}/host/start` 开启该轮。选择轮次会清空当前在线玩家与作答记录。
 
 动作不满足前置状态时返回 `400`，服务端状态保持不变。前端动作按钮以主持人快照中的状态为准，不自行推测成功。
 
@@ -1032,7 +1044,7 @@ X-Host-Token: 6dc1e7aa-3f7d-4c61-92e4-8ef317cd09a4
 | `ANSWER_LOCKED` | 线下 `LOCK` 关闭作答 | 线下参与者禁用选项并刷新提交状态。 |
 | `ANSWER_REVEALED` | 线下 `REVEAL` 公开答案 | 线下参与者刷新答案、解析、作品名与出题人。 |
 | `ACTIVITY_FINISHED` | 线下 `FINISH` 完成结算 | 线下参与者与主持人刷新本轮榜与结算快照。 |
-| `ROUND_ENDED` | 到达轮次 `endMs` | 主持人暂停音频；页面保留当前结算数据。 |
+| `ROUND_ENDED` | 到达轮次 `endMs` 或主持人结束末题 | 主持人暂停音频；页面保留当前结算数据。 |
 | `ACTIVITY_RESET` | 重置活动或切换轮次 | 线下参与者返回登记页；主持人刷新轮次与房间状态。 |
 | `ACTIVITY_PAUSED` | 线下时间轴暂停 | 主持人暂停音频并刷新状态。 |
 | `ACTIVITY_RESUMED` | 线下时间轴恢复 | 主持人恢复音频并刷新状态。 |

@@ -14,6 +14,7 @@ public record EventState(
         Long questionAudioEndEpochMs,
         boolean answerRevealed,
         boolean timelineRunning,
+        Long audioPositionMs,
         boolean canAnswer,
         QuestionView question,
         boolean hasAnswered,
