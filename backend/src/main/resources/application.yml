@@ -8,7 +8,7 @@ spring:
 app:
   frontend-origin: http://localhost:5173
   host-password: "123456"
-  audio-url: ""
+  audio-url: "${APP_AUDIO_URL:https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-demo.mp3}"
   timeline-file: data/timeline.json
   leaderboard-file: data/leaderboards.json
   online-leaderboard-file: data/online_leaderboard.json

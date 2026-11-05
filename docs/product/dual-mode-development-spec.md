@@ -4,7 +4,7 @@
 
 本文档是线上模式与线下模式开发的统一功能基线。后续代码、接口、数据结构、页面交互和验收用例以本文档为准。
 
-题库文件 `questions.json`、编排文件 `timeline.json` 与完整音频文件由运营方提供。素材未到位时，开发按本文档定义的数据契约实现；素材到位后进行联调与验收，不改变本文档定义的流程与字段语义。
+题库文件 `questions.json`、编排文件 `timeline.json` 与 `timeline-online.json`、两份完整音频由运营方提供。素材未到位时，开发按本文档定义的数据契约实现；素材到位后进行联调与验收，不改变本文档定义的流程与字段语义。
 
 ## 1. 系统范围
 
@@ -13,7 +13,7 @@
 - **线上模式**：网页默认入口。参与者在一台设备上独立完成题库全部题目，浏览器本地保存答题进度；全部题目结束后由服务端预览总分，参与者选择重试或锁定；锁定后的总分进入线上积分榜与总榜。
 - **线下模式**：现场二维码入口。参与者加入主持人选定的轮次，主持人控制本轮音频与时间轴；服务端按编排自动出题、锁卷、揭晓与结算；每轮生成独立线下榜，用于现场评奖；线下各轮成绩按参与者汇总后进入总榜。
 
-两种模式共用同一份题库、同一段完整音频、同一套计分规则和同一套参与者身份标识。线上模式不使用轮次；线下模式保留轮次与主持人控制。
+两种模式共用同一份题库、同一套计分规则和同一套参与者身份标识；音频与编排按模式区分，线上为纯 BGM 母带，线下为含播报母带。线上模式不使用轮次；线下模式保留轮次与主持人控制。
 
 ## 2. 术语
 
@@ -23,8 +23,8 @@
 | 线上模式（ONLINE） | 参与者独立答题、无轮次、浏览器本地保存进度、锁定后入榜的模式。 |
 | 线下模式（OFFLINE） | 主持人按轮次控制现场音频与时间轴、逐题揭晓、每轮独立榜单的模式。 |
 | 题库（Question Bank） | `questions.json` 中的全部题目。 |
-| 编排（Timeline） | `timeline.json` 中的完整音频、轮次、题目引用与动作标记。 |
-| 线上题集（Online Question Set） | 按 `timeline.json` 顺序拉平、按 `questionId` 去重后的全部题目序列。 |
+| 编排（Timeline） | `timeline.json` 中的线下完整音频、轮次、题目引用与动作标记；`timeline-online.json` 定义线上题集的音频与时刻。 |
+| 线上题集（Online Question Set） | 按 `timeline-online.json` 顺序拉平、按 `questionId` 去重后的全部题目序列；该文件缺省时取 `timeline.json`。 |
 | 线上答题尝试（Online Attempt） | 一个参与者从开始答题到锁定或重试之间的一次完整答题过程。 |
 | 线上进度（Online Progress） | 浏览器本地保存的当前题号、已选答案、音频位置与预览结果。 |
 | 预览分（Preview Score） | 全部题目结束后，服务端根据提交答案计算、但不写入榜单的总分。 |
@@ -84,7 +84,7 @@
 
 ### 4.2 编排文件 `timeline.json`
 
-线上与线下共用一份 `timeline.json` 和一份完整音频文件。音频文件由 `audioFile` 字段指定，与编排文件同目录。
+线上与线下各有一份编排与一段完整音频。音频文件由各自编排的 `audioFile` 字段指定，与编排文件同目录。两份编排的题目序列一致，配置与拓扑见 [`../data-and-config/dual-master-audio.md`](../data-and-config/dual-master-audio.md)。
 
 | 字段 | 类型 | 约束 | 说明 |
 | :--- | :--- | :--- | :--- |
@@ -154,12 +154,12 @@ questionId, audioStartMs, audioEndMs, answerStartMs, answerEndMs
 
 ### 4.5 音频约束
 
-- 线上与线下共用一段完整音频。
-- 音频包含全部题目的播放内容，题目之间无空白段。
-- 第一题 `audioStartMs` 为 0。
-- 最后一题 `audioEndMs` 为线上播放终点，与完整音频可播放总时长的差值不超过 100 毫秒。
+- 线上与线下各用一段完整音频；线上为纯 BGM 母带，线下为含播报母带。
+- 音频包含全部题目的播放内容；线上母带题目之间无空白段，线下母带在题目之间包含播报槽与余量静音。
+- 线上第一题 `audioStartMs` 为 0。
+- 线上最后一题 `audioEndMs` 为线上播放终点，与音频可播放总时长的差值不超过 200 毫秒，超出部分仅允许为文件尾部编码垫。
 - 线上按线上题集顺序连续播放；相邻题目的 `audioEndMs` 与下一题的 `audioStartMs` 相等。
-- 线下按轮次区间播放；主持人定位到 `round.startMs`，到达 `round.endMs` 停止本轮播放。
+- 线下按轮次区间播放；主持人定位到 `round.startMs`，到达 `round.endMs` 停止本轮播放；每轮首题 `audioStartMs` 取本轮 `startMs`，音频窗口包含轮首播报段。
 - 线上题目的作答窗口满足 `audioStartMs <= answerStartMs < answerEndMs <= audioEndMs`。
 - 音频文件缺失或不可读时，接口返回明确错误，页面显示不可开始答题的状态。
 
@@ -478,13 +478,13 @@ questionId, audioStartMs, audioEndMs, answerStartMs, answerEndMs
 | :--- | :--- |
 | `POST /api/events/{eventId}/join` | 线上或线下加入，返回模式、参与者标识与锁定状态。 |
 | `GET /api/events/{eventId}` | 获取活动摘要。 |
-| `GET /api/events/{eventId}/audio` | 获取完整音频流，支持 HTTP Range。 |
+| `GET /api/events/{eventId}/audio` | 获取线下音频流，支持 HTTP Range；`mode=online` 时输出线上音频。 |
 
 ### 9.2 线上接口
 
 | 方法与路径 | 用途 |
 | :--- | :--- |
-| `GET /api/events/{eventId}/online/questions` | 获取线上题集、音频地址与题集版本。 |
+| `GET /api/events/{eventId}/online/questions` | 获取线上题集、线上音频地址与题集版本。 |
 | `GET /api/events/{eventId}/online/status` | 查询指定参与者的线上锁定状态。 |
 | `POST /api/events/{eventId}/online/preview` | 计算预览分，不写榜。 |
 | `POST /api/events/{eventId}/online/lock` | 锁定成绩，写入线上榜并返回总榜名次。 |
@@ -650,8 +650,8 @@ questionId, audioStartMs, audioEndMs, answerStartMs, answerEndMs
 ### 16.1 数据与素材
 
 - 提供 `questions.json`。
-- 提供 `timeline.json`。
-- 提供完整音频文件。
+- 提供 `timeline.json` 与 `timeline-online.json`。
+- 提供线上纯 BGM 母带与线下含播报母带。
 - 按本文档校验规则补齐题目音频片段、作答窗口与轮次区间。
 
 ### 16.2 后端

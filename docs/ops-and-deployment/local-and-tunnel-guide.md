@@ -19,13 +19,15 @@
 backend/data/
 ├── questions.json
 ├── timeline.json
-├── event-demo.mp3
+├── timeline-online.json
+├── event-offline.mp3
+├── event-online.mp3
 ├── leaderboards.json
 ├── online_leaderboard.json
 └── leaderboard_summary.txt
 ```
 
-`questions.json`、`timeline.json` 与音频文件由运营方提供。榜单文件可由服务在首次写入时创建。
+`questions.json`、两份编排与两份音频由运营方提供。榜单文件可由服务在首次写入时创建。`event-offline.mp3` 供主持人控制台使用，`event-online.mp3` 供线上参与者使用；两者内容不同，时长分别为 2780.110 秒与 2593.149 秒。
 
 ### 2.2 题库
 
@@ -47,10 +49,11 @@ backend/data/
 
 ### 2.4 音频
 
-- 文件名与 `timeline.json` 的 `audioFile` 一致。
+- 文件名与各自编排的 `audioFile` 一致：线下为 `event-offline.mp3`，线上为 `event-online.mp3`。
 - 编码可被手机与主持人浏览器解码。
 - 音频接口支持 HTTP Range。
-- 线上与线下使用同一份完整音频。
+- 线上母带为纯 BGM，线下母带在每个轮次起点包含开幕播报段。
+- 线上母带为 VBR，上线前按 [`../data-and-config/audio-seek-quality.md`](../data-and-config/audio-seek-quality.md) 复测逐题定位；线下母带为 CBR 192 kbps。
 - 题目片段之间没有空白。
 
 ## 3. 本地开发启动
@@ -251,16 +254,19 @@ https://xxxx-xxxx-xxxx.trycloudflare.com
 | `server.port` | 后端端口，默认 `8080`。 |
 | `app.frontend-origin` | 允许访问 API 的前端 origin。 |
 | `app.host-password` | 主持人登录密码。 |
-| `app.timeline-file` | 编排文件路径。 |
+| `app.timeline-file` | 线下编排文件路径。 |
+| `app.online-timeline-file` | 线上编排文件路径；置空时线上题集取 `app.timeline-file`。 |
+| `app.audio-url` | 线下音频地址；置空时输出编排同目录的本地音频。 |
+| `app.audio-url-online` | 线上音频地址；置空时回落 `app.audio-url`，再回落本地线上音频。 |
 | `app.leaderboard-file` | 线下快照文件路径。 |
 | `app.online-leaderboard-file` | 线上锁定记录文件路径。 |
 | `app.leaderboard-txt-file` | 文本总结路径。 |
 
-`app.online-leaderboard-file` 缺省为 `data/online_leaderboard.json`，与 `app.leaderboard-file` 使用同一数据目录。
+`app.online-leaderboard-file` 缺省为 `data/online_leaderboard.json`，与 `app.leaderboard-file` 使用同一数据目录。两个音频地址在本地联调时置空，生产环境指向 OSS 对象；配置契约见 [`../data-and-config/dual-master-audio.md`](../data-and-config/dual-master-audio.md) 第 5 节。
 
 ### 7.2 前端参数
 
-`VITE_API_BASE` 缺省为 `/api`。同域部署保持缺省值，使前端、API、音频与 WebSocket 共用一个 origin。
+`VITE_API_BASE` 缺省为 `/api`。同域部署保持缺省值，使前端、API、音频与 WebSocket 共用一个 origin。主持人控制台的音频地址由 `VITE_AUDIO_URL` 注入，指向线下母带对象。
 
 ### 7.3 主持人密码
 

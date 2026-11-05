@@ -7,7 +7,7 @@
 - **线下状态机**：由 `ActivityService` 维护，以活动、轮次与时间轴为核心，服务端按编排动作推进。
 - **线上状态机**：由浏览器与 `OnlineAttemptService` 协作，以一次全题库 attempt 为核心，浏览器按题目级时间标记自动推进，服务端负责预览与锁定。
 
-两套状态机共用题库、音频、计分规则与 `participantId`，不共享进行中的题目游标与作答状态。
+两套状态机共用题库、计分规则与 `participantId`，音频按模式分离：线上使用纯 BGM 母带，线下使用含播报母带。两套状态机不共享进行中的题目游标与作答状态。
 
 ## 2. 线下状态机
 
@@ -42,7 +42,8 @@ WAITING ──NEXT──> ANSWERING ──LOCK──> ANSWER_LOCKED ──REVEAL
 触发时刻 = T0 + (atMs - startMs)
 ```
 
-- 到达 `round.endMs` 时，服务端停止时间轴并广播 `ROUND_ENDED`，控制台暂停音频。
+- `FINISH` 到达时服务端停止时间轴并广播 `ACTIVITY_FINISHED` 与 `ROUND_ENDED`；到达 `round.endMs` 时服务端停止时间轴并广播 `ROUND_ENDED`。控制台在收到这两个事件时暂停音频并定位到当前轮次终点。
+- 每条广播携带事件发生时的 `roundId` 与活动状态版本号 `revision`。控制台按版本号丢弃过期事件，防止上一轮次的延迟通知暂停新一轮次的音频。
 
 ### 2.3 动作语义
 
@@ -52,14 +53,14 @@ WAITING ──NEXT──> ANSWERING ──LOCK──> ANSWER_LOCKED ──REVEAL
 | `NEXT` | 待上屏内容上屏、题号递增、开放作答 | `WAITING` / `ANSWER_REVEALED` → `ANSWERING` | `QUESTION_STARTED` |
 | `LOCK` | 关闭作答并补记缺席耗时 | `ANSWERING` → `ANSWER_LOCKED` | `ANSWER_LOCKED` |
 | `REVEAL` | 公布正确答案与解析 | `ANSWER_LOCKED` → `ANSWER_REVEALED` | `ANSWER_REVEALED` |
-| `FINISH` | 结算本轮并归档线下榜 | 进行态 → `FINISHED` | `ACTIVITY_FINISHED` |
+| `FINISH` | 结算本轮、停表并归档线下榜 | 进行态 → `FINISHED` | `ACTIVITY_FINISHED`、`ROUND_ENDED` |
 
 状态守卫：
 
 - `NEXT` 要求处于 `WAITING` 或 `ANSWER_REVEALED`，且存在已预加载题目。
 - `LOCK` 仅在 `ANSWERING` 状态执行。
 - `REVEAL` 仅在 `ANSWER_LOCKED` 状态执行。
-- `FINISH` 执行后，当前轮次其余条目跳过。
+- `FINISH` 执行后停止时间轴，当前轮次其余条目跳过。
 - 最后一题揭晓后主持人可手动执行 `FINISH`；该操作结算轮次、停止时间轴并广播结束事件。
 - 轮次结束后主持人可从轮次列表选择任一轮次并重新启动；选择轮次会清空当前在线玩家与答题记录。
 - 手动 `LOCK` / `REVEAL` 只注销当前题的同类挂起条目；其余题目的同类条目保持挂起，并在到达时刻按编排执行。

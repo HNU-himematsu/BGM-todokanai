@@ -50,13 +50,16 @@ backend/data/*.mp3
 backend/data/*.m4a
 backend/data/*.ogg
 backend/data/*.flac
+backend/data-backup/
 
 # ========== Local Build Cache ==========
 # Maven local repository configured in backend/maven-settings.xml
 work/
+tools/mobile-flow-preview/.build/
 
 # ========== Event Source Material ==========
 # 编排文档随仓库分发；原始音频与本地浏览器日志不进入版本库。
 music/*.mp3
 music/*.wav
 music/*.log
+music/0d00/

@@ -45,6 +45,7 @@ jobs:
         working-directory: frontend
         env:
           VITE_PUBLIC_BASE_URL: ${{ vars.PUBLIC_BASE_URL || 'https://game.himematsu.cn' }}
+          VITE_AUDIO_URL: ${{ vars.AUDIO_URL || 'https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-demo.mp3' }}
         run: npm run build
 
       - name: Set up Java

@@ -7,7 +7,9 @@
 - **REST 主动交互**：线上题集读取、线上预览/锁定、线下加入、答案提交、主持人控制、音频拉取与榜单查询。
 - **STOMP WebSocket 被动通知**：线下活动状态变更广播；线上锁定后向主持人页面广播榜单更新事件。
 
-广播消息只包含事件类型与活动标识；客户端收到广播后按需拉取对应快照或榜单。
+广播消息包含事件类型、活动标识、事件发生时的轮次标识与活动状态版本号，不包含题目正文、答案或榜单明细。客户端收到广播后按需拉取对应快照或榜单。
+
+主持人页面的音频控制与状态刷新分离：广播到达时先按广播携带的轮次同步音频，再合并触发快照刷新。客户端丢弃版本号低于本地已应用版本的广播与快照，避免旧轮次事件在新轮次开始后暂停音频。
 
 ## 2. 线上模式数据流
 
@@ -48,7 +50,7 @@
 ### 2.2 线上题集
 
 - 请求：`GET /api/events/{eventId}/online/questions`。
-- 服务端从 `timeline.json` 生成拉平题集，按 `questionId` 去重。
+- 服务端从 `timeline-online.json` 生成拉平题集，按 `questionId` 去重；该文件缺省时取 `timeline.json`。
 - 响应包含 `questionSetVersion`、`totalQuestions`、`audioUrl` 与题目数组。
 - 题目数组包含 `author`，不包含 `correctOption`、`workName`、`explanation`。
 
@@ -96,12 +98,13 @@
 
 - 主持人选择轮次并启动，服务端按 `T0 + (atMs - startMs)` 调度动作。
 - 参与者只提交选项，题目推进与答案揭晓由服务端状态决定。
-- 轮次结束标记暂停时间轴与音频；结算由 `FINISH` 自动动作或主持人结束末题时完成。
+- `FINISH` 自动动作与主持人结束末题都会停止时间轴并暂停音频；到达 `endMs` 而未触发 `FINISH` 时由轮次结束任务停止时间轴。
 - 主持人可暂停、恢复、锁卷、揭晓、下一题、重置与切换轮次。
+- 同一玩家的每次提交都会广播 `PLAYER_ANSWERED`。主持人页面在一次刷新窗口内合并连续广播，不为单条广播单独发起快照请求。
 
 ## 4. 音频与时间同步
 
-- `GET /api/events/{eventId}/audio` 输出完整音频，支持 HTTP Range。
+- `GET /api/events/{eventId}/audio` 输出线下母带，`mode=online` 输出线上母带，两者均支持 HTTP Range。
 - 编排中的时间字段均为音频绝对毫秒位置。
 - 线下主持人将音频定位到 `round.startMs`，服务端以启动时刻为零点。
 - 线上浏览器从第一题 `audioStartMs` 连续播放到最后一题 `audioEndMs`；题目在 `answerStartMs` 上屏、`answerEndMs` 锁定。

@@ -44,8 +44,8 @@
 ├── shared/
 │   └── data/
 │       ├── timeline.json
+│       ├── timeline-online.json
 │       ├── questions.json
-│       ├── event-demo.mp3
 │       ├── leaderboards.json
 │       ├── online_leaderboard.json
 │       └── leaderboard_summary.txt
@@ -67,7 +67,7 @@
 - Node.js 22 执行 `npm ci` 与 `npm run build`。
 - Java 17 执行 `mvn -B -ntp verify`。
 
-前端构建注入 `VITE_PUBLIC_BASE_URL`，默认值为 `https://game.himematsu.cn`。
+前端构建注入 `VITE_PUBLIC_BASE_URL` 与 `VITE_AUDIO_URL`，默认值分别为 `https://game.himematsu.cn` 与 `https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3`。`VITE_AUDIO_URL` 指向线下母带，只影响主持人控制台；线上参与者由后端 `app.audio-url-online` 下发音频地址。
 
 ### 4.2 发布
 
@@ -80,7 +80,7 @@
 5. 激活脚本切换 `current` 软链接、重启 `bgm-guess`、轮询 `/api/health`。
 6. 健康检查失败时切回上一版本并再次重启。
 
-发布包只包含代码产物。`shared/data` 中的题库与榜单由服务器侧维护，音频由服务器本地目录或 OSS 提供。
+发布包只包含代码产物。`shared/data` 中的题库与榜单由服务器侧维护，音频固定由 OSS 提供，服务器不保存音频文件。
 
 服务器初始化与 GitHub Secrets 配置完成后，可为 `deploy.yml` 增加 `main` 分支推送触发。
 
@@ -113,8 +113,9 @@
 | 名称 | 内容 |
 | :--- | :--- |
 | `PUBLIC_BASE_URL` | 参与者访问地址，例如 `https://game.himematsu.cn` |
+| `AUDIO_URL` | 线下音频对象地址，例如 `https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3` |
 
-`PUBLIC_BASE_URL` 缺省时使用 `https://game.himematsu.cn`。
+`PUBLIC_BASE_URL` 缺省时使用 `https://game.himematsu.cn`，`AUDIO_URL` 缺省时使用本文第 4.1 节的 OSS 地址。线上音频对象地址由服务器环境变量 `APP_AUDIO_URL_ONLINE` 提供，不经前端构建注入。
 
 ### 5.3 Production Environment
 
@@ -181,10 +182,12 @@ sudo INSTALL_SUDOERS=1 bash deploy/bootstrap-server.sh
 将以下文件放入 `/opt/bgm-guess/shared/data/`：
 
 - `timeline.json`
+- `timeline-online.json`
 - `questions.json`
-- 音频文件，文件名与 `timeline.json` 的 `audioFile` 一致
 - 初始 `leaderboards.json`
 - 初始 `online_leaderboard.json`
+
+服务器侧不放置音频文件。音频对象位于 OSS，`timeline.json` 与 `timeline-online.json` 的 `audioFile` 只保留文件名。
 
 目录所有者与权限：
 
@@ -199,7 +202,10 @@ sudo chmod 750 /opt/bgm-guess/shared/data
 
 ```text
 APP_HOST_PASSWORD=<主持人密码>
+APP_AUDIO_URL=https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3
+APP_AUDIO_URL_ONLINE=https://himematsu.oss-cn-guangzhou.aliyuncs.com/%E5%A7%AC%E6%9D%BE%E6%B4%BB%E5%8A%A8/bgm-music.mp3
 APP_TIMELINE_FILE=/opt/bgm-guess/shared/data/timeline.json
+APP_ONLINE_TIMELINE_FILE=/opt/bgm-guess/shared/data/timeline-online.json
 APP_LEADERBOARD_FILE=/opt/bgm-guess/shared/data/leaderboards.json
 APP_ONLINE_LEADERBOARD_FILE=/opt/bgm-guess/shared/data/online_leaderboard.json
 APP_LEADERBOARD_TXT_FILE=/opt/bgm-guess/shared/data/leaderboard_summary.txt
@@ -251,7 +257,7 @@ sudo -u deploy chmod 600 /home/deploy/.ssh/authorized_keys
 
 - `game.himematsu.cn` 解析到服务器。
 - Nginx 站点证书覆盖该子域。
-- `shared/data` 中的题库、编排与音频齐备。
+- `shared/data` 中的题库与编排齐备，OSS 音频对象可访问。
 - `bgm-guess.env` 中的主持人密码已替换默认值。
 - GitHub Secrets 与 Variables 已配置。
 
@@ -266,6 +272,8 @@ sudo -u deploy chmod 600 /home/deploy/.ssh/authorized_keys
 - `https://game.himematsu.cn/api/health` 返回健康信息。
 - `https://game.himematsu.cn/host` 刷新不出现 404。
 - `https://game.himematsu.cn/offline?event=demo` 进入线下入口。
+- `https://game.himematsu.cn/api/events/demo/online/questions` 的 `audioUrl` 为 OSS 地址。
+- `https://game.himematsu.cn/api/events/demo/audio` 跳转到 OSS 地址。
 - 手机可播放音频，Range 请求返回 `206`。
 - `/ws` 完成 WebSocket Upgrade。
 - 重启 `bgm-guess` 后历史榜单仍可读取。
@@ -275,7 +283,7 @@ sudo -u deploy chmod 600 /home/deploy/.ssh/authorized_keys
 ## 8. 发布约束
 
 - 后端活动状态保存在内存。发布重启会清空进行中的线上与线下活动，发布应安排在活动窗口之外。
-- `backend/data` 中只有 `timeline.json` 进入版本库，`questions.json` 由服务器侧维护，音频由服务器本地目录或 OSS 提供，流水线不生成这些文件。
+- `backend/data` 中 `timeline.json` 与 `timeline-online.json` 进入版本库，`questions.json` 由服务器侧维护，音频由 OSS 提供，流水线不生成这些文件。
 - 发布脚本不删除 `/opt/bgm-guess/shared/data`。清理旧版本时只处理 `/opt/bgm-guess/releases/`。
 - 前端与后端必须使用同一 origin。`VITE_PUBLIC_BASE_URL` 指向正式域名，页面、API、音频与 WebSocket 共用该域名。
 - 更换域名会形成新的浏览器存储空间，线上本地进度与主持人令牌不跨域名迁移。

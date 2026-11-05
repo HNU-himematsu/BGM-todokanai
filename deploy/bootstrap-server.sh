@@ -50,7 +50,7 @@ cat <<EOF
 server layout is ready.
 
 next steps:
-1. put timeline.json, questions.json and leaderboard files in $BASE_DIR/shared/data
+1. put timeline.json, questions.json and leaderboard files in $BASE_DIR/shared/data (no audio file)
 2. edit /etc/bgm-guess/bgm-guess.env
 3. install the nginx site from deploy/nginx-game.conf.example
 4. add the deploy user public key to /home/$DEPLOY_USER/.ssh/authorized_keys

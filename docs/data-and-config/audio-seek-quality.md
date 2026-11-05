@@ -2,12 +2,21 @@
 
 ## 1. 文档用途
 
-本文定义完整音频文件的可定位性（seek 落点精度）要求、`backend/data/event-demo.mp3` 的实测结论、修复方案与验收指标。
+本文定义完整音频文件的可定位性（seek 落点精度）要求、两份母带的实测结论、修复方案与验收指标。
+
+母带拓扑：
+
+| 模式 | 母带 | 本地文件 | 时长 | 末题 `audioEndMs` |
+| :--- | :--- | :--- | ---: | ---: |
+| 线上 | MP3 VBR，纯 BGM | `backend/data/event-online.mp3` | 2593.149 秒 | 2593000 |
+| 线下 | MP3 CBR 192 kbps，含播报 | `backend/data/event-offline.mp3` | 2780.110 秒 | 2780110 |
+
+线上部署直接复用 OSS 对象 `姬松活动/bgm-music.mp3`，内容与 `event-online.mp3` 相同；线下部署使用 OSS 对象 `bgm/event-offline.mp3`。双母带的运行形态见 [`dual-master-audio.md`](dual-master-audio.md)。
 
 适用场景：
 
-- 线上模式点击「下一题」后，音频定位到下一题 `answerStartMs`。
-- 线下主持人开始播放、拖动进度时，音频定位到轮次区间。
+- 线上模式点击「下一题」后，音频定位到下一题 `answerStartMs`；线上母带为 VBR，定位精度是上线前的必测项。
+- 线下主持人开始播放、拖动进度时，音频定位到轮次区间；线下母带为 CBR，定位精度由编码参数保证并逐题抽检。
 - 新素材导入时，判断音频是否满足单文件编排的可定位性要求。
 
 音频与编排的文件契约见 [`timeline-spec.md`](timeline-spec.md)；姬松活动的素材接入流程见 [`jisong-event-integration.md`](jisong-event-integration.md)。
@@ -132,7 +141,7 @@ Xing 头与 TOC 均存在，TOC 数值与帧表不一致，最大偏差 35.9 秒
 
 ### 4.8 CBR 成品实测
 
-测量对象：由 `music/bgm-music.mp3` 单次编码的 `backend/data/event-demo.mp3`（62,233,783 字节）。
+测量对象：由 `music/bgm-music.mp3` 单次编码的基底母带 `work/event-demo-cbr192.mp3`（62,233,783 字节），不含主持人播报。
 
 | 项目 | 实测值 |
 | :--- | :--- |
@@ -150,13 +159,45 @@ Xing 头与 TOC 均存在，TOC 数值与帧表不一致，最大偏差 35.9 秒
 
 定位测量方法：headless Chrome 经 CDP 逐题设置 `currentTime`，`seeked` 后用 `captureStream()` 接 `AnalyserNode`，每 100 毫秒记录 `[currentTime, 电平]`，采样 6 秒；素材侧以 `silencedetect=noise=-30dB:d=0.2` 给出每题的首次出声时刻。电平判据取 -30 dB，避开 8 位时域采样在 -48 dB 附近的量化底噪。
 
+### 4.9 线上母带（VBR 对象）
+
+4.1～4.7 的测量对象为 `work/event-demo-vbr-original-20261030.mp3`。OSS 对象 `姬松活动/bgm-music.mp3` 与该文件在 510 秒处逐样本一致，尾部多 5 帧、约 149 毫秒编码尾垫，因此 4.4 的 TOC 偏差结论对线上对象同样成立。
+
+| 项目 | 实测值 |
+| :--- | :--- |
+| 对象大小 | 42,274,159 字节 |
+| 时长 | 2593.149 秒 |
+| 帧数 | 99270 |
+| 采样率 / 声道 | 44100 Hz / 2 |
+| 编码 | MP3 VBR，平均约 130 kbps |
+| Xing TOC | 99 项非零 |
+| ETag | `AD58949BC8932351DA7062203FC47E2C` |
+| 普通请求 / Range | `200` / `206` |
+
+线上定位结论：码率在 32 kbps 与 192 kbps 之间跳变，浏览器按 TOC 换算的字节落点存在数十秒偏差，逐题切题必须按 9.3 节以 40 题的 `answerStartMs` 复测。复测不通过时按 6.1 节重编码 CBR 并切换 `app.audio-url-online`，编排与题集版本保持不变。
+
+### 4.10 线下母带（CBR 成品）
+
+`backend/data/event-offline.mp3` 由第一轮母带与三段轮首播报合成，编码参数为 CBR 192 kbps。
+
+| 项目 | 期望值 |
+| :--- | :--- |
+| 时长 | 容器 2780.110 秒，与末题 `audioEndMs`（2780110）相差不超过 100 毫秒 |
+| 码率 | 全部帧 192 kbps |
+| 采样率 / 声道 | 44100 Hz / 2 |
+| 体积 | 约 66.7 MB |
+| 静音结构 | 每题音乐终点后接播报槽与余量静音；播报片段结束后静音不少于 400 毫秒 |
+| 定位 | 按 9.3 节方法对线下编排重跑 40 题的 `answerStartMs`，偏差不超过 0.5 秒 |
+
+合成规则、槽位表与生成流程见 [`announcer-voice.md`](announcer-voice.md) 与 [`dual-master-audio.md`](dual-master-audio.md) 第 4 节。
+
 ## 5. 目标状态（素材规格）
 
 | 指标 | 要求 | 适用方案 |
 | :--- | :--- | :--- |
 | 码率 | CBR，或全文件最高与最低码率之比不超过 2 | A |
 | 字节与时间的对应关系 | 线性，误差不超过 0.5 秒 | A |
-| TOC | 与帧表一致；100 项 × 8 位 TOC 在 2593 秒全长上每级约 10.1 秒，字节位置偏差不超过 1.3 级，落点精度以定位实测为准 | A |
+| TOC | 与帧表一致；100 项 × 8 位 TOC 在 2780.1 秒全长上每级约 10.9 秒，字节位置偏差不超过 1.3 级，落点精度以定位实测为准 | A |
 | 题间静音 | 每题音频片段尾部静音不超过 1.0 秒 | B |
 | 定位效果 | 定位到任一 `answerStartMs` 后，出声时刻与该时刻素材内容一致，偏差不超过 0.5 秒 | A、B |
 
@@ -168,10 +209,10 @@ Xing 头与 TOC 均存在，TOC 数值与帧表不一致，最大偏差 35.9 秒
 ffmpeg -y -i "music\bgm-music.mp3" -c:a libmp3lame -b:a 192k -ar 44100 -ac 2 -t 2593.000 "work\event-demo-cbr192.mp3"
 ```
 
-- 输入取 `music/bgm-music.mp3`，即题集混拼前的源素材；命令单次编码直出成品，`backend/data/event-demo.mp3` 与 `work/event-demo-cbr192.mp3` 之间不经过二次编码。
-- `-t 2593.000` 把成品裁到编排末题 `audioEndMs = 2593000`；源素材时长 2593.149 秒，末段 149 毫秒不入成品。
+- 输入取 `music/bgm-music.mp3`，即题集混拼前的源素材；该命令生成基底母带，用于测量与 A/B 对照。最终成品由源素材直接合成并单次编码，见 [`announcer-voice.md`](announcer-voice.md) 第 7 节。
+- `-t 2593.000` 把基底母带裁到插入播报前的末题 `audioEndMs = 2593000`；源素材时长 2593.149 秒，末段 149 毫秒不入基底母带。
 - 体积：约 62 MB（192 kbps × 2593 秒），原文件约 42 MB。
-- 时长：容器时长 2593.000 秒，帧表 2593.071 秒（99266 帧），与编排末题 `audioEndMs` 相差 71 毫秒，满足 100 毫秒容差。
+- 时长：容器时长 2593.000 秒，帧表 2593.071 秒（99266 帧），与插入播报前的末题 `audioEndMs` 相差 71 毫秒，满足 100 毫秒容差。
 - 代价：相对源素材的一次有损编码。
 - 收益：字节与时间的对应关系线性，`timeline.json`、题库与前端保持现状。
 
@@ -190,7 +231,7 @@ ffmpeg -y -i "music\bgm-music.mp3" -c:a libmp3lame -b:a 192k -ar 44100 -ac 2 -t 
 
 编排与接口增加题级音频文件字段，切题只替换 `audio.src`，播放从 0 秒开始，不做定位；后端按题返回音频。
 
-- 收益：彻底规避定位精度问题，题间静音不再进入音源。
+- 收益：彻底规避定位精度问题，题间静音不进入音源。
 - 代价：后端接口、前端加载与预加载逻辑、素材交付方式同步改造，改动面最大。
 
 ### 6.4 方案 D：只重写 TOC
@@ -199,20 +240,21 @@ ffmpeg -y -i "music\bgm-music.mp3" -c:a libmp3lame -b:a 192k -ar 44100 -ac 2 -t 
 
 ## 7. 实施步骤（方案 A）
 
-1. 备份 `backend/data/event-demo.mp3` 与 `backend/data/timeline.json` 到 `work/`。
-2. 执行 6.1 节命令，由 `music/bgm-music.mp3` 生成 `work/event-demo-cbr192.mp3`。
-3. 用 9.1 节脚本校验：帧数、时长、码率极差、TOC 误差。
-4. 按 9.3 节方法逐题定位，覆盖全部 40 题的 `answerStartMs`，确认出声时刻与素材内容一致。
-5. 替换文件并重启后端，确认 `GET /api/events/demo/audio` 返回 `206`、`Content-Range` 覆盖完整区间、`Accept-Ranges: bytes`。
+1. 备份 `backend/data/event-online.mp3`、`backend/data/event-offline.mp3` 与 `backend/data/timeline.json` 到 `work/`。
+2. 按 6.1 节参数由 `music/bgm-music.mp3` 生成基底母带 `work/event-demo-cbr192.mp3`，用于测量与 A/B 对照；线下母带按 [`dual-master-audio.md`](dual-master-audio.md) 第 4.5 节生成 `backend/data/event-offline.mp3`，编码参数一致。
+3. 用 9.1 节脚本校验两个文件的帧数、时长、码率极差、TOC 误差。
+4. 按 9.3 节方法逐题定位，线上覆盖 2593000 毫秒编排的 40 题 `answerStartMs`，线下覆盖 2780110 毫秒编排的 40 题 `answerStartMs`，确认出声时刻与素材内容一致。
+5. 替换文件并重启后端，确认 `GET /api/events/demo/audio` 与 `GET /api/events/demo/audio?mode=online` 均返回 `206`、`Content-Range` 覆盖完整区间、`Accept-Ranges: bytes`；部署环境两个地址为 OSS 302 跳转，直接对对象地址验证 Range。
 6. 按第 8 节逐项验收。
 
 ## 8. 验收指标
 
-1. 素材自检（方案 A）：码率极差不超过 2 倍；TOC 与帧表一致，字节位置偏差不超过 1.3 个量化级；每题尾部静音上限 1.0 秒属于方案 B 指标，方案 A 保留素材自带静音垫。
-2. 逐题定位：40 题分别定位到 `answerStartMs`，采样 6 秒；浏览器首次出声时刻与素材在该时刻的实际出声时刻相差不超过 0.5 秒，且不出现超过 0.5 秒的多余连续静音。
-3. 线上流程：完整走完 40 题，无「倒计时在走、声音空白」的题目。
-4. 线下流程：主持人开始播放、逐题「下一题」、轮次切换三种操作均即时出声；手动下一题后音频位置与新题起点一致。
-5. 服务端：`Range` 请求返回 `206`，`Content-Range` 覆盖请求区间，`Accept-Ranges: bytes`。
+1. 线下母带自检（方案 A）：码率极差不超过 2 倍；TOC 与帧表一致，字节位置偏差不超过 1.3 个量化级；每题尾部静音上限 1.0 秒属于方案 B 指标，方案 A 保留素材自带静音垫。
+2. 线上母带自检：VBR 对象允许码率跳变，TOC 误差以 3 项实测为准；40 题逐题定位为放行条件，素材自检不单独作为线上放行依据。
+3. 逐题定位：线上、线下各 40 题分别定位到所属编排的 `answerStartMs`，采样 6 秒；浏览器首次出声时刻与素材在该时刻的实际出声时刻相差不超过 0.5 秒，且不出现超过 0.5 秒的多余连续静音。
+4. 线上流程：完整走完 40 题，无「倒计时在走、声音空白」的题目。
+5. 线下流程：主持人开始播放、逐题「下一题」、轮次切换三种操作均即时出声；手动下一题后音频位置与新题起点一致。
+6. 服务端：两个音频入口的 `Range` 请求均返回 `206`，`Content-Range` 覆盖请求区间，`Accept-Ranges: bytes`；外部地址配置时返回 302 指向对应对象。
 
 ## 9. 诊断复现
 
@@ -272,7 +314,7 @@ else:
 ### 9.2 静音统计
 
 ```powershell
-ffmpeg -hide_banner -i "backend\data\event-demo.mp3" -af "silencedetect=noise=-60dB:d=1" -f null NUL
+ffmpeg -hide_banner -i "backend\data\event-offline.mp3" -af "silencedetect=noise=-60dB:d=1" -f null NUL
 ```
 
 ### 9.3 浏览器落点采样
@@ -317,14 +359,14 @@ a.play();
 ### 9.4 时间戳与内容对齐
 
 ```powershell
-ffmpeg -hide_banner -ss 1710 -t 3 -i "backend\data\event-demo.mp3" -af volumedetect -f null NUL
+ffmpeg -hide_banner -ss 1710 -t 3 -i "backend\data\event-online.mp3" -af volumedetect -f null NUL
 ```
 
 `max_volume` 高于 -20 dB 表示该时刻有音乐。
 
 ## 10. 回滚
 
-方案 A 不改动 `timeline.json` 与题库，回滚时把 `work/event-demo-vbr-original-20261030.mp3` 换回 `backend/data/event-demo.mp3` 并重启后端。方案 B 同时改动音频与编排，回滚需同时恢复 `timeline.json`、`questions.json` 与线上题集版本。
+线上对象为 OSS 上的既有文件，回滚只需把 `app.audio-url-online` 切回 `姬松活动/bgm-music.mp3`。线下母带回滚时把 `bgm/event-demo.mp3` 切回 `app.audio-url`，并恢复上一版 `timeline.json` 与 `questions.json`；两处切换与数据还原完成后重启后端。方案 B 同时改动音频与编排，回滚需同时恢复 `timeline.json`、`questions.json` 与线上题集版本。
 
 ## 11. 关联文档
 
@@ -333,6 +375,8 @@ ffmpeg -hide_banner -ss 1710 -t 3 -i "backend\data\event-demo.mp3" -af volumedet
 | 文档 | 对应内容 |
 | :--- | :--- |
 | [`jisong-event-integration.md`](jisong-event-integration.md) | 4.1 的可定位性要求、4.3 的码率与 TOC 校验、11 的定位偏差约束 |
+| [`dual-master-audio.md`](dual-master-audio.md) | 双母带拓扑、双编排、线下母带生成与发布回滚 |
+| [`announcer-voice.md`](announcer-voice.md) | 第 4 节的槽位规则、第 8 节的编码与响度、第 9.4 节的定位复测 |
 | [`timeline-spec.md`](timeline-spec.md) | 7.4 的定位精度与题尾静音上限 |
 | [`troubleshooting.md`](../ops-and-deployment/troubleshooting.md) | 4.6「切题后长时间无声」 |
 | [`docs/README.md`](../README.md) | 数据与配置篇的本文目录项 |

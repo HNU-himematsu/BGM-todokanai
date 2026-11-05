@@ -1,0 +1,152 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: #eef0f3;
+  color: #171717;
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.sheet {
+  width: 1480px;
+  padding: 40px 30px 46px;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(188, 74, 216, 0.08), transparent 28%),
+    linear-gradient(#eef0f3, #eef0f3);
+}
+
+.sheet-head {
+  max-width: 1400px;
+  margin: 0 auto 34px;
+  padding: 0 2px;
+}
+
+.sheet-head h1 {
+  margin: 0;
+  font-size: 31px;
+  line-height: 1.25;
+  letter-spacing: -0.035em;
+}
+
+.sheet-head p {
+  margin: 9px 0 0;
+  color: #666b73;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.mode-section {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.mode-section + .mode-section {
+  margin-top: 46px;
+  padding-top: 34px;
+  border-top: 1px solid #d9dce1;
+}
+
+.mode-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 22px;
+  padding: 0 2px;
+}
+
+.mode-head h2 {
+  margin: 0;
+  font-size: 21px;
+  letter-spacing: -0.02em;
+}
+
+.mode-head span {
+  color: #70757d;
+  font-size: 12px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 320px);
+  justify-content: center;
+  column-gap: 30px;
+  row-gap: 34px;
+}
+
+.step {
+  min-width: 0;
+}
+
+.phone {
+  width: 320px;
+  padding: 7px;
+  border-radius: 34px;
+  background: #17191d;
+  box-shadow:
+    0 20px 40px rgba(20, 24, 30, 0.16),
+    0 3px 8px rgba(20, 24, 30, 0.12);
+}
+
+.screen {
+  overflow: hidden;
+  border-radius: 27px;
+  background: #ffffff;
+  line-height: 0;
+}
+
+.screen img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.caption {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  margin: 13px 4px 0;
+}
+
+.step-index {
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #c9cdd3;
+  border-radius: 999px;
+  color: #626871;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.step-title {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 700;
+}
+
+.step-status {
+  display: inline-block;
+  margin-top: 4px;
+  color: #7a30a0;
+  font-size: 10px;
+  line-height: 1.4;
+  font-weight: 700;
+  letter-spacing: 0.025em;
+}
+
+.step-note {
+  margin: 5px 0 0;
+  color: #737981;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.single .grid {
+  row-gap: 40px;
+}

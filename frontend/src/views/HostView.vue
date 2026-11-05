@@ -46,6 +46,14 @@ const onlineLeaderboard = ref([])
 const totalLeaderboard = ref([])
 const activeLeaderboardTab = ref('round')
 const leaderboardLoading = ref(false)
+let lastAppliedRevision = 0
+let refreshTimer = 0
+let refreshPromise = null
+let refreshQueued = false
+let leaderboardTimer = 0
+let leaderboardPromise = null
+let leaderboardQueued = false
+let lastPositionUpdate = 0
 
 const question = computed(() => state.value?.question)
 const round = computed(() => rounds.value.find((item) => item.id === currentRoundId.value))
@@ -70,7 +78,39 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   socket.value?.deactivate()
   audio.value?.pause()
+  window.clearTimeout(refreshTimer)
+  window.clearTimeout(leaderboardTimer)
 })
+
+function noteRevision(value) {
+  const revision = Number(value)
+  if (Number.isFinite(revision) && revision > lastAppliedRevision) lastAppliedRevision = revision
+}
+
+function isStaleRevision(value) {
+  const revision = Number(value)
+  return Number.isFinite(revision) && revision < lastAppliedRevision
+}
+
+function roundById(roundId) {
+  return rounds.value.find((item) => item.id === roundId) || null
+}
+
+function updateAudioPosition(seconds) {
+  const now = performance.now()
+  if (now - lastPositionUpdate < 250) return
+  lastPositionUpdate = now
+  audioPosition.value = seconds
+}
+
+function handleTimeUpdate(event) {
+  updateAudioPosition(event.target.currentTime)
+}
+
+function handleSeeked(event) {
+  lastPositionUpdate = 0
+  updateAudioPosition(event.target.currentTime)
+}
 
 function seekTo(ms) {
   if (audio.value && Number.isFinite(ms)) audio.value.currentTime = ms / 1000
@@ -116,14 +156,17 @@ async function seekToReady(positionMs) {
   return element.readyState >= 2 || waitForAudioEvent('canplay')
 }
 
-function syncAudio(eventType) {
-  if (!audio.value || !round.value) return
+function syncAudio(eventType, eventRoundId = currentRoundId.value) {
+  if (!audio.value) return
+  if (eventRoundId && currentRoundId.value && eventRoundId !== currentRoundId.value) return
+  const targetRound = roundById(eventRoundId) || (eventRoundId ? null : round.value)
+  if (!targetRound) return
   if (eventType === 'ACTIVITY_RESET') {
     audio.value.pause()
-    seekTo(round.value.startMs)
-  } else if (eventType === 'ROUND_ENDED') {
+    seekTo(targetRound.startMs)
+  } else if (eventType === 'ROUND_ENDED' || eventType === 'ACTIVITY_FINISHED') {
     audio.value.pause()
-    seekTo(round.value.endMs)
+    seekTo(targetRound.endMs)
   } else if (eventType === 'ACTIVITY_PAUSED') {
     audio.value.pause()
   } else if (eventType === 'ACTIVITY_RESUMED') {
@@ -131,16 +174,36 @@ function syncAudio(eventType) {
   }
 }
 
-async function onSocketEvent(event) {
+function scheduleRefresh() {
+  if (refreshTimer) return
+  refreshTimer = window.setTimeout(() => {
+    refreshTimer = 0
+    refresh()
+  }, 150)
+}
+
+function scheduleLeaderboardRefresh() {
+  if (leaderboardTimer) return
+  leaderboardTimer = window.setTimeout(() => {
+    leaderboardTimer = 0
+    refreshLeaderboards()
+  }, 300)
+}
+
+function onSocketEvent(event) {
   if (event.type === 'SOCKET_ERROR') {
     error.value = '实时连接异常，正在重连'
     return
   }
-  await refresh()
-  if (event.type === 'ONLINE_SCORE_LOCKED' || event.type === 'ACTIVITY_FINISHED') {
-    await refreshLeaderboards()
+  if (event.type === 'SOCKET_CONNECTED') {
+    lastAppliedRevision = 0
+    refresh()
+    return
   }
-  if (event.type === 'ROUND_ENDED') {
+  if (isStaleRevision(event.revision)) return
+  noteRevision(event.revision)
+  if (event.type === 'ACTIVITY_RESET' && event.roundId) currentRoundId.value = event.roundId
+  if (event.type === 'ROUND_ENDED' || event.type === 'ACTIVITY_FINISHED') {
     timelineStarted.value = true
     roundEnded.value = true
     nextRoundId.value = currentRoundId.value
@@ -153,7 +216,11 @@ async function onSocketEvent(event) {
     timelineStarted.value = true
     roundEnded.value = false
   }
-  syncAudio(event.type)
+  syncAudio(event.type, event.roundId)
+  scheduleRefresh()
+  if (event.type === 'ONLINE_SCORE_LOCKED' || event.type === 'ACTIVITY_FINISHED' || event.type === 'ROUND_ENDED') {
+    scheduleLeaderboardRefresh()
+  }
 }
 
 async function openConsole() {
@@ -163,13 +230,31 @@ async function openConsole() {
   if (!socket.value) socket.value = createActivitySocket(eventId, onSocketEvent)
 }
 
-async function refresh() {
+function refresh() {
+  if (refreshPromise) {
+    refreshQueued = true
+    return refreshPromise
+  }
+  refreshPromise = runRefresh().finally(() => {
+    refreshPromise = null
+    if (refreshQueued) {
+      refreshQueued = false
+      refresh()
+    }
+  })
+  return refreshPromise
+}
+
+async function runRefresh() {
   try {
     const [snapshot, roundList, currentLeaderboard] = await Promise.all([
       getHostState(eventId, hostToken.value),
       getHostRounds(eventId, hostToken.value),
       getLeaderboard(eventId),
     ])
+    const snapshotRevision = Number(snapshot?.state?.revision)
+    if (Number.isFinite(snapshotRevision) && snapshotRevision < lastAppliedRevision) return snapshot
+    noteRevision(snapshotRevision)
     state.value = snapshot?.state ?? null
     canAdvanceQuestion.value = Boolean(snapshot?.canAdvanceQuestion)
     canFinishRound.value = Boolean(snapshot?.canFinishRound)
@@ -201,7 +286,22 @@ async function refresh() {
   }
 }
 
-async function refreshLeaderboards() {
+function refreshLeaderboards() {
+  if (leaderboardPromise) {
+    leaderboardQueued = true
+    return leaderboardPromise
+  }
+  leaderboardPromise = runLeaderboardRefresh().finally(() => {
+    leaderboardPromise = null
+    if (leaderboardQueued) {
+      leaderboardQueued = false
+      refreshLeaderboards()
+    }
+  })
+  return leaderboardPromise
+}
+
+async function runLeaderboardRefresh() {
   leaderboardLoading.value = true
   try {
     const [online, total] = await Promise.all([
@@ -267,7 +367,11 @@ async function action(name) {
   error.value = ''
   try {
     const result = await hostAction(eventId, name, hostToken.value)
-    if (result) state.value = result
+    if (result) {
+      state.value = result
+      noteRevision(result.revision)
+      timelineRunning.value = Boolean(result.timelineRunning)
+    }
     if (name === 'start') {
       timelineStarted.value = true
       roundEnded.value = false
@@ -307,15 +411,18 @@ async function action(name) {
 
 async function beginSelectedRound() {
   if (!roundEnded.value || !nextRoundId.value || busy.value) return
+  const targetRoundId = nextRoundId.value
   busy.value = true
   error.value = ''
   try {
-    await selectHostRound(eventId, nextRoundId.value, hostToken.value)
+    const selected = await selectHostRound(eventId, targetRoundId, hostToken.value)
+    noteRevision(selected?.revision)
+    currentRoundId.value = targetRoundId
     timelineStarted.value = false
     roundEnded.value = false
     await refresh()
     audio.value?.pause()
-    seekTo(round.value?.startMs ?? 0)
+    seekTo(roundById(targetRoundId)?.startMs ?? 0)
   } catch (err) {
     showActionError(err)
     return
@@ -345,12 +452,14 @@ function changeRound(roundId) {
     async onOk() {
       busy.value = true
       try {
-        await selectHostRound(eventId, roundId, hostToken.value)
+        const selected = await selectHostRound(eventId, roundId, hostToken.value)
+        noteRevision(selected?.revision)
+        currentRoundId.value = roundId
         timelineStarted.value = false
         roundEnded.value = false
         await refresh()
         audio.value?.pause()
-        seekTo(round.value?.startMs ?? 0)
+        seekTo(roundById(roundId)?.startMs ?? 0)
       } catch (err) {
         showActionError(err)
       } finally {
@@ -488,7 +597,7 @@ function formatDateTime(value) {
         <div class="section-title"><span>音频与时间轴</span><a-badge :status="timelineRunning ? 'processing' : 'default'" :text="playbackLabel" /></div>
         <div class="audio-board-main"><span class="audio-board-label"><Radio :size="16" />当前轮次</span><strong class="audio-board-code">{{ round?.name || '未选择' }}</strong></div>
         <p class="audio-board-meta">{{ formatTime(round?.startMs) }} – {{ formatTime(round?.endMs) }}</p>
-        <audio ref="audio" :src="getAudioUrl(eventId)" preload="metadata" @timeupdate="audioPosition = $event.target.currentTime" />
+        <audio ref="audio" :src="getAudioUrl(eventId)" preload="metadata" @timeupdate="handleTimeUpdate" @seeked="handleSeeked" />
         <a-progress :percent="audioProgress" :show-info="false" :stroke-color="'var(--accent)'" />
         <div class="audio-time"><span>{{ formatTime(audioPosition * 1000) }}</span><span>{{ formatTime(round?.endMs) }}</span></div>
         <label class="audio-volume">音量 <input v-model.number="volume" type="range" min="0" max="1" step="0.01" @input="audio.volume = volume" /></label>

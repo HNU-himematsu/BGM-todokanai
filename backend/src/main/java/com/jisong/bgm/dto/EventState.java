@@ -24,6 +24,7 @@ public record EventState(
         int playerRank,
         int playerCount,
         int answeredCount,
-        List<LeaderboardEntry> leaderboard
+        List<LeaderboardEntry> leaderboard,
+        long revision
 ) {
 }

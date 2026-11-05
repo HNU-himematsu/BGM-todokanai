@@ -9,9 +9,11 @@ backend/
 ├── pom.xml                                 # 项目依赖定义 (Spring Boot 3.5.5, Java 17)
 ├── maven-settings.xml                      # Maven 构建镜像配置
 ├── data/                                   # 本地数据存储目录
-│   ├── timeline.json                       # 编排文件（轮次、动作时间轴与题目引用）
+│   ├── timeline.json                       # 线下编排（轮次、动作时间轴与题目引用）
+│   ├── timeline-online.json                # 线上编排（线上题集与音频时刻）
 │   ├── questions.json                      # 题库文件（题干、选项、答案与解析）
-│   ├── <audioFile>                         # 完整音频文件（线上连续播放；线下按轮次区间播放）
+│   ├── event-offline.mp3                   # 线下母带，本地联调；部署环境由 app.audio-url 指向 OSS
+│   ├── event-online.mp3                    # 线上母带，本地联调；部署环境由 app.audio-url-online 指向 OSS
 │   ├── leaderboards.json                   # 线下轮次快照 (JSON)
 │   ├── online_leaderboard.json             # 线上锁定记录 (JSON)
 │   └── leaderboard_summary.txt             # 线下榜/线上榜/总榜文本总结 (TXT)
@@ -84,10 +86,12 @@ backend/
 
 ### 2.3 `TimelineStore`（编排加载与线上题集）
 
-- 启动时读取 `timeline.json` 与同目录 `questions.json`，按 `questionId` 解析题目引用。
+- 启动时读取 `timeline.json`、可选的 `timeline-online.json` 与同目录 `questions.json`，按 `questionId` 解析题目引用。
+- 两份编排执行交叉校验：`eventId`、`eventName` 与题目序列一致，题目集合覆盖题库全集。
 - 校验轮次区间、动作顺序、`LOAD`/`NEXT` 配对、`LOCK` 位置、音频片段、题库覆盖与枚举值。
-- 生成线上题集：按轮次顺序与条目顺序拉平，忽略 `REVEAL`、`FINISH` 与轮次边界，按 `questionId` 去重。
-- 计算 `questionSetVersion`，输入为题目编号、音频起止与作答窗口。
+- 生成线上题集：由 `timeline-online.json` 按轮次顺序与条目顺序拉平，忽略 `REVEAL`、`FINISH` 与轮次边界，按 `questionId` 去重；该文件缺省时取 `timeline.json`。
+- 计算 `questionSetVersion`，输入为线上题集的题目编号、音频起止与作答窗口。
+- 分别解析线下与线上音频路径与地址，供主持人、线上题集与音频接口使用。
 - 校验线上相邻题目音频首尾相接，题目之间无空白段。
 
 ### 2.4 `LeaderboardStore`（榜单持久化与聚合）
@@ -126,13 +130,17 @@ app:
   frontend-origin: http://localhost:5173
   host-password: "123456"
   timeline-file: data/timeline.json
+  online-timeline-file: data/timeline-online.json
+  audio-url: "${APP_AUDIO_URL:https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3}"
+  audio-url-online: "${APP_AUDIO_URL_ONLINE:https://himematsu.oss-cn-guangzhou.aliyuncs.com/%E5%A7%AC%E6%9D%BE%E6%B4%BB%E5%8A%A8/bgm-music.mp3}"
   leaderboard-file: data/leaderboards.json
   online-leaderboard-file: data/online_leaderboard.json
   leaderboard-txt-file: data/leaderboard_summary.txt
 ```
 
 - 编排文件中的 `audioFile` 相对编排文件所在目录解析。
-- 音频通过 `GET /api/events/{eventId}/audio` 输出，支持 HTTP Range。
+- 音频通过 `GET /api/events/{eventId}/audio` 输出，支持 HTTP Range；`mode=online` 输出线上母带。
+- `audio-url` 与 `audio-url-online` 非空时，音频接口返回 302 跳转到对应对象；`online-timeline-file` 为空时线上题集取 `timeline.json`。
 - 线上题集与锁定接口的完整字段见 [`api-spec.md`](api-spec.md)。
 
 ## 5. 异常映射

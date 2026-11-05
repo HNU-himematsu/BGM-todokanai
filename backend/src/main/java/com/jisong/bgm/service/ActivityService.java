@@ -312,7 +312,6 @@ public class ActivityService {
         activity.timelineRunning = false;
         clearTasks(activity);
         finishRound(activity);
-        broadcast(activity, "ROUND_ENDED");
         return toState(activity, null, false);
     }
 
@@ -324,7 +323,8 @@ public class ActivityService {
         long referenceMs = activity.pausedAtEpochMs != null
                 ? activity.pausedAtEpochMs
                 : System.currentTimeMillis();
-        return round.startMs() + (referenceMs - activity.t0EpochMs);
+        long positionMs = round.startMs() + (referenceMs - activity.t0EpochMs);
+        return Math.max(round.startMs(), Math.min(round.endMs(), positionMs));
     }
 
     private void rebaseTimelineToQuestion(Activity activity, Round round, Question question) {
@@ -452,15 +452,18 @@ public class ActivityService {
 
     private synchronized void runItem(String eventId, PendingTask task) {
         Activity activity = activities.get(eventId);
-        if (activity == null || !activity.timelineRunning || !task.roundId.equals(activity.currentRoundId)) {
+        if (activity == null || !task.roundId.equals(activity.currentRoundId)) {
             return;
         }
-        activity.pendingTasks.remove(task);
         Round round = round(activity, task.roundId);
         if (round == null) {
             return;
         }
         TimelineItem item = round.items().get(task.itemIndex);
+        if (!activity.timelineRunning && item.action() != ActionType.FINISH) {
+            return;
+        }
+        activity.pendingTasks.remove(task);
         switch (item.action()) {
             case LOAD -> activity.pendingQuestion = item.question();
             case NEXT -> {
@@ -488,6 +491,7 @@ public class ActivityService {
             return;
         }
         activity.timelineRunning = false;
+        activity.pausedAtEpochMs = System.currentTimeMillis();
         activity.roundEndFuture = null;
         clearPendingItems(activity);
         broadcast(activity, "ROUND_ENDED");
@@ -541,7 +545,9 @@ public class ActivityService {
     }
 
     private void finishRound(Activity activity) {
-        clearPendingItems(activity);
+        clearTasks(activity);
+        activity.timelineRunning = false;
+        activity.pausedAtEpochMs = System.currentTimeMillis();
         activity.status = ActivityStatus.FINISHED;
         activity.answerRevealed = true;
         if (!activity.leaderboardSaved) {
@@ -551,6 +557,7 @@ public class ActivityService {
             activity.leaderboardSaved = true;
         }
         broadcast(activity, "ACTIVITY_FINISHED");
+        broadcast(activity, "ROUND_ENDED");
     }
 
     private void resetRoom(Activity activity) {
@@ -660,7 +667,8 @@ public class ActivityService {
                 playerRank,
                 activity.players.size(),
                 answeredCount(activity, question),
-                leaderboard);
+                leaderboard,
+                activity.revision);
     }
 
     private List<RoundView> roundViews(Activity activity) {
@@ -733,9 +741,15 @@ public class ActivityService {
     }
 
     private void broadcast(Activity activity, String type) {
+        activity.revision++;
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("type", type);
+        payload.put("eventId", activity.id);
+        payload.put("roundId", activity.currentRoundId);
+        payload.put("revision", activity.revision);
         messagingTemplate.convertAndSend(
                 "/topic/events/" + activity.id,
-                Map.of("type", type, "eventId", activity.id));
+                payload);
     }
 
     private Activity getActivity(String eventId) {
@@ -837,6 +851,7 @@ public class ActivityService {
         private boolean timelineRunning;
         private boolean leaderboardSaved;
         private ScheduledFuture<?> roundEndFuture;
+        private long revision;
 
         private Activity(String id, String name, List<Round> rounds) {
             this.id = id;

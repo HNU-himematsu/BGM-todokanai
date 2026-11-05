@@ -216,9 +216,15 @@
 - 同一浏览器重复加入生成新的线下 `playerId`，但沿用同一 `participantId`。
 - 未知 `mode` 返回 `400`；前端在调用接口前把无法识别的查询参数归一为 `ONLINE`。
 
-### 3.4 获取完整音频
+### 3.4 获取音频
 
 `GET /api/events/{eventId}/audio`
+
+查询参数：
+
+| 参数 | 必填 | 缺省 | 说明 |
+| :--- | :--- | :--- | :--- |
+| `mode` | 否 | `offline` | `offline` 输出线下母带；`online` 输出线上纯 BGM 母带。未知取值按 `offline` 处理。 |
 
 请求头：
 
@@ -228,6 +234,7 @@ Range: bytes=0-1048575
 
 响应：
 
+- 对应模式配置外部地址时返回 `302 Found`，`Location` 为 OSS 对象地址，不经过应用服务器转发音频。
 - 无 `Range` 时返回 `200 OK` 和完整音频。
 - 有效 `Range` 时返回 `206 Partial Content`、`Content-Range`、`Accept-Ranges: bytes` 与对应字节片段。
 - 单个 Range 请求按请求区间返回完整片段；开放式区间返回至文件末尾。多区间请求返回第一个区间。
@@ -264,7 +271,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
   "data": {
     "eventId": "demo",
     "eventName": "旮旯原声之届不到的 BGM",
-    "audioUrl": "/api/events/demo/audio",
+    "audioUrl": "https://himematsu.oss-cn-guangzhou.aliyuncs.com/%E5%A7%AC%E6%9D%BE%E6%B4%BB%E5%8A%A8/bgm-music.mp3",
     "questionSetVersion": "b3f1f5f4b4d07b8f0d9f0d5c2a3e5c1f0e9c8a7b6d5e4f3a2b1c0d9e8f7a6b5c",
     "audioStartMs": 0,
     "audioEndMs": 90000,
@@ -305,7 +312,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
 | :--- | :--- | :--- |
 | `eventId` | String | 活动标识。 |
 | `eventName` | String | 活动名称。 |
-| `audioUrl` | String | 完整音频接口地址，可直接赋给音频元素的 `src`。 |
+| `audioUrl` | String | 线上音频地址，取 `app.audio-url-online`，可直接赋给音频元素的 `src`；该值为空时回落 `app.audio-url`。 |
 | `questionSetVersion` | String | 线上题集版本，SHA-256 小写十六进制字符串。 |
 | `audioStartMs` | Long | 第一道线上题目的音频起点。 |
 | `audioEndMs` | Long | 最后一道线上题目的音频终点。 |
@@ -664,6 +671,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
     "questionAudioEndEpochMs": 1791358952000,
     "answerRevealed": false,
     "timelineRunning": true,
+    "revision": 42,
     "canAnswer": true,
     "question": {
       "id": "q-01",
@@ -699,6 +707,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
 | `questionAudioEndEpochMs` | Long / null | 当前题音频段终点的墙上时刻。 |
 | `answerRevealed` | Boolean | 当前题答案是否处于公开状态。 |
 | `timelineRunning` | Boolean | 时间轴是否运行。 |
+| `revision` | Long | 活动状态版本号。每次广播加一；客户端只接受不小于本地已应用版本号的快照与通知。 |
 | `canAnswer` | Boolean | 玩家已加入且当前状态为 `ANSWERING`。 |
 | `question` | Object / null | 当前题脱敏视图。 |
 | `hasAnswered` | Boolean | 当前玩家是否已提交本题。 |
@@ -938,6 +947,7 @@ X-Host-Token: 6dc1e7aa-3f7d-4c61-92e4-8ef317cd09a4
       "answerRevealed": false,
       "timelineRunning": true,
       "audioPositionMs": 45000,
+      "revision": 42,
       "canAnswer": false,
       "question": {
         "id": "q-01",
@@ -1031,11 +1041,19 @@ X-Host-Token: 6dc1e7aa-3f7d-4c61-92e4-8ef317cd09a4
 ```json
 {
   "type": "QUESTION_STARTED",
-  "eventId": "demo"
+  "eventId": "demo",
+  "roundId": "round-1",
+  "revision": 42
 }
 ```
 
-客户端收到影响页面状态的广播后调用对应快照接口或榜单接口，以服务端数据渲染页面。
+`roundId` 为事件发生时的当前轮次；活动尚未选择轮次时为 `null`。`revision` 是活动内单调递增的状态版本号，每产生一条广播加一，并与同一时刻 HTTP 快照中的 `EventState.revision` 一致。
+
+客户端收到影响页面状态的广播后调用对应快照接口或榜单接口，以服务端数据渲染页面。客户端按以下规则处理广播：
+
+- 音频控制在该广播到达时同步执行，不等待快照请求完成。音频控制使用广播自带的 `roundId` 查找轮次，不使用稍后可能变化的当前轮次。
+- `revision` 小于本地已应用版本号的广播直接丢弃。HTTP 快照的 `revision` 小于本地已应用版本号时同样丢弃，避免旧响应覆盖新状态。
+- 同一 `PLAYER_ANSWERED`、`PLAYER_JOINED` 等高频事件在短时间内连续到达时，主持人页面合并为一次快照刷新；同一时刻最多存在一个快照请求。
 
 | 事件类型 | 触发条件 | 客户端处理 |
 | :--- | :--- | :--- |
@@ -1043,8 +1061,8 @@ X-Host-Token: 6dc1e7aa-3f7d-4c61-92e4-8ef317cd09a4
 | `QUESTION_STARTED` | 线下 `NEXT` 上屏 | 线下参与者刷新当前题与作答状态。 |
 | `ANSWER_LOCKED` | 线下 `LOCK` 关闭作答 | 线下参与者禁用选项并刷新提交状态。 |
 | `ANSWER_REVEALED` | 线下 `REVEAL` 公开答案 | 线下参与者刷新答案、解析、作品名与出题人。 |
-| `ACTIVITY_FINISHED` | 线下 `FINISH` 完成结算 | 线下参与者与主持人刷新本轮榜与结算快照。 |
-| `ROUND_ENDED` | 到达轮次 `endMs` 或主持人结束末题 | 主持人暂停音频；页面保留当前结算数据。 |
+| `ACTIVITY_FINISHED` | 线下 `FINISH` 完成结算 | 线下参与者与主持人刷新本轮榜与结算快照；主持人立即暂停音频并定位到本轮终点。 |
+| `ROUND_ENDED` | 到达轮次 `endMs` 或主持人结束末题 | 主持人暂停音频并定位到 `round.endMs`；页面保留当前结算数据。 |
 | `ACTIVITY_RESET` | 重置活动或切换轮次 | 线下参与者返回登记页；主持人刷新轮次与房间状态。 |
 | `ACTIVITY_PAUSED` | 线下时间轴暂停 | 主持人暂停音频并刷新状态。 |
 | `ACTIVITY_RESUMED` | 线下时间轴恢复 | 主持人恢复音频并刷新状态。 |

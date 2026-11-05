@@ -4,16 +4,32 @@
 
 | 项目 | 约定 |
 | :--- | :--- |
-| 编排文件 | `backend/data/timeline.json` |
+| 线下编排文件 | `backend/data/timeline.json` |
+| 线上编排文件 | `backend/data/timeline-online.json`，可缺省 |
 | 题库文件 | `backend/data/questions.json` |
-| 音频文件 | 与编排文件同目录，文件名由 `audioFile` 指定 |
+| 音频文件 | 与各自编排文件同目录，文件名由 `audioFile` 指定 |
 | 字符集 | UTF-8 |
 | 时间单位 | 毫秒 |
 | 时间基准 | 从完整音频开头开始的绝对位置 |
 
-`timeline.json` 定义完整音频内的线下轮次、题目引用、题目音频片段、作答窗口与状态动作。线上题集由同一编排文件生成，不维护第二份题目顺序文件。
+`timeline.json` 定义线下轮次、题目引用、题目音频片段、作答窗口与状态动作。`timeline-online.json` 定义线上题集使用的音频与时刻。
 
-「姬松活动」本次交付素材的实测数值、音频裁切命令、40 题字段映射与联调顺序见 [`jisong-event-integration.md`](jisong-event-integration.md)。
+### 1.1 双编排
+
+| 编排 | 用途 | 对应音频 |
+| :--- | :--- | :--- |
+| `timeline.json` | 线下轮次与主持人时间轴 | 含播报的线下母带 |
+| `timeline-online.json` | 线上题集生成 | 纯 BGM 母带 |
+
+1. 两份文件位于同一目录，共用同目录的 `questions.json`。
+2. 两份编排的 `eventId` 与 `eventName` 相同。
+3. 按轮次拉平、按 `questionId` 去重后的题目序列相同。
+4. 两份编排各自通过第 8 节校验。
+5. `app.online-timeline-file` 为空时，线上题集由 `timeline.json` 生成，行为与单编排部署一致。
+
+双母带的完整拓扑、数值与发布流程见 [`dual-master-audio.md`](dual-master-audio.md)。
+
+「姬松活动」交付素材的实测数值、母带合成命令、40 题字段映射与联调顺序见 [`jisong-event-integration.md`](jisong-event-integration.md)。
 
 素材未就绪时，后端仍可加载并校验结构；音频文件不可读时，音频接口与线上开始答题返回明确错误。题库与编排通过后，接口才可提供完整答题数据。
 
@@ -23,7 +39,7 @@
 {
   "eventId": "demo",
   "eventName": "旮旯原声之届不到的 BGM",
-  "audioFile": "event-demo.mp3",
+  "audioFile": "event-offline.mp3",
   "rounds": []
 }
 ```
@@ -36,6 +52,8 @@
 | `rounds` | Array | 是 | 至少 1 项 | 线下轮次列表。 |
 
 `eventId` 不得包含路径分隔符。`audioFile` 使用相对文件名，不包含目录穿越片段。
+
+线下编排的 `audioFile` 取 `event-offline.mp3`，线上编排的 `audioFile` 取 `event-online.mp3`。部署环境由 `app.audio-url` 与 `app.audio-url-online` 覆盖为 OSS 地址，本地联调由同目录文件提供。
 
 ## 3. 轮次结构
 
@@ -227,10 +245,10 @@ q-04,45000,60000,45000,57000
 
 ### 7.1 完整音频
 
-- 线上与线下共用同一份完整音频。
-- 音频包含全部题目的播放内容，题目片段之间不存在空白段。
+- 线上与线下各有一份完整音频：线上为纯 BGM 母带，线下为含播报母带；各自编排只引用同目录的对应文件。
+- 线上母带包含全部题目音乐，题目片段之间不存在空白段；线下母带在题目音乐之间包含播报槽与余量静音。
 - 第一题 `audioStartMs` 为 0。
-- 最后一题 `audioEndMs` 作为线上播放终点，与音频可播放总时长的差值不超过 100 毫秒。
+- 最后一题 `audioEndMs` 作为线上播放终点，与音频可播放总时长的差值不超过 200 毫秒；超出的部分仅允许为文件尾部编码垫。
 - 相邻题目满足 `questions[i].audioEndMs == questions[i + 1].audioStartMs`。
 - 线上从第一题 `audioStartMs` 连续播放到最后一题 `audioEndMs`。
 - 线上参与者点击「下一题」时，播放位置定位到下一题 `answerStartMs`；该操作仅按题集顺序前进一题。
@@ -263,9 +281,9 @@ audioStartMs <= answerStartMs < answerEndMs <= audioEndMs
 - 后端音频接口支持 HTTP Range，移动端可分段读取。
 - MIME 类型根据扩展名生成。
 - 文件缺失、权限不可读或内容无法解码时，线上页面显示素材错误，主持人显示音频播放错误。
-- 音频实际总时长与最后一题 `audioEndMs` 的差值不超过 100 毫秒；该项由素材制作与上线前检查确认，后端结构校验不解析音频波形。
+- 音频实际总时长与最后一题 `audioEndMs` 的差值不超过 200 毫秒，超出部分仅允许为文件尾部编码垫；该项由素材制作与上线前检查确认，后端结构校验不解析音频波形。
 - 音频定位落点与素材内容的时间偏差不超过 0.5 秒；码率一致性与 Xing TOC 精度要求见 [`audio-seek-quality.md`](audio-seek-quality.md)。
-- 每题音频片段尾部的静音不超过 1.0 秒。
+- 每题音频片段尾部的静音不超过 1.0 秒。音频内含主持人播报时，题间长度由播报槽决定，该上限不适用，槽位规则见 [`announcer-voice.md`](announcer-voice.md)。
 
 ## 8. 校验规则
 
@@ -315,7 +333,7 @@ audioStartMs <= answerStartMs < answerEndMs <= audioEndMs
 
 ### 8.5 线上题集
 
-31. 每个线上题目的 `audioStartMs <= answerStartMs < answerEndMs <= audioEndMs`。
+31. 每个线上题目的 `audioStartMs <= answerStartMs < answerEndMs <= audioEndMs`。线上题集由 `timeline-online.json` 生成；该文件缺省时由 `timeline.json` 生成。
 32. 第一道线上题目的 `audioStartMs` 为 0。
 33. 相邻题目的 `audioEndMs` 与下一题 `audioStartMs` 相等。
 34. 线上题集不包含重复 `questionId`。
@@ -331,13 +349,13 @@ audioStartMs <= answerStartMs < answerEndMs <= audioEndMs
 
 ## 9. 完整示例
 
-以下示例包含两轮、四道题。每题音频片段首尾相接，第一段从 0 开始，最后一段到 60000 毫秒结束。
+以下示例为线下编排，包含两轮、四道题。每题音频片段首尾相接，第一段从 0 开始，最后一段到 60000 毫秒结束。线上编排的示例结构相同，`audioFile` 取 `event-online.mp3`。
 
 ```json
 {
   "eventId": "demo",
   "eventName": "旮旯原声之届不到的 BGM",
-  "audioFile": "event-demo.mp3",
+  "audioFile": "event-offline.mp3",
   "rounds": [
     {
       "id": "round-1",
