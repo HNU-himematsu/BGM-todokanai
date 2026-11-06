@@ -59,7 +59,7 @@ let lastPositionUpdate = 0
 const question = computed(() => state.value?.question)
 const round = computed(() => rounds.value.find((item) => item.id === currentRoundId.value))
 const publicBaseUrl = (import.meta.env.VITE_PUBLIC_BASE_URL || window.location.origin).replace(/\/+$/, '')
-const joinUrl = `${publicBaseUrl}/offline?event=${eventId}`
+const joinUrl = `${publicBaseUrl}/?mode=offline`
 const summaryTxtUrl = `${publicBaseUrl}/api/events/${eventId}/leaderboard/summary-txt`
 const displayQuestionNo = computed(() => Math.max(0, (state.value?.currentQuestionIndex ?? -1) + 1))
 const statusLabel = computed(() => ({ WAITING: '等待开始', ANSWERING: '答题中', ANSWER_LOCKED: '已锁卷', ANSWER_REVEALED: '答案揭晓', FINISHED: '活动结束' }[state.value?.status] || '连接中'))

@@ -377,7 +377,7 @@ Invoke-RestMethod -Method Head http://localhost:8080/api/events/jisong/audio
 ### 8.3 移动端
 
 1. 手机与电脑处于同一局域网，或使用公网隧道地址。
-2. 扫描线下二维码进入 `/offline?event=jisong`。
+2. 扫描线下二维码进入 `/?mode=offline`。
 3. 确认音频可加载、可跳转，页面隐藏后恢复进度。
 
 ## 9. 上线前检查清单

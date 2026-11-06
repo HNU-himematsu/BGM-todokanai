@@ -43,9 +43,10 @@ ENV/
 *.log
 backend/data/*.json
 backend/data/*.txt
-# 编排文件是工程配置，随仓库分发；榜单快照与音频由运营方现场生成，不进入版本库。
+# 编排文件与题库是工程配置，随仓库分发；榜单快照与音频由运营方现场生成，不进入版本库。
 !backend/data/timeline.json
 !backend/data/timeline-online.json
+!backend/data/questions.json
 backend/data/*.wav
 backend/data/*.mp3
 backend/data/*.m4a

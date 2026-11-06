@@ -42,7 +42,7 @@
 | 入口 | 地址 | 模式 |
 | :--- | :--- | :--- |
 | 网页默认入口 | `/` | 线上模式 |
-| 现场二维码 | `/offline?event=jisong` | 线下模式 |
+| 现场二维码 | `/?mode=offline` | 线下模式 |
 | 显式线上入口 | `/online?event=jisong` | 线上模式 |
 
 `event` 参数缺省值为 `jisong`。`/?mode=offline` 与 `/?mode=online` 作为既有二维码与手工输入的等效查询入口保留。
@@ -396,7 +396,7 @@ questionId, audioStartMs, audioEndMs, answerStartMs, answerEndMs
 
 线下模式按以下流程运行：
 
-1. 参与者扫描二维码进入 `/offline?event=jisong`，输入昵称加入。
+1. 参与者扫描二维码进入 `/?mode=offline`，输入昵称加入。
 2. 主持人登录 `/host`，选择轮次并点击开始播放。
 3. 控制台将音频定位到 `round.startMs` 并播放，同时调用启动接口建立时间轴零点 `T0`。
 4. 服务端按 `T0 + (atMs - startMs)` 触发 `LOAD`、`NEXT`、`LOCK`、`REVEAL`、`FINISH`。
@@ -530,7 +530,7 @@ questionId, audioStartMs, audioEndMs, answerStartMs, answerEndMs
 
 ### 10.5 主持人界面
 
-- 二维码地址固定为 `${publicBaseUrl}/offline?event=${eventId}`。
+- 二维码地址固定为 `${publicBaseUrl}/?mode=offline`。
 - 二维码旁同时显示该地址文本。
 - 控制台继续提供轮次选择、开始、暂停、恢复、锁卷、揭晓、下一题、重置。
 - 榜单区域增加「本轮榜 / 线上榜 / 总榜」切换。
@@ -604,9 +604,9 @@ questionId, audioStartMs, audioEndMs, answerStartMs, answerEndMs
 ### 15.1 模式与入口
 
 - 访问 `/` 进入线上模式。
-- 访问 `/offline?event=jisong` 或 `/?mode=offline&event=jisong` 进入线下模式。
+- 访问 `/?mode=offline` 或 `/offline?event=jisong` 进入线下模式。
 - 线下登记页可跳转到线上模式。
-- 主持人二维码指向 `/offline?event=jisong`。
+- 主持人二维码指向 `/?mode=offline`。
 
 ### 15.2 线上答题
 

@@ -81,9 +81,9 @@ frontend/
 ```text
 https://example.test/
 https://example.test/online?event=jisong
-https://example.test/offline?event=jisong
+https://example.test/?mode=offline
 https://example.test/?mode=online&event=jisong
-https://example.test/?mode=offline&event=jisong
+https://example.test/?mode=offline
 ```
 
 `/offline`、`/online` 为路径入口，`?mode=offline`、`?mode=online` 为查询入口，两者语义相同。
@@ -630,7 +630,7 @@ t >= questions[last].audioEndMs
 二维码内容：
 
 ```text
-{publicBaseUrl}/offline?event={eventId}
+{publicBaseUrl}/?mode=offline
 ```
 
 `publicBaseUrl` 取当前页面协议的 origin，或在配置中显式指定。二维码不含主持人令牌、玩家标识或本地进度。
@@ -759,7 +759,7 @@ ACCENT = rgb(188, 74, 216) / #BC4AD8
 ### 14.1 模式与路由
 
 - 访问 `/` 显示线上登记页。
-- 访问 `/offline?event=jisong` 或 `/?mode=offline&event=jisong` 显示线下登记页。
+- 访问 `/?mode=offline` 或 `/offline?event=jisong` 显示线下登记页。
 - 无效 `mode` 进入线上模式并显示提示。
 - 线下登记页可进入线上模式。
 - `/play` 刷新后保持当前模式；模式缺失时回到 `/`。

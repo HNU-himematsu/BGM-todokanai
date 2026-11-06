@@ -1,6 +1,6 @@
 # 部署状态与上线清单
 
-记录日期：2026-11-05
+记录日期：2026-11-06
 
 本文记录当前代码、服务器、OSS 与发布流水线的状态，以及上线前的剩余步骤。
 
@@ -21,19 +21,16 @@
 
 ## 2. 服务器状态
 
-接入前核查结果：
+线上服务器状态（2026-11-06）：
 
-- 操作系统为 Debian 12。
-- Nginx 已安装，配置语法检查通过。
-- 主站 `himematsu.cn` 与 `www.himematsu.cn` 使用 `/etc/letsencrypt/live/himematsu.cn/` 证书。
-- `game.himematsu.cn` 的 `A` 记录指向 `81.71.64.37`。
-- Nginx 配置中没有 `server_name game.himematsu.cn` 的独立站点。
-- `http://game.himematsu.cn/` 落到 Nginx 默认站点，返回欢迎页。
-- `https://game.himematsu.cn/` 落到主站 443 配置，301 跳转到 `https://himematsu.cn/`。
-- 主站证书不包含 `game.himematsu.cn`，子域 HTTPS 存在证书名称不匹配。
-- 后端 `8080` 未对外提供健康响应，应用尚未部署。
-
-服务器侧的目录、systemd 服务、子域 Nginx 站点与证书均待初始化。
+- 操作系统为 Debian 13（trixie），SSH 端口 `33`，密钥登录。
+- 运行时为 OpenJDK 21，满足 Java 17 字节码要求。
+- `bgm-guess` 由 systemd 管理并设为开机自启，后端监听 `8080`，公网流量只经 Nginx `443` 进入。
+- 当前版本为 `20261106165538-local`，`current` 指向 `/opt/bgm-guess/releases/20261106165538-local`。
+- `/opt/bgm-guess/shared/data` 保存 `timeline.json`、`timeline-online.json` 与 `questions.json`，不含音频与榜单文件。
+- `game.himematsu.cn` 使用独立 Nginx 站点与 certbot 证书，`certbot.timer` 负责续期。
+- 主站 `himematsu.cn` 与 `www.himematsu.cn` 继续使用 `/etc/letsencrypt/live/himematsu.cn/` 证书，未受子域变更影响。
+- `https://game.himematsu.cn/`、`/host` 与 `/api/health` 返回 `200`；`/api/events/jisong/audio` 返回 `302` 跳转到 OSS 线下对象；`/ws` 完成 WebSocket Upgrade。
 
 ## 3. OSS 状态
 
@@ -101,8 +98,8 @@ OSS 配置的完整说明见 [`oss-audio.md`](oss-audio.md)。
 - 前端构建注入 `VITE_AUDIO_URL`，缺省指向线下对象 `bgm/event-offline.mp3`。
 - 后端 `app.audio-url` 缺省指向线下对象，`app.audio-url-online` 缺省指向线上对象；`APP_AUDIO_URL` 与 `APP_AUDIO_URL_ONLINE` 可覆盖两个地址。
 - 发布任务使用 `production` environment。
-- GitHub Secrets、发布用户、SSH 公钥与 sudoers 规则待配置。
-- 服务器目录与 systemd 单元由 `deploy/bootstrap-server.sh` 初始化。
+- 发布用户 `deploy`、sudoers 规则与服务器目录已由 `deploy/bootstrap-server.sh` 初始化；GitHub Secrets 与 Variables 待配置。
+- 首个版本通过手工上传发布包完成激活，发布记录为 `20261106165538-local`。
 - `main` 推送自动发布在服务器初始化与 Secrets 配置完成后启用。
 
 CI/CD 的完整说明见 [`cicd.md`](cicd.md)；不依赖 GitHub Actions 的手工发布流程见 [`manual-deploy-runbook.md`](manual-deploy-runbook.md)。
@@ -125,7 +122,7 @@ CI/CD 的完整说明见 [`cicd.md`](cicd.md)；不依赖 GitHub Actions 的手�
 
 - [ ] `https://game.himematsu.cn/` 返回本系统页面。
 - [ ] `https://game.himematsu.cn/host` 刷新不出现 404。
-- [ ] `https://game.himematsu.cn/offline?event=jisong` 进入线下入口。
+- [ ] `https://game.himematsu.cn/?mode=offline` 进入线下入口。
 - [ ] `https://game.himematsu.cn/api/health` 返回健康信息。
 - [ ] `https://game.himematsu.cn/api/events/jisong/online/questions` 返回 40 题，`audioUrl` 为 `姬松活动/bgm-music.mp3` 的对象地址。
 - [ ] 主持人页面 `<audio>` 的 `src` 为 `bgm/event-offline.mp3` 的对象地址。

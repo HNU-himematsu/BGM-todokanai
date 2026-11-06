@@ -5,7 +5,7 @@
 | 现象 | 优先检查 |
 | :--- | :--- |
 | 根地址进入线下页面 | 地址是否带 `/offline` 路径或 `mode=offline` 参数。 |
-| 线下二维码进入线上页面 | 二维码是否为 `{publicBaseUrl}/offline?event={eventId}`。 |
+| 线下二维码进入线上页面 | 二维码是否为 `{publicBaseUrl}/?mode=offline`。 |
 | 线上无法开始 | 题库、编排、音频、浏览器自动播放策略、服务端健康状态。 |
 | 线上进度丢失 | 域名、隐私模式、站点数据清理、题集版本。 |
 | 线上「下一题」不可用或跳转异常 | 是否已选答案、是否最后一题、音频元数据、下一题 `answerStartMs`、本地进度。 |
@@ -33,7 +33,7 @@
 
 **排查**：
 
-1. 解码二维码，确认地址为 `{publicBaseUrl}/offline?event=jisong`。
+1. 解码二维码，确认地址为 `{publicBaseUrl}/?mode=offline&event=jisong`。
 2. 对照主持人控制台二维码旁显示的地址文本，确认手机地址栏一致。
 3. 检查二维码生成时使用的 `publicBaseUrl` 与活动标识。
 4. 在地址末尾手动补充 `/offline` 路径或 `mode=offline` 参数后重测。

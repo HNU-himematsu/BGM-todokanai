@@ -1,0 +1,682 @@
+[
+  {
+    "id": "q-01",
+    "audioCode": "TRACK-01",
+    "prompt": "这首曲子出自哪个作品？",
+    "type": "WORK",
+    "difficulty": "MEDIUM",
+    "options": [
+      "白色相簿",
+      "白色相簿2",
+      "千恋万花",
+      "甜蜜女友2"
+    ],
+    "correctOption": 1,
+    "workName": "白色相簿2",
+    "explanation": "党争、三角恋、下雪天",
+    "author": "Munch"
+  },
+  {
+    "id": "q-02",
+    "audioCode": "TRACK-02",
+    "prompt": "这首曲子在游戏中对应着怎样的场景？",
+    "type": "ATMOSPHERE",
+    "difficulty": "EASY",
+    "options": [
+      "告白",
+      "爱爱时",
+      "悬疑",
+      "降生"
+    ],
+    "correctOption": 3,
+    "workName": "CLANNAD",
+    "explanation": "无",
+    "author": "Munch"
+  },
+  {
+    "id": "q-03",
+    "audioCode": "TRACK-03",
+    "prompt": "这首曲子出自哪个作品？",
+    "type": "WORK",
+    "difficulty": "MEDIUM",
+    "options": [
+      "euphoria",
+      "命运石之门",
+      "千恋万花",
+      "猫娘乐园"
+    ],
+    "correctOption": 0,
+    "workName": "euphoria（乐园之扉）",
+    "explanation": "合欢、门扉、十二神器之一",
+    "author": "christina"
+  },
+  {
+    "id": "q-04",
+    "audioCode": "TRACK-04",
+    "prompt": "这首曲子在游戏中对应着怎样的场景？",
+    "type": "ATMOSPHERE",
+    "difficulty": "HARD",
+    "options": [
+      "爱爱时",
+      "死亡",
+      "逃脱后",
+      "BOSS战前告白"
+    ],
+    "correctOption": 0,
+    "workName": "euphoria",
+    "explanation": "无",
+    "author": "christina"
+  },
+  {
+    "id": "q-05",
+    "audioCode": "TRACK-05",
+    "prompt": "请选择以下符合歌曲氛围的关键词：",
+    "type": "ATMOSPHERE",
+    "difficulty": "EASY",
+    "options": [
+      "压抑",
+      "温馨",
+      "治愈",
+      "松弛"
+    ],
+    "correctOption": 0,
+    "workName": "euphoria",
+    "explanation": "无",
+    "author": "christina"
+  },
+  {
+    "id": "q-06",
+    "audioCode": "TRACK-06",
+    "prompt": "这首曲子在游戏中对应着怎样的场景？",
+    "type": "ATMOSPHERE",
+    "difficulty": "EASY",
+    "options": [
+      "危机时刻",
+      "轻松打闹",
+      "互相猜忌",
+      "告白"
+    ],
+    "correctOption": 0,
+    "workName": "Ever17 ~the out of infinity~",
+    "explanation": "无",
+    "author": "christina"
+  },
+  {
+    "id": "q-07",
+    "audioCode": "TRACK-07",
+    "prompt": "这首曲子出自哪个作品？",
+    "type": "WORK",
+    "difficulty": "HARD",
+    "options": [
+      "千恋万花",
+      "苍之彼方的四重奏",
+      "Narcissus（水仙）",
+      "悠之空"
+    ],
+    "correctOption": 2,
+    "workName": "Narcissus（水仙）",
+    "explanation": "无",
+    "author": "treefish"
+  },
+  {
+    "id": "q-08",
+    "audioCode": "TRACK-08",
+    "prompt": "这首曲子出自哪个作品？",
+    "type": "WORK",
+    "difficulty": "HARD",
+    "options": [
+      "魔女的夜宴",
+      "星空列车与白的旅行",
+      "ATRI",
+      "交响乐之雨"
+    ],
+    "correctOption": 3,
+    "workName": "交响乐之雨",
+    "explanation": "无",
+    "author": "treefish"
+  },
+  {
+    "id": "q-09",
+    "audioCode": "TRACK-09",
+    "prompt": "这首曲子出自哪部作品？",
+    "type": "WORK",
+    "difficulty": "HARD",
+    "options": [
+      "大图书馆的牧羊人",
+      "秽翼的尤斯蒂娅",
+      "千恋＊万花",
+      "永不落幕的前奏诗"
+    ],
+    "correctOption": 1,
+    "workName": "秽翼的尤斯蒂娅",
+    "explanation": "悬浮于天空的城市，小动物不能上桌吃饭",
+    "author": "不可思议の逆天酱喵"
+  },
+  {
+    "id": "q-10",
+    "audioCode": "TRACK-10",
+    "prompt": "结合音乐和提示，这首曲子主要表达了哪种感情？",
+    "type": "ATMOSPHERE",
+    "difficulty": "EASY",
+    "options": [
+      "财富与权力的渴望",
+      "揭穿真相的挣扎痛苦",
+      "约会时的甜蜜心动",
+      "对家人的珍惜、愧疚与感谢"
+    ],
+    "correctOption": 3,
+    "workName": "海猫鸣泣之时",
+    "explanation": "母女相拥，比黄金更珍贵的宝物。",
+    "author": "不可思议の逆天酱喵"
+  },
+  {
+    "id": "q-11",
+    "audioCode": "TRACK-11",
+    "prompt": "这首曲子出自哪部作品？",
+    "type": "WORK",
+    "difficulty": "HARD",
+    "options": [
+      "星空的记忆",
+      "向日葵的教会与长夏的暑假",
+      "樱之诗",
+      "素晴日"
+    ],
+    "correctOption": 2,
+    "workName": "樱之诗",
+    "explanation": "美术、绘画、物象。",
+    "author": "不可思议の逆天酱喵"
+  },
+  {
+    "id": "q-12",
+    "audioCode": "TRACK-12",
+    "prompt": "本曲曲名为《lost》，结合音乐提示与作品，女主角对应的“失去”可能是什么？",
+    "type": "ATMOSPHERE",
+    "difficulty": "MEDIUM",
+    "options": [
+      "失去自我，不明白为什么相恋",
+      "失去位置与共同回忆，成全所爱",
+      "失去坚定的内心，自怨自艾",
+      "失去对所爱之人的感情，主动彻底决裂"
+    ],
+    "correctOption": 1,
+    "workName": "晴霁之后定是菜花盛开的好天气",
+    "explanation": "为所爱之人、共同度过、几十年。",
+    "author": "不可思议の逆天酱喵"
+  },
+  {
+    "id": "q-13",
+    "audioCode": "TRACK-13",
+    "prompt": "结合配乐与提示，这段作品中的告别最接近哪一种情绪？",
+    "type": "ATMOSPHERE",
+    "difficulty": "MEDIUM",
+    "options": [
+      "逃出痛苦，但不再期待新的未来",
+      "因分别而悲伤，仍相信幸福会到来",
+      "希望摆脱，但又心怀留念",
+      "受到背叛，展开报复"
+    ],
+    "correctOption": 1,
+    "workName": "五彩斑斓的世界",
+    "explanation": "分离、流泪、言语、曙光。",
+    "author": "不可思议の逆天酱喵"
+  },
+  {
+    "id": "q-14",
+    "audioCode": "TRACK-14",
+    "prompt": "《樱之诗》讲述曾是天才画家的少年放弃绘画后，与伙伴们共同拯救美术部并探寻艺术本质的故事。请聆听音乐，选出最适合该背景音乐的剧情片段：",
+    "type": "ATMOSPHERE",
+    "difficulty": "EASY",
+    "options": [
+      "面对父亲十五亿日元遗产，男主婉拒后签下放弃声明，事后懊悔不已。",
+      "社团招新时，男主挚友被迫女装，化身美术部看板娘招揽新生。",
+      "众人举办以女装挚友为模特的素描会，戏服遇水溶解，引发现场大乱。",
+      "离别的春天，男主与天才少女在樱花下完成最后告别，少女随后启程飞向世界。"
+    ],
+    "correctOption": 2,
+    "workName": "樱之诗",
+    "explanation": "无",
+    "author": "Aki_BG7ZGA"
+  },
+  {
+    "id": "q-15",
+    "audioCode": "TRACK-15",
+    "prompt": "《Rewrite》被誉为“人类圣经”，其中也有不少脍炙人口的曲子。这首曲子在游戏中初登场在什么场景比较合适？",
+    "type": "ATMOSPHERE",
+    "difficulty": "HARD",
+    "options": [
+      "男主受女一之母所托，前往月光映照的森林寻找深夜未归的女一。",
+      "男主骑自行车搭载女二，穿梭于阳光映射的林荫小道享受青春。",
+      "女三穿着破烂的白色连衣裙，倚靠在神秘巨大树干上休息。",
+      "女四在枯萎的向日葵田侧身含泪回望男主。"
+    ],
+    "correctOption": 0,
+    "workName": "Rewrite",
+    "explanation": "无",
+    "author": "そらつね"
+  },
+  {
+    "id": "q-16",
+    "audioCode": "TRACK-16",
+    "prompt": "这首曲子适用于以下哪个场景？",
+    "type": "ATMOSPHERE",
+    "difficulty": "HARD",
+    "options": [
+      "进行头脑风暴时（类似谍战情报分析）。",
+      "地图点位选择、探索及潜入敌方据点。",
+      "和对手进行武力对峙。",
+      "约会时与恋人斗智斗勇。"
+    ],
+    "correctOption": 1,
+    "workName": "REWRITE",
+    "explanation": "无",
+    "author": "そらつね"
+  },
+  {
+    "id": "q-17",
+    "audioCode": "TRACK-17",
+    "prompt": "这首曲子可能是以下哪个场景？",
+    "type": "ATMOSPHERE",
+    "difficulty": "MEDIUM",
+    "options": [
+      "《星空のメモリア》（星空的记忆）中，男主与天文部社员一起看星星。",
+      "《いろとりどりのセカイ》（五彩斑斓的世界）中，男主和真女主在灯塔上互诉思念。",
+      "《アストラエアの白き永遠》（星辰恋曲的白色永恒）中，第一真女主解决芬布尔之冬后眺望远处。",
+      "《さくら、もゆ》（樱花、萌放）中，男主了解各种支线故事后进行思考。"
+    ],
+    "correctOption": 0,
+    "workName": "星空のメモリア（星空的记忆）",
+    "explanation": "无",
+    "author": "そらつね"
+  },
+  {
+    "id": "q-18",
+    "audioCode": "TRACK-18",
+    "prompt": "“和风”是日本文化中不可缺少的重要元素之一，这点在 galgame 中亦占很大一部分权重。那么根据你的 galgame 阅历，请推测或者直接选择这首曲子出自哪部作品：",
+    "type": "WORK",
+    "difficulty": "EASY",
+    "options": [
+      "《红月摇曳的恋之星火》",
+      "《多娜多娜》",
+      "《千恋❀万花》",
+      "《ものべの》（茂伸奇谈）"
+    ],
+    "correctOption": 2,
+    "workName": "千恋❀万花",
+    "explanation": "无",
+    "author": "そらつね"
+  },
+  {
+    "id": "q-19",
+    "audioCode": "TRACK-19",
+    "prompt": "请根据自己的阅历及见识，来判断这首曲子在哪个场景出现比较合适？",
+    "type": "ATMOSPHERE",
+    "difficulty": "MEDIUM",
+    "options": [
+      "人们于樱色春光结伴上学。",
+      "沉没在水中的都市遗迹与前行的潜水艇。",
+      "白雪纷飞与盛大庙会。",
+      "乱石林立的海滩，女主眺望远方。"
+    ],
+    "correctOption": 3,
+    "workName": "ATRI",
+    "explanation": "无",
+    "author": "そらつね"
+  },
+  {
+    "id": "q-20",
+    "audioCode": "TRACK-20",
+    "prompt": "歌曲来自于作品《命运石之门》，名叫《Believe me》，似乎有很强的信念感，但整曲曲调却充满绝望与悲伤，这种矛盾源自于（ ）",
+    "type": "ATMOSPHERE",
+    "difficulty": "MEDIUM",
+    "options": [
+      "主人公在拯救青梅与拯救恋人之间不得不二选一的无奈。",
+      "主人公追寻所有人都能得救的理想世界线，但过程中角色个人愿望必然被牺牲。",
+      "主人公在反复穿越中逐渐麻木，却仍以“凤凰院凶真”的中二人格伪装支撑自己继续前行。",
+      "主人公沉溺于中二病幻想世界与现实世界残酷真相之间的落差。"
+    ],
+    "correctOption": 1,
+    "workName": "命运石之门",
+    "explanation": "提示：审题干。",
+    "author": "christina"
+  },
+  {
+    "id": "q-21",
+    "audioCode": "TRACK-21",
+    "prompt": "这首歌曲出自（ ）",
+    "type": "WORK",
+    "difficulty": "HARD",
+    "options": [
+      "G弦上的魔王",
+      "车轮之国 向日葵的少女",
+      "龙刻",
+      "千恋万花"
+    ],
+    "correctOption": 0,
+    "workName": "G弦上的魔王",
+    "explanation": "叙述诡计。",
+    "author": "DIO"
+  },
+  {
+    "id": "q-22",
+    "audioCode": "TRACK-22",
+    "prompt": "这首歌逐渐下降的曲调，暗示着（ ）",
+    "type": "ATMOSPHERE",
+    "difficulty": "MEDIUM",
+    "options": [
+      "日常的逐步崩坏",
+      "恋人的死亡",
+      "剧情的陡然突转",
+      "青梅对恋情的犹豫"
+    ],
+    "correctOption": 0,
+    "workName": "Doki Doki Literature Club!（心跳文学部）",
+    "explanation": "提示歌名 Sayo-Nara 意为再见、永别。",
+    "author": "christina"
+  },
+  {
+    "id": "q-23",
+    "audioCode": "TRACK-23",
+    "prompt": "有一个游客罕至的离岛，在其海边的町，主人公度过一个夏天，在那个岛上传来的歌，就是这部作品的主题曲，请问是什么作品？",
+    "type": "WORK",
+    "difficulty": "EASY",
+    "options": [
+      "CLANNAD",
+      "Summer Pockets",
+      "千恋万花",
+      "甜蜜女友2"
+    ],
+    "correctOption": 1,
+    "workName": "Summer Pockets",
+    "explanation": "提示为 Key 社作品 OP 与夏日。",
+    "author": "千石ユノ"
+  },
+  {
+    "id": "q-24",
+    "audioCode": "TRACK-24",
+    "prompt": "大正浪漫音乐将西洋管弦爵士的摩登与日本传统音阶的婉转相交织，充满东西方文化碰撞的怀旧气息。以下四部作品中有三部的背景为大正时期。请聆听对应的游戏背景音乐，选出故事背景不属于大正时期的作品：音频按选项 A 至 D 顺序播放。",
+    "type": "WORK",
+    "difficulty": "EASY",
+    "options": [
+      "《樱色之云＊绯色之恋》（かく咲きたらばいと恋ひめやも）",
+      "《韶华苦短，起舞吧少女》（円舞）",
+      "《贽之匣庭》（九領希）",
+      "《常轨脱离 Creative凸》（Unreal Creation! instrumental）"
+    ],
+    "correctOption": 3,
+    "workName": "常轨脱离 Creative凸",
+    "explanation": "无",
+    "author": "Aki_BG7ZGA"
+  },
+  {
+    "id": "q-25",
+    "audioCode": "TRACK-25",
+    "prompt": "《Ever17》的故事随着剧情推进，玩家会逐渐发现，眼前的“事故”“记忆”和“人物关系”远比表面上复杂。如果在这种情况下播放《Karma》，它最适合对应以下哪种剧情理解？",
+    "type": "ATMOSPHERE",
+    "difficulty": "EASY",
+    "options": [
+      "主人公第一次进入海洋主题乐园，对新奇设施感到兴奋。",
+      "主人公发现记忆与现实之间存在无法解释的矛盾，开始怀疑自己是谁、眼前的世界是什么。",
+      "角色们为了逃离水下设施而展开直接的武力冲突。",
+      "游戏进入纯粹的恋爱日常阶段，所有角色暂时忘记事故。"
+    ],
+    "correctOption": 1,
+    "workName": "Ever17",
+    "explanation": "无",
+    "author": "taffy"
+  },
+  {
+    "id": "q-26",
+    "audioCode": "TRACK-26",
+    "prompt": "这段旋律初听时给人的感觉更接近“温柔、梦幻与希望”。但如果玩家已经完成《青鸟》的主要剧情，再次听到时会发现“幸福”一词带有复杂含义。以下哪一项最符合这种音乐与剧情之间的关系？",
+    "type": "ATMOSPHERE",
+    "difficulty": "EASY",
+    "options": [
+      "白鸟律只是普通学生神父，最大的愿望是离开学校过普通生活。",
+      "白鸟律拥有给予他人“幸福”的特殊力量，但这种能力使他成为恶魔关注的对象；他与少女们的相遇逐渐发展为关于幸福、救赎与命运的故事。",
+      "白鸟律为了消灭学校里的恶魔，主动学习魔法并成为驱魔师。",
+      "女子学校中的所有少女实际上都是恶魔，律必须找出真正的敌人。"
+    ],
+    "correctOption": 1,
+    "workName": "青鸟",
+    "explanation": "无",
+    "author": "taffy"
+  },
+  {
+    "id": "q-27",
+    "audioCode": "TRACK-27",
+    "prompt": "《天津罪》的主人公织部诚拥有特殊的“言灵”能力，可以通过语言产生不同寻常的力量。如果在游戏后半段播放《コトダマ紡ぐ未来》，以下哪种理解最符合这首音乐所对应的作品主题？",
+    "type": "ATMOSPHERE",
+    "difficulty": "EASY",
+    "options": [
+      "主人公意识到能力只是一种普通魔术，最终放弃能力回归普通生活。",
+      "主人公利用言灵控制所有女主角，以阻止妖怪袭击村庄。",
+      "主人公通过言语与少女们建立联系；随着故事推进，语言能留下什么、人与人的记忆能否跨越时间，逐渐成为重要主题。",
+      "主人公发现整个故事发生在虚拟世界，因此决定删除所有记忆。"
+    ],
+    "correctOption": 2,
+    "workName": "天津罪",
+    "explanation": "无",
+    "author": "taffy"
+  },
+  {
+    "id": "q-28",
+    "audioCode": "TRACK-28",
+    "prompt": "想象这样一个场景：基地内气氛逐渐紧张，所有人都清楚接下来的行动绝非普通训练。作战人员必须压下个人情绪，将注意力集中到即将到来的任务上。结合音乐氛围，你认为它最适合表现以下哪种场景？",
+    "type": "ATMOSPHERE",
+    "difficulty": "EASY",
+    "options": [
+      "战斗结束后，幸存者暂时放下戒备，在基地中享受难得的平静。",
+      "作战即将展开，人员进入高度戒备状态，紧张、克制与决战前的决意交织在一起。",
+      "主角在战斗失利后独自回忆往事，陷入悲伤与自责。",
+      "训练结束后，队员们为取得胜利而欢呼，基地充满轻松愉快的气氛。"
+    ],
+    "correctOption": 1,
+    "workName": "MUVLUV",
+    "explanation": "无",
+    "author": "taffy"
+  },
+  {
+    "id": "q-29",
+    "audioCode": "TRACK-29",
+    "prompt": "这首曲子出自以下哪部 galgame？",
+    "type": "WORK",
+    "difficulty": "MEDIUM",
+    "options": [
+      "白色相簿1",
+      "素晴日",
+      "近月少女的礼仪",
+      "白色相簿2"
+    ],
+    "correctOption": 1,
+    "workName": "素晴日",
+    "explanation": "提示：回归天空。",
+    "author": "taffy"
+  },
+  {
+    "id": "q-30",
+    "audioCode": "TRACK-30",
+    "prompt": "《EMIYA》是《Fate/stay night》极具代表性的 BGM 之一，通常伴随着逐渐增强的节奏与具有仪式感的声音展开。在原作剧情中，这首曲子的核心象征最接近以下哪一项？",
+    "type": "ATMOSPHERE",
+    "difficulty": "EASY",
+    "options": [
+      "卫宫士郎第一次召唤 Saber，并正式参加圣杯战争。",
+      "卫宫士郎与英灵卫宫面对面，并开始思考“成为正义的伙伴”这一理想究竟意味着什么。",
+      "卫宫士郎的英灵 Saber 与吉尔伽美什进行第一次战斗。",
+      "间桐樱正式成为圣杯战争的御主。"
+    ],
+    "correctOption": 1,
+    "workName": "Fate/stay night",
+    "explanation": "无",
+    "author": "taffy"
+  },
+  {
+    "id": "q-31",
+    "audioCode": "TRACK-31",
+    "prompt": "《小さなてのひら》并不是单纯对应某一个人物，而是在作品后期成为“家庭、人生与愿望”等主题的情感总结。那么这首歌最适合对应以下哪种理解？",
+    "type": "ATMOSPHERE",
+    "difficulty": "HARD",
+    "options": [
+      "少年时代的爱情最终只是短暂的校园回忆，作品最终选择否定过去。",
+      "冈崎朋也最终放弃自己的家庭，重新回到高中时代。",
+      "人生会经历失去、痛苦与无法改变的事情，但人与人之间建立的羁绊能够跨越时间，并最终让“家”重新获得意义。",
+      "古河渚通过幻想世界获得超能力，并改变现实世界的历史。"
+    ],
+    "correctOption": 2,
+    "workName": "CLANNAD",
+    "explanation": "无",
+    "author": "taffy"
+  },
+  {
+    "id": "q-32",
+    "audioCode": "TRACK-32",
+    "prompt": "这是一个系列作品的第二部，主人公有一个超级可爱的妹妹。在发生过大地震、以学园都市为特色的城市中，主人公的妹妹卷入无法解释的超自然事件。这首曲子是她这条路线的 OP，请问它出自什么作品？",
+    "type": "WORK",
+    "difficulty": "HARD",
+    "options": [
+      "9-nine-九次九日九重色",
+      "9-nine-天色天歌天籁音",
+      "9-nine-春色春恋春熙风",
+      "9-nine-雪色雪花雪余痕"
+    ],
+    "correctOption": 1,
+    "workName": "9-nine-天色天歌天籁音",
+    "explanation": "无",
+    "author": "千石ユノ"
+  },
+  {
+    "id": "q-33",
+    "audioCode": "TRACK-33",
+    "prompt": "《Nostalgia》是《紙の上の魔法使い》里的一首日常曲。这座岛上的图书馆只为一位不登校的少女而建。提示：图书馆中的魔法之书会把剧情变为现实。这首歌用在什么情景？",
+    "type": "ATMOSPHERE",
+    "difficulty": "MEDIUM",
+    "options": [
+      "依旧走在熟悉的图书馆，忽然想到以前和大家一起看书的某天，那时大家都还在。",
+      "从魔法之书中出现的东西和角色们爆发冲突。",
+      "不要管魔法之书了，现在是只有发糖的恋爱日常。",
+      "为了解开图书馆的秘密，大家在一起推理。"
+    ],
+    "correctOption": 0,
+    "workName": "紙の上の魔法使い",
+    "explanation": "无",
+    "author": "千石ユノ"
+  },
+  {
+    "id": "q-34",
+    "audioCode": "TRACK-34",
+    "prompt": "《Una Atadura》是《秽翼的尤斯蒂娅》某人的一首角色曲。故事舞台是一座悬空城市，上下两部分可以说是两个不同的世界。歌曲名大致是西班牙语“一个羁绊”的意思。听一下 BGM，猜猜对应的是谁。",
+    "type": "ATMOSPHERE",
+    "difficulty": "MEDIUM",
+    "options": [
+      "缇娅——主人公在垃圾堆里找到的少女，失去记忆、长着翅膀，像小动物一样，渴望上桌吃饭。",
+      "艾莉丝——以前处境很糟，是主角把她带出来的，如今是医生，经常上门为他做饭，单方面坚称是他的妻子。",
+      "柯蕾特——圣女，每天虔诚祈祷，后来曾一度失明。",
+      "莉西娅——目前代理执政的王女，向往庶民生活，但是从来没有去过下界。"
+    ],
+    "correctOption": 1,
+    "workName": "秽翼的尤斯蒂娅",
+    "explanation": "无。",
+    "author": "千石由乃"
+  },
+  {
+    "id": "q-35",
+    "audioCode": "TRACK-35",
+    "prompt": "《imbalance_Alice》是《魔法使之夜》里的一首曲子。故事舞台是 1980 年代日本小城的冬天，山丘上有一栋洋馆。这首曲子是谁的角色曲？",
+    "type": "ATMOSPHERE",
+    "difficulty": "EASY",
+    "options": [
+      "苍崎青子——高中生，刚刚成为魔法使，脾气不太好，勇敢不服输。",
+      "久遠寺有珠——洋馆主人，隐居在现代的魔女，沉默怕生，使用童话中的怪物战斗。",
+      "静希草十郎——从山里来的少年，不太懂城里人的事情，如今在洋馆打扫和做饭。",
+      "苍崎橙子——青子的姐姐，擅长制作栩栩如生的人偶，后来姐妹分开。"
+    ],
+    "correctOption": 1,
+    "workName": "魔法使之夜",
+    "explanation": "无",
+    "author": "千石由乃"
+  },
+  {
+    "id": "q-36",
+    "audioCode": "TRACK-36",
+    "prompt": "这是《魔法使之夜》里的一首曲子。请问这首曲子用在哪个位置？",
+    "type": "ATMOSPHERE",
+    "difficulty": "EASY",
+    "options": [
+      "第一章——故事开场，少年不知道自己后来会被卷入什么事件，我们也不知道。",
+      "故事中间的日常段落。大家在洋馆中一起吃饭，偶尔拌嘴，一起度过冬天。",
+      "结局后——所有事都结束，画面逐渐缩小随后朝向远方。",
+      "战斗——魔术师之间的战斗，也许旋律会变得更加激昂。"
+    ],
+    "correctOption": 0,
+    "workName": "魔法使之夜",
+    "explanation": "无",
+    "author": "千石由乃"
+  },
+  {
+    "id": "q-37",
+    "audioCode": "TRACK-37",
+    "prompt": "《沙耶之歌》中，郁纪经历事故后，感知世界的方式发生根本变化。对于其他人而言正常的世界，在他的眼中却变成令人作呕的异形景象。那么随着郁纪与沙耶的相遇，故事真正逐渐走向的核心冲突是什么？",
+    "type": "ATMOSPHERE",
+    "difficulty": "MEDIUM",
+    "options": [
+      "郁纪为了恢复正常视觉，寻找造成事故的真正凶手，并最终揭开医院阴谋。",
+      "郁纪为了保护沙耶，逐渐接受她所代表的异质世界，并在爱情、伦理与人类身份之间走向无法回头的选择。",
+      "沙耶利用超能力控制郁纪，使他成为统治人类世界的工具。",
+      "郁纪发现自己一直生活在虚拟世界中，而沙耶实际上是管理世界的人工智能。"
+    ],
+    "correctOption": 1,
+    "workName": "沙耶之歌",
+    "explanation": "无",
+    "author": "taffy"
+  },
+  {
+    "id": "q-38",
+    "audioCode": "TRACK-38",
+    "prompt": "《月の記憶》是《月姬》中的一首 BGM。听听它的旋律，感受它想表达的情感，猜它用在以下哪个场景。提示：女主角爱尔奎特并非人类；男主志贵是人类。",
+    "type": "ATMOSPHERE",
+    "difficulty": "MEDIUM",
+    "options": [
+      "爱尔奎特和志贵在校园中嬉笑打闹，像普通恋人一样，忘却吸血鬼设定。",
+      "爱尔奎特在夕阳教室现身，只愿他作为人类活下去，升天而奔月，此生永相别，最终消失于夕阳余晖中。",
+      "志贵和爱尔奎特与强大的吸血鬼战斗，BGM 烘托战斗的紧张刺激。",
+      "志贵意识到爱尔奎特只是普通同学，选择遗忘超自然经历，回归正常生活。"
+    ],
+    "correctOption": 1,
+    "workName": "月姬",
+    "explanation": "无",
+    "author": "千石由乃"
+  },
+  {
+    "id": "q-39",
+    "audioCode": "TRACK-39",
+    "prompt": "这是《ライムライト・レモネードジャム》（柚子社新作）的一段 BGM，请猜一猜这段 BGM 会用在以下哪个场景。提示：是乐队番的跟风作品。",
+    "type": "ATMOSPHERE",
+    "difficulty": "MEDIUM",
+    "options": [
+      "少女们合宿出去玩的场景。",
+      "少女们开 live 的场景。",
+      "少女们被告白的场景。",
+      "少女们泡澡时的场景。"
+    ],
+    "correctOption": 1,
+    "workName": "ライムライト・レモネードジャム",
+    "explanation": "无",
+    "author": "larter"
+  },
+  {
+    "id": "q-40",
+    "audioCode": "TRACK-40",
+    "prompt": "这段音乐没有单纯地强调胜利的热血，也不只是描写战场上的恐惧。它更适合让人联想到：当战斗不断夺走熟悉的人与事，即使心中积累沉重悲痛，仍有人不得不继续向前。以下哪种场景氛围最符合这种感受？",
+    "type": "ATMOSPHERE",
+    "difficulty": "MEDIUM",
+    "options": [
+      "一支部队首次投入战斗，所有人怀着新鲜感与兴奋，期待证明自己的实力。",
+      "战士们成功完成任务，终于迎来胜利，所有压抑情绪转化为畅快喜悦。",
+      "在失去与牺牲不断累积的战场上，悲伤、无力感与继续战斗的意志彼此交织。",
+      "主角暂时离开军队，回到平静日常，逐渐忘记战争创伤。"
+    ],
+    "correctOption": 2,
+    "workName": "MUVLUV",
+    "explanation": "无",
+    "author": "taffy"
+  }
+]

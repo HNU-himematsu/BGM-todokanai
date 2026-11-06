@@ -104,7 +104,7 @@ Vite 把 `/api` 与 `/ws` 代理到 `http://localhost:8080`。
 | :--- | :--- |
 | 线上 | `http://localhost:5173/` |
 | 显式线上 | `http://localhost:5173/?mode=online&event=jisong` |
-| 线下 | `http://localhost:5173/offline?event=jisong` |
+| 线下 | `http://localhost:5173/?mode=offline` |
 | 主持人 | `http://localhost:5173/host` |
 
 手机与电脑位于同一局域网时，可把 `localhost` 替换为电脑局域网地址。跨设备访问前确认系统防火墙允许 Vite 端口。
@@ -230,7 +230,7 @@ https://xxxx-xxxx-xxxx.trycloudflare.com
 线下二维码：
 
 ```text
-{publicBaseUrl}/offline?event=jisong
+{publicBaseUrl}/?mode=offline&event=jisong
 ```
 
 主持人入口：

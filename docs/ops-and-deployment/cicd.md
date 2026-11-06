@@ -271,7 +271,7 @@ sudo -u deploy chmod 600 /home/deploy/.ssh/authorized_keys
 - `https://game.himematsu.cn/` 返回本系统页面。
 - `https://game.himematsu.cn/api/health` 返回健康信息。
 - `https://game.himematsu.cn/host` 刷新不出现 404。
-- `https://game.himematsu.cn/offline?event=jisong` 进入线下入口。
+- `https://game.himematsu.cn/?mode=offline` 进入线下入口。
 - `https://game.himematsu.cn/api/events/jisong/online/questions` 的 `audioUrl` 为 OSS 地址。
 - `https://game.himematsu.cn/api/events/jisong/audio` 跳转到 OSS 地址。
 - 手机可播放音频，Range 请求返回 `206`。
@@ -283,7 +283,7 @@ sudo -u deploy chmod 600 /home/deploy/.ssh/authorized_keys
 ## 8. 发布约束
 
 - 后端活动状态保存在内存。发布重启会清空进行中的线上与线下活动，发布应安排在活动窗口之外。
-- `backend/data` 中 `timeline.json` 与 `timeline-online.json` 进入版本库，`questions.json` 由服务器侧维护，音频由 OSS 提供，流水线不生成这些文件。
+- `backend/data` 中 `timeline.json`、`timeline-online.json` 与 `questions.json` 进入版本库，音频由 OSS 提供，流水线不生成这些文件。
 - 发布脚本不删除 `/opt/bgm-guess/shared/data`。清理旧版本时只处理 `/opt/bgm-guess/releases/`。
 - 前端与后端必须使用同一 origin。`VITE_PUBLIC_BASE_URL` 指向正式域名，页面、API、音频与 WebSocket 共用该域名。
 - 更换域名会形成新的浏览器存储空间，线上本地进度与主持人令牌不跨域名迁移。
