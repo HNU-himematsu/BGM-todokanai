@@ -65,3 +65,7 @@ music/*.mp3
 music/*.wav
 music/*.log
 music/0d00/
+
+# ========== Local AI / Dev Context ==========
+# 本机开发上下文与密钥说明不进入版本库。
+*.local.md
