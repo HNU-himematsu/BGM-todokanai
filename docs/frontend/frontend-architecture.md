@@ -74,16 +74,16 @@ frontend/
 | 参数 | 允许值 | 缺省值 | 说明 |
 | :--- | :--- | :--- | :--- |
 | `mode` | `online` / `offline`，大小写不敏感 | `online` | 页面模式。 |
-| `event` | 活动标识 | `demo` | 活动标识。 |
+| `event` | 活动标识 | `jisong` | 活动标识。 |
 
 地址示例：
 
 ```text
 https://example.test/
-https://example.test/online?event=demo
-https://example.test/offline?event=demo
-https://example.test/?mode=online&event=demo
-https://example.test/?mode=offline&event=demo
+https://example.test/online?event=jisong
+https://example.test/offline?event=jisong
+https://example.test/?mode=online&event=jisong
+https://example.test/?mode=offline&event=jisong
 ```
 
 `/offline`、`/online` 为路径入口，`?mode=offline`、`?mode=online` 为查询入口，两者语义相同。
@@ -96,7 +96,7 @@ https://example.test/?mode=offline&event=demo
 3. `mode` 转小写；缺省为 `online`。
 4. `mode` 为 `online` 或 `offline` 时采用该值。
 5. 其他值归一为 `online`，页面显示“模式参数无效，已进入线上模式”。
-6. `event` 去空白；空值与缺省值均为 `demo`。
+6. `event` 去空白；空值与缺省值均为 `jisong`。
 7. 归一后的模式写入 `sessionStorage` 的 `bgm.mode`。
 8. `JoinView.vue` 根据模式渲染不同登记页；进入 `/play` 时模式随查询参数一并传递。
 
@@ -150,7 +150,7 @@ https://example.test/?mode=offline&event=demo
 ```json
 {
   "version": 1,
-  "eventId": "demo",
+  "eventId": "jisong",
   "participantId": "18f1e6a2-6af8-4fc2-bc87-13d603e4868f",
   "attemptId": "3e8d7c56-32b1-4f80-9d1f-5e6a4a9b2c77",
   "questionSetVersion": "b3f1f5f4b4d07b8f0d9f0d5c2a3e5c1f0e9c8a7b6d5e4f3a2b1c0d9e8f7a6b5c",
@@ -759,7 +759,7 @@ ACCENT = rgb(188, 74, 216) / #BC4AD8
 ### 14.1 模式与路由
 
 - 访问 `/` 显示线上登记页。
-- 访问 `/offline?event=demo` 或 `/?mode=offline&event=demo` 显示线下登记页。
+- 访问 `/offline?event=jisong` 或 `/?mode=offline&event=jisong` 显示线下登记页。
 - 无效 `mode` 进入线上模式并显示提示。
 - 线下登记页可进入线上模式。
 - `/play` 刷新后保持当前模式；模式缺失时回到 `/`。

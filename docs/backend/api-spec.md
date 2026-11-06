@@ -111,7 +111,7 @@
   "code": 200,
   "message": "success",
   "data": {
-    "id": "demo",
+    "id": "jisong",
     "name": "旮旯原声之届不到的 BGM",
     "totalQuestions": 6,
     "status": "WAITING"
@@ -163,7 +163,7 @@
   "code": 200,
   "message": "success",
   "data": {
-    "eventId": "demo",
+    "eventId": "jisong",
     "eventName": "旮旯原声之届不到的 BGM",
     "mode": "ONLINE",
     "participantId": "18f1e6a2-6af8-4fc2-bc87-13d603e4868f",
@@ -195,7 +195,7 @@
   "code": 200,
   "message": "success",
   "data": {
-    "eventId": "demo",
+    "eventId": "jisong",
     "eventName": "旮旯原声之届不到的 BGM",
     "mode": "OFFLINE",
     "participantId": "18f1e6a2-6af8-4fc2-bc87-13d603e4868f",
@@ -269,7 +269,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
   "code": 200,
   "message": "success",
   "data": {
-    "eventId": "demo",
+    "eventId": "jisong",
     "eventName": "旮旯原声之届不到的 BGM",
     "audioUrl": "https://himematsu.oss-cn-guangzhou.aliyuncs.com/%E5%A7%AC%E6%9D%BE%E6%B4%BB%E5%8A%A8/bgm-music.mp3",
     "questionSetVersion": "b3f1f5f4b4d07b8f0d9f0d5c2a3e5c1f0e9c8a7b6d5e4f3a2b1c0d9e8f7a6b5c",
@@ -546,7 +546,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
   "code": 200,
   "message": "success",
   "data": {
-    "eventId": "demo",
+    "eventId": "jisong",
     "generatedAt": "2026-10-20T10:03:00.000Z",
     "entries": [
       {
@@ -584,7 +584,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
   "code": 200,
   "message": "success",
   "data": {
-    "eventId": "demo",
+    "eventId": "jisong",
     "generatedAt": "2026-10-20T10:03:00.000Z",
     "entries": [
       {
@@ -662,7 +662,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
   "code": 200,
   "message": "success",
   "data": {
-    "eventId": "demo",
+    "eventId": "jisong",
     "eventName": "旮旯原声之届不到的 BGM",
     "status": "ANSWERING",
     "currentQuestionIndex": 0,
@@ -810,7 +810,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
   "message": "success",
   "data": [
     {
-      "eventId": "demo",
+      "eventId": "jisong",
       "eventName": "旮旯原声之届不到的 BGM",
       "roundId": "round-1",
       "roundName": "第一轮",
@@ -937,7 +937,7 @@ X-Host-Token: 6dc1e7aa-3f7d-4c61-92e4-8ef317cd09a4
   "message": "success",
   "data": {
     "state": {
-      "eventId": "demo",
+      "eventId": "jisong",
       "eventName": "旮旯原声之届不到的 BGM",
       "status": "ANSWERING",
       "currentQuestionIndex": 0,
@@ -1041,7 +1041,7 @@ X-Host-Token: 6dc1e7aa-3f7d-4c61-92e4-8ef317cd09a4
 ```json
 {
   "type": "QUESTION_STARTED",
-  "eventId": "demo",
+  "eventId": "jisong",
   "roundId": "round-1",
   "revision": 42
 }
@@ -1106,7 +1106,7 @@ X-Host-Token: 6dc1e7aa-3f7d-4c61-92e4-8ef317cd09a4
 ## 10. 兼容与缺省值
 
 - `mode` 查询参数缺省为 `online`；未知值由前端归一为 `online` 并显示提示。
-- `event` 查询参数缺省为 `demo`。
+- `event` 查询参数缺省为 `jisong`。
 - 加入接口的 `mode` 请求字段缺省为 `ONLINE`。
 - `participantId` 缺省时由服务端生成并写入响应。
 - 线下历史快照缺少 `participantId` 时，以 `playerId` 作为总榜合并键。

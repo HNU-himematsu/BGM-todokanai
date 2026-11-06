@@ -264,9 +264,9 @@ curl -fsS http://127.0.0.1:8080/api/health
 Resolve-DnsName game.himematsu.cn
 curl.exe -I https://game.himematsu.cn/
 curl.exe -sS https://game.himematsu.cn/api/health
-curl.exe -sS -o NUL -w "%{http_code} -> %{redirect_url}`n" https://game.himematsu.cn/api/events/demo/audio
-curl.exe -sS -o NUL -w "%{http_code} -> %{redirect_url}`n" "https://game.himematsu.cn/api/events/demo/audio?mode=online"
-curl.exe -sS https://game.himematsu.cn/api/events/demo/online/questions
+curl.exe -sS -o NUL -w "%{http_code} -> %{redirect_url}`n" https://game.himematsu.cn/api/events/jisong/audio
+curl.exe -sS -o NUL -w "%{http_code} -> %{redirect_url}`n" "https://game.himematsu.cn/api/events/jisong/audio?mode=online"
+curl.exe -sS https://game.himematsu.cn/api/events/jisong/online/questions
 ```
 
 浏览器验收：

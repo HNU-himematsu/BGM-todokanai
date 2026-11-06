@@ -271,9 +271,9 @@ sudo -u deploy chmod 600 /home/deploy/.ssh/authorized_keys
 - `https://game.himematsu.cn/` 返回本系统页面。
 - `https://game.himematsu.cn/api/health` 返回健康信息。
 - `https://game.himematsu.cn/host` 刷新不出现 404。
-- `https://game.himematsu.cn/offline?event=demo` 进入线下入口。
-- `https://game.himematsu.cn/api/events/demo/online/questions` 的 `audioUrl` 为 OSS 地址。
-- `https://game.himematsu.cn/api/events/demo/audio` 跳转到 OSS 地址。
+- `https://game.himematsu.cn/offline?event=jisong` 进入线下入口。
+- `https://game.himematsu.cn/api/events/jisong/online/questions` 的 `audioUrl` 为 OSS 地址。
+- `https://game.himematsu.cn/api/events/jisong/audio` 跳转到 OSS 地址。
 - 手机可播放音频，Range 请求返回 `206`。
 - `/ws` 完成 WebSocket Upgrade。
 - 重启 `bgm-guess` 后历史榜单仍可读取。

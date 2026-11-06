@@ -41,7 +41,7 @@ export const useActivityStore = defineStore('activity', () => {
   const currentQuestion = computed(() => state.value?.question)
 
   function setSession(nextEventId, nextMode) {
-    eventId.value = String(nextEventId || 'demo').trim() || 'demo'
+    eventId.value = String(nextEventId || 'jisong').trim() || 'jisong'
     mode.value = normalizeMode(nextMode)
     saveEventId(eventId.value)
     saveMode(mode.value)

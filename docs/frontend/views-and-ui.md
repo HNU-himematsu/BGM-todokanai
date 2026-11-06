@@ -24,8 +24,8 @@ HostView.vue
 进入方式：
 
 - 网页根地址 `/` 进入线上登记页。
-- 线下二维码使用 `/offline?event=demo`；`/?mode=offline&event=demo` 为等效入口，供既有二维码与手工输入使用。
-- 显式线上地址使用 `/online?event=demo`；`/?mode=online&event=demo` 为等效入口。
+- 线下二维码使用 `/offline?event=jisong`；`/?mode=offline&event=jisong` 为等效入口，供既有二维码与手工输入使用。
+- 显式线上地址使用 `/online?event=jisong`；`/?mode=online&event=jisong` 为等效入口。
 - 主持人控制台只通过 `/host` 进入，参与者页面不提供控制台跳转。
 
 ## 2. 视觉体系
@@ -547,9 +547,9 @@ HostView.vue
 扫码区显示：
 
 - 线下入口二维码。
-- 地址文本 `/offline?event=demo`。
+- 地址文本 `/offline?event=jisong`，以链接形式展示，点击在新标签页打开线下登记页。
 - 说明「参与者扫码后输入昵称加入本轮」。
-- 复制地址按钮；安全剪贴板接口不可用时使用兼容回退完成复制，复制失败时控制台顶部提示错误，地址文本可选中。
+- 复制地址按钮；安全剪贴板接口不可用时使用兼容回退完成复制，复制失败时控制台顶部提示错误，地址文本可选中并可直接点击打开。
 
 二维码编码内容为线下入口路径与当前 `eventId`。域名来自当前页面的 `publicBaseUrl`。
 

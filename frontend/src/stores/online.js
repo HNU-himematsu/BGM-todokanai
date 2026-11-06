@@ -36,7 +36,7 @@ export const useOnlineStore = defineStore('online', () => {
   const loading = ref(false)
   const previewing = ref(false)
   const locking = ref(false)
-  const eventId = ref('demo')
+  const eventId = ref('jisong')
   const participantId = ref('')
   const nickname = ref('')
   const startedAt = ref('')
@@ -77,7 +77,7 @@ export const useOnlineStore = defineStore('online', () => {
   const questionSetVersion = computed(() => questionSet.value?.questionSetVersion || '')
 
   function setContext(nextEventId, nextParticipantId, nextNickname) {
-    eventId.value = String(nextEventId || 'demo').trim() || 'demo'
+    eventId.value = String(nextEventId || 'jisong').trim() || 'jisong'
     participantId.value = String(nextParticipantId || '')
     nickname.value = String(nextNickname || '').trim()
   }

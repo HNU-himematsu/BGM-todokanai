@@ -33,7 +33,7 @@
 
 **排查**：
 
-1. 解码二维码，确认地址为 `{publicBaseUrl}/offline?event=demo`。
+1. 解码二维码，确认地址为 `{publicBaseUrl}/offline?event=jisong`。
 2. 对照主持人控制台二维码旁显示的地址文本，确认手机地址栏一致。
 3. 检查二维码生成时使用的 `publicBaseUrl` 与活动标识。
 4. 在地址末尾手动补充 `/offline` 路径或 `mode=offline` 参数后重测。
@@ -456,25 +456,25 @@ Invoke-RestMethod http://localhost:8080/api/health
 ### 10.2 线上题集
 
 ```powershell
-Invoke-RestMethod http://localhost:8080/api/events/demo/online/questions
+Invoke-RestMethod http://localhost:8080/api/events/jisong/online/questions
 ```
 
 ### 10.3 线上榜
 
 ```powershell
-Invoke-RestMethod http://localhost:8080/api/events/demo/leaderboards/online
+Invoke-RestMethod http://localhost:8080/api/events/jisong/leaderboards/online
 ```
 
 ### 10.4 总榜
 
 ```powershell
-Invoke-RestMethod http://localhost:8080/api/events/demo/leaderboards/total
+Invoke-RestMethod http://localhost:8080/api/events/jisong/leaderboards/total
 ```
 
 ### 10.5 文本总结
 
 ```powershell
-Invoke-WebRequest http://localhost:8080/api/events/demo/leaderboard/summary-txt
+Invoke-WebRequest http://localhost:8080/api/events/jisong/leaderboard/summary-txt
 ```
 
 ### 10.6 端口监听

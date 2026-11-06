@@ -260,7 +260,7 @@ python tools\build_voice_mix.py `
 ```powershell
 cd backend
 mvn -q -DskipTests compile
-Invoke-RestMethod http://localhost:8080/api/events/demo/state
+Invoke-RestMethod http://localhost:8080/api/events/jisong/state
 ```
 
 | 项 | 预期 |

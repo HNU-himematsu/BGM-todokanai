@@ -31,7 +31,7 @@
 ```json
 [
   {
-    "eventId": "demo",
+    "eventId": "jisong",
     "eventName": "旮旯原声之届不到的 BGM",
     "roundId": "round-1",
     "roundName": "第一轮",
@@ -105,7 +105,7 @@
 ```json
 [
   {
-    "eventId": "demo",
+    "eventId": "jisong",
     "attemptId": "3e8d7c56-32b1-4f80-9d1f-5e6a4a9b2c77",
     "participantId": "18f1e6a2-6af8-4fc2-bc87-13d603e4868f",
     "nickname": "风见幽香",

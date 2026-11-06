@@ -44,7 +44,7 @@ npm run dev
 - 参与者答题：`/play`
 - 主持人控制台：`/host`
 
-活动固定使用 `demo` 活动标识；线下轮次与动作时间轴由 `backend/data/timeline.json` 定义，线上题集由 `backend/data/timeline-online.json` 定义，题目文本由同目录的 `backend/data/questions.json` 保存。线上模式播放 OSS 对象 `姬松活动/bgm-music.mp3` 的纯 BGM 母带，线下模式播放 `bgm/event-offline.mp3` 的含播报母带；部署服务器不保存音频文件，外部地址置空时后端改为输出 `backend/data/` 中的同目录音频。题目、当前活动状态和参与者分数保存在后端内存中；结算动作触发时，最终排行榜会写入后端电脑上的 `backend/data/leaderboards.json`，重启后仍可读取历史榜单。
+活动固定使用 `jisong` 活动标识；线下轮次与动作时间轴由 `backend/data/timeline.json` 定义，线上题集由 `backend/data/timeline-online.json` 定义，题目文本由同目录的 `backend/data/questions.json` 保存。线上模式播放 OSS 对象 `姬松活动/bgm-music.mp3` 的纯 BGM 母带，线下模式播放 `bgm/event-offline.mp3` 的含播报母带；部署服务器不保存音频文件，外部地址置空时后端改为输出 `backend/data/` 中的同目录音频。题目、当前活动状态和参与者分数保存在后端内存中；结算动作触发时，最终排行榜会写入后端电脑上的 `backend/data/leaderboards.json`，重启后仍可读取历史榜单。
 
 ## 现场使用方式
 

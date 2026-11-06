@@ -25,7 +25,7 @@ const MEDIA_HAVE_FUTURE_DATA = 3
 const seekingQuestion = ref(false)
 const buffering = ref(false)
 
-const eventId = String(route.query.event || activity.eventId || 'demo')
+const eventId = String(route.query.event || activity.eventId || 'jisong')
 const isStart = computed(() => online.phase === 'IDLE')
 const isInProgress = computed(() => online.phase === 'IN_PROGRESS')
 const isResult = computed(() => online.phase === 'RESULT_READY')

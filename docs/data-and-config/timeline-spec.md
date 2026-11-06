@@ -37,7 +37,7 @@
 
 ```json
 {
-  "eventId": "demo",
+  "eventId": "jisong",
   "eventName": "旮旯原声之届不到的 BGM",
   "audioFile": "event-offline.mp3",
   "rounds": []
@@ -353,7 +353,7 @@ audioStartMs <= answerStartMs < answerEndMs <= audioEndMs
 
 ```json
 {
-  "eventId": "demo",
+  "eventId": "jisong",
   "eventName": "旮旯原声之届不到的 BGM",
   "audioFile": "event-offline.mp3",
   "rounds": [

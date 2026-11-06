@@ -965,14 +965,21 @@ p {
 }
 
 .join-url-text {
+  display: inline-block;
   max-width: 100%;
   margin: 10px 0 0;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.5;
-  cursor: text;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
   user-select: text;
   word-break: break-all;
+}
+
+.join-url-text:hover {
+  color: var(--accent);
 }
 
 .section-title {

@@ -4,8 +4,8 @@
 
 ## 开发基线
 
-- 网页根地址 `/` 进入线上模式；显式线上入口为 `/online?event=demo`。
-- 线下二维码地址为 `/offline?event=demo`；`/?mode=offline&event=demo` 为等效查询入口。
+- 网页根地址 `/` 进入线上模式；显式线上入口为 `/online?event=jisong`。
+- 线下二维码地址为 `/offline?event=jisong`；`/?mode=offline&event=jisong` 为等效查询入口。
 - 线上覆盖题库全部题目，不使用轮次，浏览器本地保存进度，锁定后进入线上榜与总榜。
 - 线下保留主持人控制的轮次、逐题揭晓与每轮独立榜，线下榜用于现场评奖。
 - 总榜为每位参与者线下各轮最佳成绩之和与线上锁定成绩的合并结果。

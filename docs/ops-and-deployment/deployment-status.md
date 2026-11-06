@@ -125,9 +125,9 @@ CI/CD 的完整说明见 [`cicd.md`](cicd.md)；不依赖 GitHub Actions 的手�
 
 - [ ] `https://game.himematsu.cn/` 返回本系统页面。
 - [ ] `https://game.himematsu.cn/host` 刷新不出现 404。
-- [ ] `https://game.himematsu.cn/offline?event=demo` 进入线下入口。
+- [ ] `https://game.himematsu.cn/offline?event=jisong` 进入线下入口。
 - [ ] `https://game.himematsu.cn/api/health` 返回健康信息。
-- [ ] `https://game.himematsu.cn/api/events/demo/online/questions` 返回 40 题，`audioUrl` 为 `姬松活动/bgm-music.mp3` 的对象地址。
+- [ ] `https://game.himematsu.cn/api/events/jisong/online/questions` 返回 40 题，`audioUrl` 为 `姬松活动/bgm-music.mp3` 的对象地址。
 - [ ] 主持人页面 `<audio>` 的 `src` 为 `bgm/event-offline.mp3` 的对象地址。
 - [ ] 两个 OSS 对象的 `HEAD` 返回 `200`。
 - [ ] 两个 OSS 对象的 Range 请求返回 `206`。

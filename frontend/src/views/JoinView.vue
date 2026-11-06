@@ -18,7 +18,7 @@ const rulesVisible = ref(false)
 const eventSummary = ref(null)
 
 const modeQuery = computed(() => parseModeQuery(route.query.mode))
-const eventId = computed(() => String(route.query.event || 'demo').trim() || 'demo')
+const eventId = computed(() => String(route.query.event || 'jisong').trim() || 'jisong')
 const routeMode = computed(() => {
   if (route.path === '/offline') return MODES.OFFLINE
   if (route.path === '/online') return MODES.ONLINE

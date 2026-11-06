@@ -20,7 +20,7 @@ import { createActivitySocket } from '../services/socket'
 import { clearHostToken, getHostToken, getStoredEventId, saveHostToken } from '../services/storage'
 
 const route = useRoute()
-const eventId = String(route.query.event || getStoredEventId() || 'demo')
+const eventId = String(route.query.event || getStoredEventId() || 'jisong')
 const hostToken = ref(getHostToken())
 const authenticated = ref(Boolean(hostToken.value))
 const password = ref('')
@@ -619,7 +619,7 @@ function formatDateTime(value) {
       </a-card>
 
       <a-card class="host-join">
-        <div class="host-join-body"><div><div class="section-title"><span>扫码加入</span><span class="muted">活动房间：{{ eventId }}</span></div><p class="muted">把二维码展示给现场参与者，大家扫码后输入昵称即可加入本轮活动。</p><a-button @click="copyJoinUrl"><Copy :size="16" />复制加入地址</a-button><p class="join-url-text">{{ joinUrl }}</p></div><canvas ref="qrCanvas" class="qr-code" aria-label="活动加入二维码"></canvas></div>
+        <div class="host-join-body"><div><div class="section-title"><span>扫码加入</span><span class="muted">活动房间：{{ eventId }}</span></div><p class="muted">把二维码展示给现场参与者，大家扫码后输入昵称即可加入本轮活动。</p><a-button @click="copyJoinUrl"><Copy :size="16" />复制加入地址</a-button><a class="join-url-text" :href="joinUrl" target="_blank" rel="noopener">{{ joinUrl }}</a></div><canvas ref="qrCanvas" class="qr-code" aria-label="活动加入二维码"></canvas></div>
       </a-card>
 
       <a-card class="host-preview">

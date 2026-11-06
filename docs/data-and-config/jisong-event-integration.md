@@ -2,7 +2,7 @@
 
 ## 1. 文档用途
 
-本文规定「姬松活动」素材接入本仓库系统的完整做法：素材交付形态、音频成品规格、`timeline.json` 与 `questions.json` 的生成规则、启动自检、联调流程与回滚方式。按本文执行后，活动以 `eventId=demo` 运行线下四轮与线上全题库两种模式。
+本文规定「姬松活动」素材接入本仓库系统的完整做法：素材交付形态、音频成品规格、`timeline.json` 与 `questions.json` 的生成规则、启动自检、联调流程与回滚方式。按本文执行后，活动以 `eventId=jisong` 运行线下四轮与线上全题库两种模式。
 
 读者对象为素材制作方与部署执行者。数据契约的完整定义见 [`timeline-spec.md`](timeline-spec.md)，接口字段见 [`../backend/api-spec.md`](../backend/api-spec.md)，本文只覆盖本次活动的具体数值与操作顺序。
 
@@ -36,7 +36,7 @@ backend/data/
 └── leaderboard_summary.txt
 ```
 
-- `eventId` 固定为 `demo`，前端路由、线下二维码与主持人入口沿用现有地址。
+- `eventId` 固定为 `jisong`，前端路由、线下二维码与主持人入口沿用现有地址。
 - `backend/data/event-offline.mp3` 是线下母带的本地联调产物；部署环境通过 `APP_AUDIO_URL` 指向 `oss://himematsu/bgm/event-offline.mp3`，服务器不保存音频文件。
 - 本地未配置外部地址时，音频路径相对各自编排文件所在目录解析；两份编排的 `audioFile` 保留文件名。
 - 线上模式播放 `姬松活动/bgm-music.mp3`，内容为纯 BGM；线下模式播放含播报的母带。两种模式的拓扑与配置见 [`dual-master-audio.md`](dual-master-audio.md)。
@@ -94,7 +94,7 @@ ffprobe -v error -show_entries format=duration,size,bit_rate -show_entries strea
 
 ```json
 {
-  "eventId": "demo",
+  "eventId": "jisong",
   "eventName": "旮旯原声之届不到的 BGM",
   "audioFile": "event-offline.mp3",
   "rounds": []
@@ -337,8 +337,8 @@ mvn spring-boot:run
 
 ```powershell
 Invoke-RestMethod http://localhost:8080/api/health
-Invoke-RestMethod http://localhost:8080/api/events/demo/online/questions
-Invoke-RestMethod -Method Head http://localhost:8080/api/events/demo/audio
+Invoke-RestMethod http://localhost:8080/api/events/jisong/online/questions
+Invoke-RestMethod -Method Head http://localhost:8080/api/events/jisong/audio
 ```
 
 检查项：
@@ -346,9 +346,9 @@ Invoke-RestMethod -Method Head http://localhost:8080/api/events/demo/audio
 | 项 | 预期 |
 | :--- | :--- |
 | `/api/health` | 返回运行中标识 |
-| `/api/events/demo/online/questions` | `totalQuestions` 为 40，题集首题 `audioStartMs` 为 0，末题 `audioEndMs` 为 2593000 |
-| `/api/events/demo/state` | 四轮区间 0/562355、562355/1341690、1341690/2054605、2054605/2780110 |
-| 本地联调 `audioUrl` | 未配置 `app.audio-url-online` 时回落 `app.audio-url`；两者均为空时为 `/api/events/demo/audio?mode=online` |
+| `/api/events/jisong/online/questions` | `totalQuestions` 为 40，题集首题 `audioStartMs` 为 0，末题 `audioEndMs` 为 2593000 |
+| `/api/events/jisong/state` | 四轮区间 0/562355、562355/1341690、1341690/2054605、2054605/2780110 |
+| 本地联调 `audioUrl` | 未配置 `app.audio-url-online` 时回落 `app.audio-url`；两者均为空时为 `/api/events/jisong/audio?mode=online` |
 | 部署环境 `audioUrl` | 指向 `https://himematsu.oss-cn-guangzhou.aliyuncs.com/%E5%A7%AC%E6%9D%BE%E6%B4%BB%E5%8A%A8/bgm-music.mp3` |
 | 音频请求 | OSS 对象普通请求返回 200；带 `Range: bytes=0-1023` 时返回 206 |
 | 题集版本 | `questionSetVersion` 为非空十六进制字符串 |
@@ -377,7 +377,7 @@ Invoke-RestMethod -Method Head http://localhost:8080/api/events/demo/audio
 ### 8.3 移动端
 
 1. 手机与电脑处于同一局域网，或使用公网隧道地址。
-2. 扫描线下二维码进入 `/offline?event=demo`。
+2. 扫描线下二维码进入 `/offline?event=jisong`。
 3. 确认音频可加载、可跳转，页面隐藏后恢复进度。
 
 ## 9. 上线前检查清单

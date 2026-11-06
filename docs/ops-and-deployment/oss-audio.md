@@ -138,7 +138,7 @@ curl -I -H 'Range: bytes=0-1023' https://himematsu.oss-cn-guangzhou.aliyuncs.com
 ## 6. 验证项
 
 ```bash
-curl -sS https://game.himematsu.cn/api/events/demo/online/questions
+curl -sS https://game.himematsu.cn/api/events/jisong/online/questions
 curl -I https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3
 curl -I -H 'Range: bytes=0-1023' https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3
 curl -I https://himematsu.oss-cn-guangzhou.aliyuncs.com/%E5%A7%AC%E6%9D%BE%E6%B4%BB%E5%8A%A8/bgm-music.mp3
@@ -148,7 +148,7 @@ curl -I https://himematsu.oss-cn-guangzhou.aliyuncs.com/%E5%A7%AC%E6%9D%BE%E6%B4
 - 主持人页面 `<audio>` 的 `src` 为线下对象地址。
 - 两个对象均返回 `200`，Range 请求返回 `206`。
 - 手机可播放、暂停、拖动进度，切题定位与本地音频一致。
-- `/api/events/demo/audio` 在外部音频配置下返回跳转到线下对象的响应。
+- `/api/events/jisong/audio` 在外部音频配置下返回跳转到线下对象的响应。
 - `/opt/bgm-guess/shared/data` 中没有音频文件，播放仍正常。
 
 ## 7. 私有 Bucket

@@ -14,9 +14,9 @@
 
 | 序号 | 画面 | 入口或状态 | 画面来源 |
 | :--- | :--- | :--- | :--- |
-| 01 | 入场登记 | `/online?event=demo` | 线上登记页首屏。 |
+| 01 | 入场登记 | `/online?event=jisong` | 线上登记页首屏。 |
 | 02 | 规则确认 | 登记页“规则须知”弹窗 | 线上规则弹窗。 |
-| 03 | 答题准备 | `/play?event=demo&mode=online`，`IDLE` | 题集加载完成且没有本地答题进度。 |
+| 03 | 答题准备 | `/play?event=jisong&mode=online`，`IDLE` | 题集加载完成且没有本地答题进度。 |
 | 04 | 作答中 | `IN_PROGRESS`，第一题开放窗口 | 音频播放至第一题 `answerStartMs` 之后。 |
 | 05 | 题间过渡 | `IN_PROGRESS`，第一题结束、第二题开始前 | 音频播放至第一题 `answerEndMs` 之后。 |
 | 06 | 页面隐藏暂停 | 页面进入后台 | 作答中音频暂停，页面显示进度保存提示。 |
@@ -27,9 +27,9 @@
 
 | 序号 | 画面 | 入口或状态 | 画面来源 |
 | :--- | :--- | :--- | :--- |
-| 01 | 线下登记 | `/offline?event=demo` | 线下登记页首屏。 |
+| 01 | 线下登记 | `/offline?event=jisong` | 线下登记页首屏。 |
 | 02 | 规则确认 | 登记页“规则须知”弹窗 | 线下规则弹窗。 |
-| 03 | 等待开始 | `/play?event=demo&mode=offline`，`WAITING` | 活动状态接口返回等待主持人推进。 |
+| 03 | 等待开始 | `/play?event=jisong&mode=offline`，`WAITING` | 活动状态接口返回等待主持人推进。 |
 | 04 | 作答中 | `ANSWERING` | 题目开放提交，页面显示四个选项与音频剩余时间。 |
 | 05 | 锁卷 | `ANSWER_LOCKED` | 已提交答案，选项进入只读状态。 |
 | 06 | 答案揭晓 | `ANSWER_REVEALED` | 正确选项与错选反馈同时呈现，并显示作品信息与解析。 |
@@ -43,7 +43,7 @@
 
 固定演示身份：
 
-- `eventId`：`demo`
+- `eventId`：`jisong`
 - `participantId`：`p-preview-0001`
 - `playerId`：`offline-preview-0001`
 - `nickname`：`雨夜听歌人`

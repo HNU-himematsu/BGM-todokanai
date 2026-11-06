@@ -9,7 +9,7 @@ import { useActivityStore } from '../stores/activity'
 const route = useRoute()
 const activity = useActivityStore()
 const mode = computed(() => {
-  const nextEventId = String(route.query.event || activity.eventId || 'demo')
+  const nextEventId = String(route.query.event || activity.eventId || 'jisong')
   const queryMode = String(route.query.mode || '').trim().toLowerCase()
   const stored = queryMode === 'online' || queryMode === 'offline'
     ? normalizeMode(queryMode)

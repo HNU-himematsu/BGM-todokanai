@@ -141,12 +141,16 @@ export function saveMode(mode) {
   return write('sessionStorage', STORAGE_KEYS.mode, normalizeMode(mode))
 }
 
+const LEGACY_EVENT_IDS = new Set(['demo'])
+
 export function getStoredEventId() {
-  return read('sessionStorage', STORAGE_KEYS.eventId) || 'demo'
+  const stored = read('sessionStorage', STORAGE_KEYS.eventId)
+  if (!stored || LEGACY_EVENT_IDS.has(stored)) return 'jisong'
+  return stored
 }
 
 export function saveEventId(eventId) {
-  return write('sessionStorage', STORAGE_KEYS.eventId, String(eventId || 'demo').trim() || 'demo')
+  return write('sessionStorage', STORAGE_KEYS.eventId, String(eventId || 'jisong').trim() || 'jisong')
 }
 
 export function getStoredPlayerId() {

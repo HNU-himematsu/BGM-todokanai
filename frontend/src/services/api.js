@@ -5,7 +5,7 @@ const api = axios.create({
   timeout: 8000,
 })
 
-export async function getEvent(eventId = 'demo') {
+export async function getEvent(eventId = 'jisong') {
   const { data } = await api.get(`/events/${eventId}`)
   return data.data
 }

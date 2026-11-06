@@ -39,7 +39,7 @@
 **已排除的原因**：
 
 - 时间戳：40 题的 `answerStartMs` 之后 3 秒内均检出音乐，峰值 -0.1～-11.0 dB，时间轴未指进静音。
-- 服务端 Range（原始 VBR 文件）：`GET /api/events/demo/audio` 对 `Range: bytes=33027057-` 返回 `206`、`Content-Range: bytes 33027057-42272878/42272879`、`Content-Length: 9245822`，区间未被截断。
+- 服务端 Range（原始 VBR 文件）：`GET /api/events/jisong/audio` 对 `Range: bytes=33027057-` 返回 `206`、`Content-Range: bytes 33027057-42272878/42272879`、`Content-Length: 9245822`，区间未被截断。
 - 前端等待逻辑：`seeked` 事件在 26～40 毫秒内返回，`readyState` 达到 4，`seekToReady()` 判定成功。
 
 ## 3. 定位机制
@@ -244,7 +244,7 @@ ffmpeg -y -i "music\bgm-music.mp3" -c:a libmp3lame -b:a 192k -ar 44100 -ac 2 -t 
 2. 按 6.1 节参数由 `music/bgm-music.mp3` 生成基底母带 `work/event-demo-cbr192.mp3`，用于测量与 A/B 对照；线下母带按 [`dual-master-audio.md`](dual-master-audio.md) 第 4.5 节生成 `backend/data/event-offline.mp3`，编码参数一致。
 3. 用 9.1 节脚本校验两个文件的帧数、时长、码率极差、TOC 误差。
 4. 按 9.3 节方法逐题定位，线上覆盖 2593000 毫秒编排的 40 题 `answerStartMs`，线下覆盖 2780110 毫秒编排的 40 题 `answerStartMs`，确认出声时刻与素材内容一致。
-5. 替换文件并重启后端，确认 `GET /api/events/demo/audio` 与 `GET /api/events/demo/audio?mode=online` 均返回 `206`、`Content-Range` 覆盖完整区间、`Accept-Ranges: bytes`；部署环境两个地址为 OSS 302 跳转，直接对对象地址验证 Range。
+5. 替换文件并重启后端，确认 `GET /api/events/jisong/audio` 与 `GET /api/events/jisong/audio?mode=online` 均返回 `206`、`Content-Range` 覆盖完整区间、`Accept-Ranges: bytes`；部署环境两个地址为 OSS 302 跳转，直接对对象地址验证 Range。
 6. 按第 8 节逐项验收。
 
 ## 8. 验收指标
@@ -324,7 +324,7 @@ ffmpeg -hide_banner -i "backend\data\event-offline.mp3" -af "silencedetect=noise
 ```js
 const a = document.createElement('audio');
 a.preload = 'auto';
-a.src = 'http://127.0.0.1:8080/api/events/demo/audio';
+a.src = 'http://127.0.0.1:8080/api/events/jisong/audio';
 document.body.appendChild(a);
 await new Promise((r) => a.addEventListener('loadedmetadata', r, { once: true }));
 

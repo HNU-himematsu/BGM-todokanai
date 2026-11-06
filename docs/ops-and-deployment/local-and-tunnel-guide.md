@@ -103,8 +103,8 @@ Vite 把 `/api` 与 `/ws` 代理到 `http://localhost:8080`。
 | 场景 | 地址 |
 | :--- | :--- |
 | 线上 | `http://localhost:5173/` |
-| 显式线上 | `http://localhost:5173/?mode=online&event=demo` |
-| 线下 | `http://localhost:5173/offline?event=demo` |
+| 显式线上 | `http://localhost:5173/?mode=online&event=jisong` |
+| 线下 | `http://localhost:5173/offline?event=jisong` |
 | 主持人 | `http://localhost:5173/host` |
 
 手机与电脑位于同一局域网时，可把 `localhost` 替换为电脑局域网地址。跨设备访问前确认系统防火墙允许 Vite 端口。
@@ -187,7 +187,7 @@ server {
 
 - `/` 返回前端 SPA。
 - `/api/health` 返回后端健康信息。
-- `/api/events/demo/audio` 支持 Range，音频路由关闭代理缓冲并直接透传客户端区间请求。
+- `/api/events/jisong/audio` 支持 Range，音频路由关闭代理缓冲并直接透传客户端区间请求。
 - `/ws` 返回 WebSocket 升级响应。
 - 刷新 `/host` 不出现 404。
 
@@ -230,7 +230,7 @@ https://xxxx-xxxx-xxxx.trycloudflare.com
 线下二维码：
 
 ```text
-{publicBaseUrl}/offline?event=demo
+{publicBaseUrl}/offline?event=jisong
 ```
 
 主持人入口：

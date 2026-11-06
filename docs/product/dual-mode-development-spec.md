@@ -19,7 +19,7 @@
 
 | 术语 | 定义 |
 | :--- | :--- |
-| 活动（Event） | 一次完整的猜歌活动，默认活动标识为 `demo`。 |
+| 活动（Event） | 一次完整的猜歌活动，默认活动标识为 `jisong`。 |
 | 线上模式（ONLINE） | 参与者独立答题、无轮次、浏览器本地保存进度、锁定后入榜的模式。 |
 | 线下模式（OFFLINE） | 主持人按轮次控制现场音频与时间轴、逐题揭晓、每轮独立榜单的模式。 |
 | 题库（Question Bank） | `questions.json` 中的全部题目。 |
@@ -42,10 +42,10 @@
 | 入口 | 地址 | 模式 |
 | :--- | :--- | :--- |
 | 网页默认入口 | `/` | 线上模式 |
-| 现场二维码 | `/offline?event=demo` | 线下模式 |
-| 显式线上入口 | `/online?event=demo` | 线上模式 |
+| 现场二维码 | `/offline?event=jisong` | 线下模式 |
+| 显式线上入口 | `/online?event=jisong` | 线上模式 |
 
-`event` 参数缺省值为 `demo`。`/?mode=offline` 与 `/?mode=online` 作为既有二维码与手工输入的等效查询入口保留。
+`event` 参数缺省值为 `jisong`。`/?mode=offline` 与 `/?mode=online` 作为既有二维码与手工输入的等效查询入口保留。
 `mode` 参数缺省值为 `online`。未知的 `mode` 值按 `online` 处理，并在页面显示提示。
 
 ### 3.2 页面路由
@@ -294,7 +294,7 @@ questionId, audioStartMs, audioEndMs, answerStartMs, answerEndMs
 ```json
 {
   "version": 1,
-  "eventId": "demo",
+  "eventId": "jisong",
   "participantId": "uuid",
   "attemptId": "uuid",
   "questionSetVersion": "sha256",
@@ -396,7 +396,7 @@ questionId, audioStartMs, audioEndMs, answerStartMs, answerEndMs
 
 线下模式按以下流程运行：
 
-1. 参与者扫描二维码进入 `/offline?event=demo`，输入昵称加入。
+1. 参与者扫描二维码进入 `/offline?event=jisong`，输入昵称加入。
 2. 主持人登录 `/host`，选择轮次并点击开始播放。
 3. 控制台将音频定位到 `round.startMs` 并播放，同时调用启动接口建立时间轴零点 `T0`。
 4. 服务端按 `T0 + (atMs - startMs)` 触发 `LOAD`、`NEXT`、`LOCK`、`REVEAL`、`FINISH`。
@@ -604,9 +604,9 @@ questionId, audioStartMs, audioEndMs, answerStartMs, answerEndMs
 ### 15.1 模式与入口
 
 - 访问 `/` 进入线上模式。
-- 访问 `/offline?event=demo` 或 `/?mode=offline&event=demo` 进入线下模式。
+- 访问 `/offline?event=jisong` 或 `/?mode=offline&event=jisong` 进入线下模式。
 - 线下登记页可跳转到线上模式。
-- 主持人二维码指向 `/offline?event=demo`。
+- 主持人二维码指向 `/offline?event=jisong`。
 
 ### 15.2 线上答题
 

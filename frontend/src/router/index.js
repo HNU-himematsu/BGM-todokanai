@@ -24,7 +24,7 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   if (to.path !== '/play') return true
-  const eventId = String(to.query.event || 'demo').trim() || 'demo'
+  const eventId = String(to.query.event || 'jisong').trim() || 'jisong'
   const queryMode = String(to.query.mode || '').trim().toLowerCase()
   const mode = queryMode === 'online' || queryMode === 'offline'
     ? normalizeMode(queryMode)

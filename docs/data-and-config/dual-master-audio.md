@@ -45,7 +45,7 @@
 | 项目 | 约定 |
 | :--- | :--- |
 | 位置 | `backend/data/timeline-online.json`，与 `questions.json` 同目录 |
-| `eventId` | `demo` |
+| `eventId` | `jisong` |
 | `eventName` | `旮旯原声之届不到的 BGM` |
 | `audioFile` | `event-online.mp3`（仅本地联调解析，部署环境由 `app.audio-url-online` 覆盖） |
 | 轮次划分 | 与线下编排相同的四轮与 10 题分组 |
@@ -409,7 +409,7 @@ app:
 
 线上：
 
-- [ ] `GET /api/events/demo/online/questions` 返回 40 题，`audioUrl` 为 `姬松活动/bgm-music.mp3` 的地址。
+- [ ] `GET /api/events/jisong/online/questions` 返回 40 题，`audioUrl` 为 `姬松活动/bgm-music.mp3` 的地址。
 - [ ] 首题 `audioStartMs` 0、`answerStartMs` 1；末题 `audioEndMs` 2593000。
 - [ ] 对象普通请求 `200`、Range 请求 `206`，`Content-Length` 42,274,159。
 - [ ] 40 题逐题定位，首次出声与素材相差不超过 0.5 秒，无超过 0.5 秒的多余静音。
