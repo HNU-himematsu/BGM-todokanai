@@ -1,6 +1,6 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { ArrowRight, Clock3, Headphones, LogOut, Music2, RefreshCw, RotateCcw, ShieldCheck } from 'lucide-vue-next'
+import { ArrowLeft, ArrowRight, Clock3, Headphones, LogOut, Music2, RefreshCw, RotateCcw, ShieldCheck } from 'lucide-vue-next'
 import { message } from 'ant-design-vue'
 import { useRoute, useRouter } from 'vue-router'
 import { MODES } from '../services/storage'
@@ -17,6 +17,7 @@ const audio = ref(null)
 const audioReady = ref(false)
 const leaving = ref(false)
 const completing = ref(false)
+const startBusy = ref(false)
 let timer
 let clockStartedAt = null
 let activeMs = 0
@@ -24,6 +25,10 @@ const SEEK_TIMEOUT_MS = 12000
 const MEDIA_HAVE_FUTURE_DATA = 3
 const seekingQuestion = ref(false)
 const buffering = ref(false)
+const draggingQuestionAudio = ref(false)
+const questionAudioDraftMs = ref(0)
+let scrubResume = false
+let scrubToken = 0
 
 const eventId = String(route.query.event || activity.eventId || 'jisong')
 const isStart = computed(() => online.phase === 'IDLE')
@@ -34,11 +39,19 @@ const isError = computed(() => online.phase === 'ERROR')
 const question = computed(() => online.currentQuestion)
 const lastQuestion = computed(() => online.questions[online.questions.length - 1] || null)
 const isLastQuestion = computed(() => online.currentIndex === online.questions.length - 1)
-const questionSeconds = computed(() => Math.ceil(online.questionRemainingMs / 1000))
-const remainingPercent = computed(() => {
+const questionAudioLengthMs = computed(() => {
   if (!question.value) return 0
-  const length = question.value.answerEndMs - question.value.answerStartMs
-  return length > 0 ? Math.max(0, Math.min(100, online.questionRemainingMs / length * 100)) : 0
+  return Math.max(0, question.value.audioEndMs - question.value.audioStartMs)
+})
+const questionAudioPositionMs = computed(() => {
+  if (!question.value) return 0
+  if (draggingQuestionAudio.value) {
+    return Math.max(0, Math.min(questionAudioLengthMs.value, questionAudioDraftMs.value))
+  }
+  return Math.max(
+    0,
+    Math.min(questionAudioLengthMs.value, online.audioPositionMs - question.value.audioStartMs),
+  )
 })
 const phaseLabel = computed(() => ({
   IDLE: online.hasResumeProgress ? '等待继续' : '等待开始',
@@ -54,11 +67,11 @@ const difficultyLabel = computed(() => ({
   HARD: '困难',
 }[question.value?.difficulty] || ''))
 const questionWindowCopy = computed(() => {
-  if (online.isWindowOpen) return '本题开放作答，可在结束前修改选项'
-  if (online.currentIndex >= 0 && lastQuestion.value && online.audioPositionMs >= lastQuestion.value.answerEndMs) {
-    return online.canFinishAttempt ? '最后一题已结束，可结束答题或等待音频播放完毕' : '全部题目已结束，等待音频播放完毕'
+  if (online.isWindowOpen) return '本题开放作答，提交前可修改选项'
+  if (online.currentIndex >= 0 && lastQuestion.value && online.audioPositionMs >= lastQuestion.value.audioEndMs) {
+    return '最后一题已结束，可结束答题'
   }
-  if (online.currentIndex >= 0) return '本题已结束，下一题即将开始'
+  if (online.currentIndex >= 0) return '正在定位题目音频'
   return '音频已开始，第一题即将上屏'
 })
 
@@ -176,7 +189,7 @@ function targetPosition() {
   return online.hasResumeProgress ? online.audioPositionMs : (online.questionSet?.audioStartMs || 0)
 }
 
-function ensureMetadata() {
+function ensureMetadata(timeoutMs = SEEK_TIMEOUT_MS) {
   if (audioReady.value && audio.value?.readyState >= 1) return Promise.resolve()
   return new Promise((resolve, reject) => {
     const element = audio.value
@@ -184,19 +197,25 @@ function ensureMetadata() {
       reject(new Error('音频元素尚未就绪'))
       return
     }
+    let settled = false
+    let timeout = 0
     const cleanup = () => {
+      window.clearTimeout(timeout)
       element.removeEventListener('loadedmetadata', onLoaded)
       element.removeEventListener('error', onError)
     }
-    const onLoaded = () => {
+    const finish = (handler) => {
+      if (settled) return
+      settled = true
       cleanup()
+      handler()
+    }
+    const onLoaded = () => finish(() => {
       audioReady.value = true
       resolve()
-    }
-    const onError = () => {
-      cleanup()
-      reject(new Error('音频加载失败'))
-    }
+    })
+    const onError = () => finish(() => reject(new Error('音频加载失败')))
+    timeout = window.setTimeout(() => finish(() => reject(new Error('音频加载超时'))), timeoutMs)
     element.addEventListener('loadedmetadata', onLoaded, { once: true })
     element.addEventListener('error', onError, { once: true })
     if (!element.getAttribute('src')) element.src = online.questionSet?.audioUrl || ''
@@ -210,7 +229,8 @@ async function onLoadedMetadata() {
 }
 
 async function startOrResume() {
-  if (!online.questionSet || !audio.value) return
+  if (!online.questionSet || !audio.value || startBusy.value || leaving.value) return
+  startBusy.value = true
   const resuming = isStart.value && online.hasResumeProgress
   try {
     await ensureMetadata()
@@ -231,9 +251,13 @@ async function startOrResume() {
     online.setVisiblePause(false)
     message.error(err?.message === '音频加载失败'
       ? '音频加载失败，请重新加载'
-      : err?.message === '音频定位失败'
-        ? '音频定位失败，请稍后重试'
-        : '音频无法播放，请检查浏览器播放权限')
+      : err?.message === '音频加载超时'
+        ? '音频加载超时，请检查网络后重试'
+        : err?.message === '音频定位失败'
+          ? '音频定位失败，请稍后重试'
+          : '音频无法播放，请检查浏览器播放权限')
+  } finally {
+    startBusy.value = false
   }
 }
 
@@ -256,7 +280,7 @@ function onPlaying() {
 
 function onPause() {
   stopClock()
-  if (seekingQuestion.value) return
+  if (seekingQuestion.value || draggingQuestionAudio.value) return
   if (isInProgress.value) syncClock()
   if (isInProgress.value && !completing.value && !leaving.value) {
     online.setVisiblePause(true)
@@ -265,7 +289,7 @@ function onPause() {
 }
 
 function onTimeUpdate() {
-  if (seekingQuestion.value || !isInProgress.value || !online.questionSet) return
+  if (seekingQuestion.value || draggingQuestionAudio.value || !isInProgress.value || !online.questionSet) return
   if (audioPosition() >= online.questionSet.audioEndMs) {
     finishPlayback()
     return
@@ -274,7 +298,7 @@ function onTimeUpdate() {
 }
 
 function tick() {
-  if (seekingQuestion.value || !isInProgress.value || !audio.value || audio.value.paused) return
+  if (seekingQuestion.value || draggingQuestionAudio.value || !isInProgress.value || !audio.value || audio.value.paused) return
   syncClock()
   if (online.questionSet && audioPosition() >= online.questionSet.audioEndMs) finishPlayback()
 }
@@ -395,43 +419,120 @@ function chooseOption(index) {
   online.selectOption(index)
 }
 
-async function goToNextQuestion() {
-  if (!online.canAdvanceQuestion || seekingQuestion.value) return
-  const nextQuestion = online.questions[online.currentIndex + 1]
-  if (!nextQuestion) return
+async function goToQuestion(targetIndex, forcePlay = false) {
+  if (seekingQuestion.value || completing.value) return false
+  if (!Number.isInteger(targetIndex) || targetIndex < 0 || targetIndex >= online.questions.length) return false
+  const targetQuestion = online.questions[targetIndex]
+  if (!targetQuestion) return false
+  scrubToken += 1
+  scrubResume = false
+  draggingQuestionAudio.value = false
   const wasPlaying = Boolean(audio.value && !audio.value.paused)
   seekingQuestion.value = true
-  stopClock()
-  syncClock()
   try {
-    if (!await seekToReady(nextQuestion.answerStartMs)) {
+    if (!await seekToReady(targetQuestion.audioStartMs)) {
       message.error('音频定位失败，请稍后重试')
       audio.value?.pause()
       online.setVisiblePause(true)
       online.persistProgress(true)
-      return
+      return false
     }
-    if (leaving.value) return
-    if (!online.advanceToNextQuestion()) {
+    if (leaving.value) return false
+    if (!online.goToQuestion(targetIndex)) {
       if (wasPlaying) startClock()
-      return
+      return false
     }
     buffering.value = false
-    if (audio.value?.paused) {
+    if ((wasPlaying || forcePlay) && audio.value?.paused) {
       try {
         await audio.value.play()
       } catch {
         online.setVisiblePause(true)
         message.error('音频无法继续播放，请检查播放权限')
-        return
+        return false
       }
     }
-    startClock()
     syncClock()
     online.persistProgress(true)
+    return true
   } finally {
     seekingQuestion.value = false
   }
+}
+
+function goToNextQuestion() {
+  if (!online.canAdvanceQuestion) return
+  goToQuestion(online.currentIndex + 1)
+}
+
+function goToPreviousQuestion() {
+  if (online.currentIndex <= 0 || seekingQuestion.value || completing.value) return
+  goToQuestion(online.currentIndex - 1)
+}
+
+function normalizeQuestionAudioPosition(value) {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return 0
+  const max = Math.max(0, questionAudioLengthMs.value - 50)
+  return Math.max(0, Math.min(max, Math.round(numeric)))
+}
+
+function beginQuestionAudioScrub(positionMs) {
+  const next = normalizeQuestionAudioPosition(positionMs)
+  questionAudioDraftMs.value = next
+  if (draggingQuestionAudio.value) return next
+  draggingQuestionAudio.value = true
+  scrubResume = Boolean(audio.value && !audio.value.paused)
+  stopClock()
+  audio.value?.pause()
+  return next
+}
+
+function onQuestionAudioInput(event) {
+  if (!question.value || completing.value) return
+  beginQuestionAudioScrub(event.target.value)
+}
+
+async function onQuestionAudioChange(event) {
+  if (!question.value || completing.value) {
+    draggingQuestionAudio.value = false
+    return
+  }
+  const draft = beginQuestionAudioScrub(event?.target?.value ?? questionAudioDraftMs.value)
+  const activeQuestion = question.value
+  const token = ++scrubToken
+  let located = false
+  try {
+    located = await seekToReady(activeQuestion.audioStartMs + draft)
+  } finally {
+    if (token === scrubToken) draggingQuestionAudio.value = false
+  }
+  if (token !== scrubToken) return
+  const shouldResume = scrubResume
+  scrubResume = false
+  if (!located) {
+    message.error('音频定位失败，请稍后重试')
+    if (shouldResume) {
+      online.setVisiblePause(true)
+      online.persistProgress(true)
+    }
+    return
+  }
+  online.updateClock(audioPosition(), currentActiveDuration())
+  online.persistProgress(true)
+  if (shouldResume && online.isWindowOpen && audio.value?.paused) {
+    try {
+      await audio.value.play()
+    } catch {
+      online.setVisiblePause(true)
+      message.error('音频无法继续播放，请检查播放权限')
+    }
+  }
+}
+
+function replayQuestionAudio() {
+  if (!question.value || seekingQuestion.value || completing.value) return
+  goToQuestion(online.currentIndex, true)
 }
 
 function formatDuration(ms) {
@@ -484,14 +585,14 @@ function leave() {
             <p class="muted online-start-copy">
               {{ online.hasResumeProgress
                 ? `已保存到第 ${online.displayQuestionNumber || 1} 题，音频将从保存位置继续。`
-                : '音频开始后自动出题；已选答案后可进入下一题，不能暂停、任意跳题、回看或拖动进度。' }}
+                : '开始后可自由切题、拖动当前题音频进度条与重播；提交前可修改答案。' }}
             </p>
             <div class="online-start-stats">
               <div><strong>{{ online.totalQuestions }}</strong><span>题</span></div>
               <div><strong>{{ formatDuration((online.questionSet?.audioEndMs || 0) - (online.questionSet?.audioStartMs || 0)) }}</strong><span>音频时长</span></div>
               <div><strong>{{ online.answeredCount }}</strong><span>已答</span></div>
             </div>
-            <a-button type="primary" size="large" class="online-primary-action" @click="startOrResume">
+            <a-button type="primary" size="large" class="online-primary-action" :loading="startBusy" :disabled="startBusy" @click="startOrResume">
               {{ online.hasResumeProgress ? '继续答题' : '开始答题' }}
             </a-button>
           </div>
@@ -522,31 +623,51 @@ function leave() {
       </template>
 
       <template v-else-if="isInProgress">
-        <OnlineProgress />
+        <OnlineProgress @change="goToQuestion" />
 
         <a-alert
           v-if="buffering"
           class="form-alert"
           type="info"
           show-icon
-          message="音频缓冲中，计时已暂停，请稍候…"
+          message="音频缓冲中，请稍候…"
         />
 
         <a-card v-if="online.isWindowOpen && question" class="question-card online-question-card">
-          <div class="countdown-track">
-            <div class="countdown-fill" :style="{ width: `${remainingPercent}%` }"></div>
-          </div>
           <span class="section-kicker" lang="ja">問題に挑戦</span>
           <div class="question-heading">
             <a-space :size="6">
               <a-tag color="orangered">{{ typeLabel }}</a-tag>
               <a-tag>{{ difficultyLabel }}</a-tag>
             </a-space>
-            <div class="timer" :class="{ urgent: questionSeconds <= 5 }">
-              <Clock3 :size="17" />本题剩余 {{ questionSeconds }} 秒
-            </div>
+            <a-button
+              size="small"
+              :loading="seekingQuestion"
+              :disabled="completing"
+              title="重播本题音频"
+              @click="replayQuestionAudio"
+            >
+              <RotateCcw :size="14" />重播本题
+            </a-button>
           </div>
           <p v-if="question.author" class="author-line">出题人：{{ question.author }}</p>
+          <div class="question-audio-control">
+            <input
+              class="question-audio-range"
+              type="range"
+              min="0"
+              :max="questionAudioLengthMs"
+              step="50"
+              :value="questionAudioPositionMs"
+              :disabled="seekingQuestion || completing"
+              :aria-label="`第 ${online.currentIndex + 1} 题音频进度`"
+              @input="onQuestionAudioInput"
+              @change="onQuestionAudioChange"
+            >
+            <span class="question-audio-time">
+              {{ formatDuration(questionAudioPositionMs) }} / {{ formatDuration(questionAudioLengthMs) }}
+            </span>
+          </div>
           <h2 class="question-title">{{ question.prompt }}</h2>
           <div class="option-grid online-option-grid">
             <button
@@ -565,34 +686,44 @@ function leave() {
             <div class="question-action-copy">
               <span class="muted">
                 {{ online.currentAnswer === null
-                  ? '选择一个答案，结束前可以修改'
-                  : `已选择 ${String.fromCharCode(65 + online.currentAnswer)}，结束前可以修改` }}
+                  ? '选择一个答案，提交前可以修改'
+                  : `已选择 ${String.fromCharCode(65 + online.currentAnswer)}，提交前可以修改` }}
               </span>
               <span class="muted">{{ online.answeredCount }} 已答 / {{ online.unansweredCount }} 未答</span>
             </div>
-            <a-button
-              v-if="!isLastQuestion"
-              type="primary"
-              size="large"
-              :disabled="!online.canAdvanceQuestion || seekingQuestion"
-              :loading="seekingQuestion"
-              :title="online.currentAnswer === null ? '请先选择一个答案' : seekingQuestion ? '音频定位中' : '进入下一题'"
-              @click="goToNextQuestion"
-            >
-              {{ seekingQuestion ? '音频定位中' : '下一题' }}
-              <ArrowRight v-if="!seekingQuestion" :size="16" />
-            </a-button>
-            <a-button
-              v-else-if="isLastQuestion"
-              type="primary"
-              size="large"
-              :disabled="!online.canFinishAttempt || seekingQuestion"
-              :loading="completing"
-              @click="finishAttemptEarly"
-            >
-              结束答题
-              <ArrowRight :size="16" />
-            </a-button>
+            <a-space :size="8" wrap>
+              <a-button
+                size="large"
+                :disabled="online.currentIndex <= 0 || seekingQuestion || completing"
+                :title="online.currentIndex <= 0 ? '已是第一题' : '上一题'"
+                @click="goToPreviousQuestion"
+              >
+                <ArrowLeft :size="16" />上一题
+              </a-button>
+              <a-button
+                v-if="!isLastQuestion"
+                type="primary"
+                size="large"
+                :disabled="!online.canAdvanceQuestion || seekingQuestion || completing"
+                :loading="seekingQuestion"
+                title="进入下一题"
+                @click="goToNextQuestion"
+              >
+                {{ seekingQuestion ? '音频定位中' : '下一题' }}
+                <ArrowRight v-if="!seekingQuestion" :size="16" />
+              </a-button>
+              <a-button
+                v-else
+                type="primary"
+                size="large"
+                :disabled="seekingQuestion || completing"
+                :loading="completing"
+                @click="finishAttemptEarly"
+              >
+                结束答题
+                <ArrowRight v-if="!completing" :size="16" />
+              </a-button>
+            </a-space>
           </div>
         </a-card>
 
@@ -626,7 +757,7 @@ function leave() {
 
       <div class="online-audio-note">
         <ShieldCheck :size="14" />
-        <span>答题进度保存在当前浏览器；已选答案后可点击「下一题」按顺序推进，最后一题可结束答题。</span>
+        <span>答题进度保存在当前浏览器；可自由切题、拖动当前题进度条与重播，最后一题可结束答题。</span>
       </div>
     </div>
 
@@ -651,7 +782,7 @@ function leave() {
         <div class="waiting-mark"><Clock3 :size="28" /></div>
         <span class="section-kicker" lang="ja">一時停止</span>
         <h2>答题已暂停，进度已保存</h2>
-        <p class="muted">返回后会从保存的音频位置继续，暂停期间不计入有效作答耗时。</p>
+        <p class="muted">返回后会从保存的音频位置继续；总耗时从开始答题持续累计。</p>
         <a-button type="primary" size="large" @click="resumeFromPause">继续答题</a-button>
       </div>
     </div>

@@ -5,6 +5,12 @@ const api = axios.create({
   timeout: 8000,
 })
 
+export function apiUrl(path) {
+  const base = (import.meta.env.VITE_API_BASE || '/api').replace(/\/+$/, '')
+  const suffix = String(path || '')
+  return `${base}${suffix.startsWith('/') ? '' : '/'}${suffix}`
+}
+
 export async function getEvent(eventId = 'jisong') {
   const { data } = await api.get(`/events/${eventId}`)
   return data.data

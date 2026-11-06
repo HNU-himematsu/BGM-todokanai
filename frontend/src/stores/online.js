@@ -62,14 +62,12 @@ export const useOnlineStore = defineStore('online', () => {
     : 0)
   const isWindowOpen = computed(() => phase.value === 'IN_PROGRESS'
     && Boolean(currentQuestion.value)
-    && audioPositionMs.value >= currentQuestion.value.answerStartMs
-    && audioPositionMs.value < currentQuestion.value.answerEndMs)
+    && audioPositionMs.value >= currentQuestion.value.audioStartMs
+    && audioPositionMs.value < currentQuestion.value.audioEndMs)
   const canAdvanceQuestion = computed(() => isWindowOpen.value
-    && currentAnswer.value !== null
     && currentIndex.value >= 0
     && currentIndex.value < questions.value.length - 1)
   const canFinishAttempt = computed(() => phase.value === 'IN_PROGRESS'
-    && currentAnswer.value !== null
     && currentIndex.value === questions.value.length - 1)
   const canLock = computed(() => phase.value === 'RESULT_READY' && !locking.value)
   const hasResumeProgress = computed(() => Boolean(attemptId.value)
@@ -80,6 +78,13 @@ export const useOnlineStore = defineStore('online', () => {
     eventId.value = String(nextEventId || 'jisong').trim() || 'jisong'
     participantId.value = String(nextParticipantId || '')
     nickname.value = String(nextNickname || '').trim()
+  }
+
+  function attemptDurationMs() {
+    if (!startedAt.value) return activeDurationMs.value
+    const startedTime = new Date(startedAt.value).getTime()
+    if (!Number.isFinite(startedTime)) return activeDurationMs.value
+    return Math.max(0, Date.now() - startedTime)
   }
 
   function resetAttemptState() {
@@ -186,7 +191,7 @@ export const useOnlineStore = defineStore('online', () => {
           score: progress.previewScore,
           answeredCount: progress.previewAnsweredCount ?? answeredCount.value,
           totalQuestions: totalQuestions.value,
-          durationMs: activeDurationMs.value,
+          durationMs: attemptDurationMs(),
           questionSetVersion: questionSetVersion.value,
         }
       }
@@ -230,14 +235,19 @@ export const useOnlineStore = defineStore('online', () => {
   function derivePosition(position) {
     let nextIndex = -1
     for (let index = 0; index < questions.value.length; index += 1) {
-      if (position >= questions.value[index].answerStartMs) nextIndex = index
+      if (position >= questions.value[index].audioStartMs) nextIndex = index
       else break
     }
     if (nextIndex > currentIndex.value) currentIndex.value = nextIndex
     const question = questions.value[currentIndex.value]
     questionRemainingMs.value = question
-      ? Math.max(0, question.answerEndMs - position)
+      ? Math.max(0, question.audioEndMs - position)
       : 0
+    if (question && position >= question.audioEndMs
+      && currentIndex.value < questions.value.length - 1) {
+      currentIndex.value += 1
+      audioPositionMs.value = questions.value[currentIndex.value].audioStartMs
+    }
   }
 
   function selectOption(optionIndex) {
@@ -253,12 +263,17 @@ export const useOnlineStore = defineStore('online', () => {
 
   function advanceToNextQuestion() {
     if (!canAdvanceQuestion.value) return false
-    const nextIndex = currentIndex.value + 1
-    const nextQuestion = questions.value[nextIndex]
+    return goToQuestion(currentIndex.value + 1)
+  }
+
+  function goToQuestion(index) {
+    if (!isWindowOpen.value) return false
+    if (!Number.isInteger(index) || index < 0 || index >= questions.value.length) return false
+    const nextQuestion = questions.value[index]
     if (!nextQuestion) return false
-    currentIndex.value = nextIndex
-    audioPositionMs.value = Math.max(0, Math.round(nextQuestion.answerStartMs))
-    questionRemainingMs.value = Math.max(0, nextQuestion.answerEndMs - nextQuestion.answerStartMs)
+    currentIndex.value = index
+    audioPositionMs.value = Math.max(0, Math.round(nextQuestion.audioStartMs))
+    questionRemainingMs.value = Math.max(0, nextQuestion.audioEndMs - nextQuestion.audioStartMs)
     persistProgress(true)
     return true
   }
@@ -271,6 +286,11 @@ export const useOnlineStore = defineStore('online', () => {
       audioPositionMs.value = last.audioEndMs
     }
     questionRemainingMs.value = 0
+    const submittedAt = new Date().toISOString()
+    const startedTime = Date.parse(startedAt.value)
+    if (Number.isFinite(startedTime)) {
+      activeDurationMs.value = Math.max(0, Date.parse(submittedAt) - startedTime)
+    }
     persistProgress(true)
   }
 
@@ -306,19 +326,19 @@ export const useOnlineStore = defineStore('online', () => {
       clearOnlineProgress()
       return result
     } catch (err) {
-      if (err.response?.status === 409) {
+      const statusCode = err.response?.status
+      if (statusCode === 409 || statusCode == null || statusCode >= 500) {
         try {
           const remoteStatus = await getOnlineStatus(eventId.value, participantId.value)
           if (remoteStatus?.status === 'LOCKED') {
             recoverLockedState(remoteStatus)
             return lockResult.value
           }
-        } catch {
-          errorMessage.value = err.response?.data?.message || '该参与者已经锁定成绩'
-          return null
-        }
+        } catch { /* 状态查询失败时按原请求结果提示 */ }
       }
-      errorMessage.value = err.response?.data?.message || '锁定失败，请稍后重试'
+      errorMessage.value = statusCode === 409
+        ? (err.response?.data?.message || '该参与者已经锁定成绩')
+        : (err.response?.data?.message || '锁定失败，请稍后重试')
       return null
     } finally {
       locking.value = false
@@ -374,7 +394,7 @@ export const useOnlineStore = defineStore('online', () => {
       nickname: nickname.value,
       attemptId: attemptId.value,
       questionSetVersion: questionSetVersion.value,
-      durationMs: Math.max(0, Math.round(activeDurationMs.value)),
+      durationMs: Math.max(0, Math.round(attemptDurationMs())),
       answers: questions.value
         .filter((question) => Number.isInteger(answers.value[question.id]))
         .map((question) => ({
@@ -456,6 +476,7 @@ export const useOnlineStore = defineStore('online', () => {
     updateClock,
     selectOption,
     advanceToNextQuestion,
+    goToQuestion,
     completeAttempt,
     previewScore,
     lockScore,

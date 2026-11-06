@@ -44,12 +44,6 @@ const progressPercent = computed(() => {
   if (!state.value?.totalQuestions) return 0
   return Math.round((displayQuestionNo.value / state.value.totalQuestions) * 100)
 })
-const isQuestionPhase = computed(() => isAnswering.value || isLocked.value || isRevealing.value)
-const pageTitle = computed(() => {
-  if (isFinished.value) return '本轮结算'
-  if (isQuestionPhase.value) return question.value?.prompt || state.value?.eventName || ''
-  return state.value?.eventName || activity.eventName || ''
-})
 const difficultyLabel = computed(() => ({
   EASY: '简单',
   MEDIUM: '中等',
@@ -83,7 +77,11 @@ onBeforeUnmount(() => {
 
 async function refreshState() {
   const previousQuestionId = question.value?.id
-  await activity.refreshState()
+  const ok = await activity.refreshState()
+  if (!ok && !activity.playerId) {
+    await router.replace({ path: '/offline', query: { event: activity.eventId } })
+    return
+  }
   if (!state.value) return
   if (state.value.question?.id !== previousQuestionId) selected.value = null
   if (state.value.hasAnswered) selected.value = state.value.selectedOption
@@ -137,10 +135,10 @@ function leave() {
       <div class="topline">
         <div>
           <div class="online-title-row">
-            <h1>{{ pageTitle }}</h1>
+            <h1>{{ state.eventName || activity.eventName }}</h1>
             <a-tag color="processing" class="online-mode-tag">线下模式</a-tag>
           </div>
-          <p class="muted">{{ state.eventName || activity.eventName }}<template v-if="state.roundName"> · {{ state.roundName }}</template></p>
+          <p v-if="state.roundName" class="muted">{{ state.roundName }}</p>
         </div>
         <a-button title="退出本次参与" @click="leave">
           <LogOut :size="16" />退出
@@ -169,6 +167,7 @@ function leave() {
           <div class="countdown-fill" :style="{ width: `${audioPercent}%` }"></div>
         </div>
         <span class="section-kicker" lang="ja">{{ isLocked ? '回答を締め切りました' : isRevealing ? '答え合わせ' : '問題に挑戦' }}</span>
+        <h2 class="question-title">{{ question.prompt }}</h2>
         <div class="question-heading">
           <a-space :size="6">
             <a-tag color="orangered">{{ question.type === 'ATMOSPHERE' ? '氛围题' : '作品题' }}</a-tag>
@@ -198,11 +197,10 @@ function leave() {
           </button>
         </div>
         <div class="question-actions">
-          <span v-if="state.hasAnswered" class="submitted-copy"><Check :size="16" /> 已提交 {{ selectedLetter }}，等待结果</span>
-          <span v-else-if="isLocked" class="submitted-copy">答题已结束，等待答案揭晓</span>
+          <span v-if="isLocked" class="submitted-copy">答题已结束，等待答案揭晓</span>
           <span v-else-if="isRevealing" class="submitted-copy">{{ selected === null ? '本题未作答' : `你选择了 ${selectedLetter}` }}</span>
-          <span v-else-if="!state.canAnswer" class="spectator-copy"><Eye :size="16" /> 本题无法提交</span>
-          <span v-else class="muted">请选择一个你认为合适的答案</span>
+          <span v-else-if="!state.hasAnswered && !state.canAnswer" class="spectator-copy"><Eye :size="16" /> 本题无法提交</span>
+          <span v-else-if="!state.hasAnswered" class="muted">请选择一个你认为合适的答案</span>
           <a-button
             type="primary"
             size="large"

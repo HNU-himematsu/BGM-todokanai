@@ -181,8 +181,8 @@ https://example.test/?mode=offline
 | `currentIndex` | Integer | 当前题下标；首题开始前为 `-1`。 |
 | `answers` | Object | `questionId` 到 `optionIndex` 的映射。 |
 | `audioPositionMs` | Long | 音频元素当前播放位置。 |
-| `activeDurationMs` | Long | 音频实际播放时长累计值，不含隐藏与暂停时间。 |
-| `questionRemainingMs` | Long | 当前题距 `answerEndMs` 的剩余时长。 |
+| `activeDurationMs` | Long | 本次尝试耗时；进行中时由 `startedAt` 计算到当前时刻，结束后固定为提交时刻值。 |
+| `questionRemainingMs` | Long | 当前题距 `audioEndMs` 的剩余时长。 |
 | `startedAt` | String | 本次 attempt 首次开始时间。 |
 | `updatedAt` | String | 最近一次写入时间。 |
 | `previewScore` | Integer / null | 预览总分。 |
@@ -270,8 +270,8 @@ https://example.test/?mode=offline
 | `answers` | Object | `questionId` 到选项下标。 |
 | `currentIndex` | Integer | 当前题下标。 |
 | `audioPositionMs` | Long | 当前音频位置。 |
-| `activeDurationMs` | Long | 有效作答耗时。 |
-| `questionRemainingMs` | Long | 当前题剩余作答时长。 |
+| `activeDurationMs` | Long | 本次尝试耗时。 |
+| `questionRemainingMs` | Long | 当前题剩余音频时长。 |
 | `preview` | Object / null | 预览分响应。 |
 | `lockResult` | Object / null | 锁定响应。 |
 | `status` | Object / null | 服务端锁定状态。 |
@@ -288,8 +288,8 @@ https://example.test/?mode=offline
 | `answeredCount` | `answers` 中有效题目的数量。 |
 | `unansweredCount` | 总题数减已答数。 |
 | `progressPercent` | `(currentIndex + 1) / totalQuestions × 100`。 |
-| `isWindowOpen` | `phase === 'IN_PROGRESS'` 且音频位置位于当前题作答窗口内。 |
-| `canAdvanceQuestion` | 当前题窗口开放、当前题已选答案且存在下一题。 |
+| `isWindowOpen` | `phase === 'IN_PROGRESS'` 且音频位置位于当前题音频区间内。 |
+| `canAdvanceQuestion` | 当前题音频区间开放且存在下一题。 |
 | `canFinishAttempt` | 最后一题已选答案且音频仍在播放。 |
 | `canLock` | `phase === 'RESULT_READY'` 且锁定请求未进行中。 |
 
@@ -301,7 +301,8 @@ https://example.test/?mode=offline
 | `beginAttempt()` | 创建 `attemptId`，清空答案，写入初始进度。 |
 | `resumeAttempt()` | 验证本地进度后恢复答案与音频位置。 |
 | `selectOption(index)` | 仅当前题可答时写入答案并保存。 |
-| `advanceToNextQuestion()` | 顺序切换至下一题，更新音频目标位置、剩余时间并立即保存进度。 |
+| `goToQuestion(index)` | 切换到任意题目，音频位置设为目标题 `audioStartMs` 并立即保存进度。 |
+| `advanceToNextQuestion()` | 顺序切换至下一题，内部调用 `goToQuestion(index + 1)`。 |
 | `persistProgress()` | 写入完整本地进度。 |
 | `previewScore()` | 结果页调用预览接口。 |
 | `retryAttempt()` | 清空进度，创建新 `attemptId`，回到首题。 |
@@ -376,6 +377,7 @@ https://example.test/?mode=offline
 订阅者按页面角色处理事件：
 
 - 线下参与者刷新 `GET /state`。
+- 线下刷新返回参与者身份无效时，清除 `playerId` 与本地进度并返回线下登记页；网络错误保留现有身份。
 - 主持人刷新 `GET /host/state`； `ONLINE_SCORE_LOCKED` 时同时刷新线上榜与总榜。
 - 线上参与者不依赖广播推进题目；音频位置是推进时钟。
 
@@ -415,7 +417,7 @@ https://example.test/?mode=offline
 
 开始或恢复动作：
 
-1. 等待音频元数据加载并确认目标播放位置可设置。
+1. 等待音频元数据加载并确认目标播放位置可设置；等待超过 12 秒按加载失败处理。
 2. 新 attempt 的目标位置取第一题 `audioStartMs`；恢复 attempt 的目标位置取 `savedPositionMs`。
 3. 设置 `audio.currentTime = targetPositionMs / 1000`。
 4. 在用户点击事件中调用 `audio.play()`，满足浏览器自动播放策略。
@@ -424,60 +426,56 @@ https://example.test/?mode=offline
 7. 立即执行一次题目位置推导与进度保存。
 
 页面加载后不自动播放音频；恢复进度也需要用户再次点击。
+开始与恢复操作在请求进行期间保持单实例，重复点击不创建并行等待或重复重置本地 attempt。
 
 ### 7.3 当前题推导
 
 设 `t = audioPositionMs`，题目集合按 `index` 升序排列：
 
 ```text
-t < questions[0].answerStartMs
-  → 尚未进入第一题作答窗口
+t < questions[0].audioStartMs
+  → 尚未进入第一题音频区间
 
-questions[i].answerStartMs <= t < questions[i].answerEndMs
+questions[i].audioStartMs <= t < questions[i].audioEndMs
   → 当前题为 questions[i]，选项可修改
 
-questions[i].answerEndMs <= t < questions[i + 1].answerStartMs
-  → 第 i 题已锁定，等待下一题
-
-questions[last].answerEndMs <= t < questions[last].audioEndMs
-  → 全部题目已锁定，音频播放尾段
+questions[i].audioEndMs <= t < questions[i + 1].audioStartMs
+  → 题间边界
 
 t >= questions[last].audioEndMs
-  → 音频结束，停止播放并进入结果流程
+  → 最后一题结束，停止播放并进入结果流程
 ```
 
 边界规则：
 
-- `answerStartMs` 到达时立即上屏对应题目。
-- `answerEndMs` 到达时立即禁用选项并写入本题锁定状态。
-- 当前题只允许向前推进；音频位置计算出的下标小于当前下标时，保持当前下标并记录异常，不执行回退。
-- 音频位置跨越多个窗口时，按题集顺序补齐所有已结束题目，未选择答案的题目保持未答。
+- `audioStartMs` 到达时立即上屏对应题目。
+- `audioEndMs` 到达时自动切换到下一题；最后一题进入结果流程。
+- 手动切题直接改变 `currentIndex`，回看不重置已保存答案。
 - 相邻题目的 `audioEndMs` 与下一题 `audioStartMs` 相等时，题集顺序决定展示顺序。
-- 手动点击「下一题」时，将音频定位到下一题 `answerStartMs`，再按上述规则推导当前题；该操作只能前进一道题。
+- 手动点击题号、上一题或下一题时，将音频定位到目标题 `audioStartMs`，再应用目标题状态。
 
 ### 7.4 答题交互
 
-- 当前题开放期间，选项可点击并写入 `answers[questionId]`。
-- 当前题开放期间允许在同一题的四个选项之间修改。
-- 当前题关闭后，该题选项不可访问，不提供回看入口。
-- 进度圆点显示已答题、当前题与未到达题，全部圆点不可点击。
-- 当前题窗口开放且已选答案时，存在下一题则显示「下一题」；最后一题已选答案且音频仍在播放时显示「结束答题」。未选答案时对应按钮禁用。
-- 点击「下一题」结束当前题，将音频定位到下一题 `answerStartMs`；定位与缓冲期间保持当前题画面并暂停有效计时，按钮显示加载状态。
-- 音频进入可播放状态后切换到下一题、保存进度并继续播放。
-- 页面不提供上一题、任意题号跳转、暂停、拖动进度、倍速和音量控制。
-- 结果流程在最后一题 `audioEndMs` 到达后启动；全部题目作答窗口可以早于该位置结束。
+- 当前题展示期间，选项可点击并写入 `answers[questionId]`。
+- 进入结果预览前允许在任何题目间切换并修改已选答案。
+- 进度圆点为按钮，显示已答题、当前题与未答题，点击切换题目。
+- 「上一题」在非首题可用；「下一题」在非末题可用，未答题目允许跳过。
+- 切题时将音频定位到目标题 `audioStartMs`；定位与缓冲期间保持当前题画面并禁用交互。
+- 音频进入可播放状态后切换到目标题、保存进度，并按切换前播放状态继续或暂停。
+- 单题进度条支持拖动；重播按钮定位到当前题 `audioStartMs` 并播放。
+- 页面不提供全局进度条、倍速和音量控制。
+- 最后一题任意时刻可点击「结束答题」进入结果流程。
 - 提前耗尽音频数据时进入 `ERROR`，不伪造题目结束。
 
-### 7.5 有效耗时
+### 7.5 尝试耗时
 
-`activeDurationMs` 只累计音频实际播放的时间：
+`activeDurationMs` 表示一次线上尝试从开始到提交的总耗时：
 
-- `audio.play()` 成功后开始计时。
-- `pause`、页面隐藏、音频错误、答题结束以及 seek 与缓冲等待期间停止计时。
-- 恢复播放后继续累计，不清零。
-- `durationMs` 请求字段取 `activeDurationMs` 的整数毫秒值。
-- 用户拖动系统媒体控件导致的其他播放状态变化按音频 `play` / `pause` 事件计入。
-- 点击「下一题」跳过未播放的音频区间，不增加 `activeDurationMs`。
+- `beginAttempt()` 写入 `startedAt`。
+- 进行中请求按 `Date.now() - startedAt` 计算。
+- `completeAttempt()` 写入提交时刻，结果预览与锁定使用同一耗时值。
+- 页面隐藏、刷新、音频暂停、缓冲与重播不暂停或清零计时。
+- 刷新后恢复时保留原 `startedAt`，总耗时继续累计。
 
 计时用于同分排序。服务端信任该数值，不提供防篡改保证。
 
@@ -509,6 +507,7 @@ t >= questions[last].audioEndMs
 | 场景 | 页面状态 | 处理 |
 | :--- | :--- | :--- |
 | 音频元数据加载失败 | `ERROR` | 显示「重新加载音频」与「重试本次答题」。 |
+| 音频元数据等待超时 | `IDLE` | 结束等待并提示重新加载音频，开始按钮恢复可用。 |
 | `audio.play()` 被策略拒绝 | `IDLE` | 保留开始按钮，等待用户点击。 |
 | 播放中断且无法恢复 | `ERROR` | 保存进度，禁止锁定，提供重新加载。 |
 | 网络断开但音频已缓存 | `IN_PROGRESS` | 继续本地播放；锁定与预览需要网络。 |
@@ -551,22 +550,22 @@ t >= questions[last].audioEndMs
 
 答题推进交互：
 
-1. 「下一题」位于当前题卡片底部操作区，不属于只读进度控件。
-2. 按钮仅在当前题窗口开放、当前题已选答案且存在下一题时可用。
-3. 当前题未选答案时按钮保持可见并禁用，最后一题不渲染按钮。
-4. 点击后先将音频定位到下一题 `answerStartMs`，等待 `seeked` 与可播放状态；定位期间按钮显示加载态并暂停有效计时。
-5. 定位完成后调用 store 的顺序推进动作，保存进度并继续播放。
-6. 推进过程不出现答案揭晓或暂停遮罩；定位期间显示音频定位状态。
+1. 「上一题」「下一题」位于当前题卡片底部操作区，题号圆点位于进度卡片。
+2. 「上一题」在非首题可用，「下一题」在非末题可用；未答题目允许跳过。
+3. 当前题卡片显示单题音频进度条与「重播本题」按钮。
+4. 切题时先将音频定位到目标题 `audioStartMs`，等待 `seeked` 与可播放状态；定位期间显示加载态。
+5. 定位完成后保存进度，并按切题前的播放状态决定继续播放或保持暂停。
+6. 切题过程不出现答案揭晓或暂停遮罩；定位期间显示音频定位状态。
 
 ### 8.3 `OnlineProgress.vue`
 
-只读进度控件包含：
+题目选择控件包含：
 
 - 「第 x / N 题」。
 - 线性进度条。
 - 已答与未答数量。
-- 题目序号圆点状态：已答、当前、未到达。
-- 不渲染题号按钮、链接或可聚焦的跳题元素；「下一题」由当前题卡片承载。
+- 题目序号圆点按钮：已答、当前、未答三种状态，点击切换题目。
+- 「上一题」与「下一题」由当前题卡片承载。
 
 ### 8.4 `OnlineResultPanel.vue`
 
@@ -643,7 +642,7 @@ t >= questions[last].audioEndMs
 - 启动接口失败时立即暂停本地音频并展示错误。
 - `ACTIVITY_PAUSED`、`ACTIVITY_RESUMED`、`ROUND_ENDED`、`ACTIVITY_RESET` 分别驱动暂停、恢复、停在结束位置与回到轮次起点。
 - 轮次运行期间禁用轮次切换。
-- 断线重连后读取主持人快照，按 `timelineRunning`、`status` 与当前轮次校准音频。
+- 断线重连后读取主持人快照：运行中按快照 `audioPositionMs` 定位并继续播放；已暂停或已结束则暂停音频并定位到快照位置；定位失败或播放被策略拒绝时显示继续入口。
 - 手动「下一题」将服务端时间基准对齐到新题 `audioStartMs`，音频播放器定位到同一位置；运行状态下继续播放，暂停状态下保持暂停。
 
 ### 10.4 榜单视图
@@ -766,13 +765,11 @@ ACCENT = rgb(188, 74, 216) / #BC4AD8
 
 ### 14.2 线上答题
 
-- 全部题目按题集顺序自动上屏。
-- 音频连续播放，题目边界由音频位置触发。
-- 选项在 `answerEndMs` 后失效。
-- 当前题已选答案时「下一题」可用；未选答案时禁用，最后一题不显示「下一题」，已选答案且音频仍在播放时显示「结束答题」。
-- 点击「下一题」后音频定位到下一题 `answerStartMs`，定位完成并进入可播放状态后切换当前题、保存进度并继续播放；定位期间暂停有效计时。
-- 跳过音频区间不计入有效作答耗时。
-- 页面不存在任意跳题、回看、暂停与进度拖动控件。
+- 参与者可任意切题、回看与跳过未答题。
+- 单题音频可拖动定位与重播。
+- 最后一题任意时刻可结束并进入结果预览。
+- 尝试耗时从开始答题持续累计到提交。
+- 页面不存在全局进度条、倍速与音量控件。
 - 未答题按 0 分提交。
 - 结束页不显示答案、解析、作品名或逐题对错。
 

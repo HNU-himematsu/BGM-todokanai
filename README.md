@@ -131,7 +131,7 @@ APP_FRONTEND_ORIGIN=https://game.himematsu.cn
 
 ## 7. 本地开发
 
-前置条件：Node.js 18 及以上、JDK 17 及以上、Maven。
+前置条件：Node.js 20.19 及以上或 22.12 及以上、JDK 17 及以上、Maven。
 
 ### 7.1 启动后端
 

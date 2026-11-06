@@ -32,6 +32,7 @@ export const useActivityStore = defineStore('activity', () => {
   const leaderboardHistory = ref([])
   const loading = ref(false)
   const error = ref('')
+  let refreshSequence = 0
 
   const isOnline = computed(() => mode.value === MODES.ONLINE)
   const isOffline = computed(() => mode.value === MODES.OFFLINE)
@@ -89,15 +90,27 @@ export const useActivityStore = defineStore('activity', () => {
   }
 
   async function refreshState() {
+    const sequence = ++refreshSequence
     loading.value = true
     error.value = ''
     try {
-      state.value = await getEventState(eventId.value, isOffline.value ? playerId.value : '')
+      const next = await getEventState(eventId.value, isOffline.value ? playerId.value : '')
+      if (sequence !== refreshSequence) return true
+      state.value = next
       if (state.value?.eventName) eventName.value = state.value.eventName
+      return true
     } catch (err) {
-      error.value = err.response?.data?.message || '暂时无法连接活动'
+      if (sequence !== refreshSequence) return true
+      const text = err.response?.data?.message || '暂时无法连接活动'
+      if (isOffline.value && err.response?.status === 400 && text.includes('身份无效')) {
+        clearOfflinePlayer()
+        error.value = '参与者身份已失效，请重新加入活动'
+        return false
+      }
+      error.value = text
+      return false
     } finally {
-      loading.value = false
+      if (sequence === refreshSequence) loading.value = false
     }
   }
 

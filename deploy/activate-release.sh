@@ -29,10 +29,23 @@ chmod -R a+rX "$RELEASE_DIR"
 
 PREVIOUS="$(readlink -f "$CURRENT_LINK" 2>/dev/null || true)"
 
+rollback_release() {
+  if [[ -n "$PREVIOUS" && -d "$PREVIOUS" ]]; then
+    echo "rolling back to $PREVIOUS" >&2
+    ln -sfn "$PREVIOUS" "$CURRENT_LINK.new"
+    mv -Tf "$CURRENT_LINK.new" "$CURRENT_LINK"
+    sudo -n systemctl restart "$SERVICE_NAME" || true
+  fi
+}
+
 ln -sfn "$RELEASE_DIR" "$CURRENT_LINK.new"
 mv -Tf "$CURRENT_LINK.new" "$CURRENT_LINK"
 
-sudo -n systemctl restart "$SERVICE_NAME"
+if ! sudo -n systemctl restart "$SERVICE_NAME"; then
+  echo "restart failed for release $RELEASE_ID" >&2
+  rollback_release
+  exit 1
+fi
 
 healthy=0
 for _ in $(seq 1 30); do
@@ -45,18 +58,25 @@ done
 
 if [[ "$healthy" -ne 1 ]]; then
   echo "health check failed for release $RELEASE_ID" >&2
-  if [[ -n "$PREVIOUS" && -d "$PREVIOUS" ]]; then
-    echo "rolling back to $PREVIOUS" >&2
-    ln -sfn "$PREVIOUS" "$CURRENT_LINK.new"
-    mv -Tf "$CURRENT_LINK.new" "$CURRENT_LINK"
-    sudo -n systemctl restart "$SERVICE_NAME" || true
-  fi
+  rollback_release
   exit 1
 fi
 
+CURRENT_TARGET="$(readlink -f "$CURRENT_LINK" 2>/dev/null || true)"
+protected=("$RELEASE_ID" "${CURRENT_TARGET##*/}" "${PREVIOUS##*/}")
 mapfile -t releases < <(find "$BASE_DIR/releases" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -r)
 if [[ "${#releases[@]}" -gt "$KEEP_RELEASES" ]]; then
   for old in "${releases[@]:$KEEP_RELEASES}"; do
+    keep=0
+    for name in "${protected[@]}"; do
+      if [[ -n "$name" && "$old" == "$name" ]]; then
+        keep=1
+        break
+      fi
+    done
+    if [[ "$keep" -eq 1 ]]; then
+      continue
+    fi
     rm -rf "${BASE_DIR:?}/releases/$old"
   done
 fi

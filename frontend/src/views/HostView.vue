@@ -5,6 +5,7 @@ import { message, Modal } from 'ant-design-vue'
 import QRCode from 'qrcode'
 import { useRoute } from 'vue-router'
 import {
+  apiUrl,
   getAudioUrl,
   getHostRounds,
   getHostState,
@@ -60,7 +61,7 @@ const question = computed(() => state.value?.question)
 const round = computed(() => rounds.value.find((item) => item.id === currentRoundId.value))
 const publicBaseUrl = (import.meta.env.VITE_PUBLIC_BASE_URL || window.location.origin).replace(/\/+$/, '')
 const joinUrl = `${publicBaseUrl}/?mode=offline`
-const summaryTxtUrl = `${publicBaseUrl}/api/events/${eventId}/leaderboard/summary-txt`
+const summaryTxtUrl = apiUrl(`/events/${eventId}/leaderboard/summary-txt`)
 const displayQuestionNo = computed(() => Math.max(0, (state.value?.currentQuestionIndex ?? -1) + 1))
 const statusLabel = computed(() => ({ WAITING: '等待开始', ANSWERING: '答题中', ANSWER_LOCKED: '已锁卷', ANSWER_REVEALED: '答案揭晓', FINISHED: '活动结束' }[state.value?.status] || '连接中'))
 const statusColor = computed(() => ({ WAITING: 'default', ANSWERING: 'processing', ANSWER_LOCKED: 'warning', ANSWER_REVEALED: 'warning', FINISHED: 'success' }[state.value?.status] || 'default'))
@@ -168,7 +169,11 @@ async function seekToReady(positionMs) {
   const targetMs = Math.max(0, positionMs)
   if (Math.abs(element.currentTime * 1000 - targetMs) >= 50) {
     const seeked = waitForAudioEvent('seeked')
-    seekTo(targetMs)
+    try {
+      seekTo(targetMs)
+    } catch {
+      return false
+    }
     if (!await seeked) return false
   } else {
     audioPosition.value = targetMs / 1000
@@ -191,6 +196,33 @@ function syncAudio(eventType, eventRoundId = currentRoundId.value) {
     audio.value.pause()
   } else if (eventType === 'ACTIVITY_RESUMED') {
     audio.value.play().catch(() => { error.value = '音频无法恢复播放，请检查浏览器播放权限' })
+  }
+}
+
+async function restoreAudioAfterReconnect(snapshot) {
+  const element = audio.value
+  if (!element || !snapshot) return
+  const positionMs = Number(snapshot.state?.audioPositionMs)
+  const running = Boolean(snapshot.timelineRunning)
+  const status = snapshot.state?.status
+  if (!running || status === 'FINISHED') {
+    element.pause()
+    if (Number.isFinite(positionMs)) seekTo(positionMs)
+    return
+  }
+  if (!Number.isFinite(positionMs)) return
+  if (element.readyState < 1 && !await waitForAudioEvent('loadedmetadata', 5000)) {
+    error.value = '重连后音频加载超时，请刷新页面'
+    return
+  }
+  if (!await seekToReady(positionMs)) {
+    error.value = '重连后音频定位失败，请点击播放或刷新页面'
+    return
+  }
+  try {
+    await element.play()
+  } catch {
+    error.value = '实时连接已恢复，请点击音频播放按钮继续'
   }
 }
 
@@ -217,7 +249,7 @@ function onSocketEvent(event) {
   }
   if (event.type === 'SOCKET_CONNECTED') {
     lastAppliedRevision = 0
-    refresh()
+    refresh().then((snapshot) => restoreAudioAfterReconnect(snapshot))
     return
   }
   if (isStaleRevision(event.revision)) return

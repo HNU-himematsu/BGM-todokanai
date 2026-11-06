@@ -9,6 +9,8 @@ import com.jisong.bgm.dto.OnlineContribution;
 import com.jisong.bgm.dto.OnlineLeaderboardEntry;
 import com.jisong.bgm.dto.OnlineScoreRecord;
 import com.jisong.bgm.dto.TotalLeaderboardEntry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -31,6 +33,7 @@ import java.util.Set;
 
 @Service
 public class LeaderboardStore {
+    private static final Logger log = LoggerFactory.getLogger(LeaderboardStore.class);
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
             .withZone(ZoneId.systemDefault());
 
@@ -77,7 +80,7 @@ public class LeaderboardStore {
         history.add(new LeaderboardSnapshot(
                 eventId, eventName, roundId, roundName, Instant.now(), entries));
         writeJsonAtomically(filePath, history);
-        refreshSummary();
+        refreshSummaryQuietly();
     }
 
     public synchronized OnlineScoreRecord saveOnline(OnlineScoreRecord record) {
@@ -100,7 +103,7 @@ public class LeaderboardStore {
         }
         records.add(record);
         writeJsonAtomically(onlineFilePath, records);
-        refreshSummary();
+        refreshSummaryQuietly();
         return record;
     }
 
@@ -266,6 +269,14 @@ public class LeaderboardStore {
     private void refreshSummary() {
         String content = generateSummaryTxt(loadOffline(), loadOnline());
         writeTextAtomically(txtPath, content);
+    }
+
+    private void refreshSummaryQuietly() {
+        try {
+            refreshSummary();
+        } catch (RuntimeException exception) {
+            log.warn("榜单文本导出失败，保留已提交的 JSON：{}", txtPath.toAbsolutePath(), exception);
+        }
     }
 
     private String generateSummaryTxt(

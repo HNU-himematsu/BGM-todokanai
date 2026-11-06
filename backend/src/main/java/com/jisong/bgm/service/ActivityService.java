@@ -195,7 +195,7 @@ public class ActivityService {
         if (activity.answers.containsKey(key)) {
             throw new IllegalStateException("这道题已经提交过答案");
         }
-        long now = System.currentTimeMillis();
+        long now = timingNow(activity);
         long duration = activity.questionNextEpochMs == null ? 0L : Math.max(0L, now - activity.questionNextEpochMs);
         boolean correct = question.correctOption() != null && question.correctOption() == request.optionIndex();
         int points = correct ? POINTS_PER_CORRECT : 0;
@@ -352,7 +352,8 @@ public class ActivityService {
 
     private boolean canAdvanceQuestion(Activity activity) {
         Round round = round(activity, activity.currentRoundId);
-        return activity.t0EpochMs != null
+        return !activity.archiveFailed
+                && activity.t0EpochMs != null
                 && (activity.status == ActivityStatus.WAITING || activity.status == ActivityStatus.ANSWER_REVEALED)
                 && round != null
                 && nextQuestionInRound(activity, round) != null;
@@ -360,7 +361,7 @@ public class ActivityService {
 
     private boolean canFinishRound(Activity activity) {
         Round round = round(activity, activity.currentRoundId);
-        return activity.timelineRunning
+        return (activity.timelineRunning || activity.archiveFailed)
                 && activity.status == ActivityStatus.ANSWER_REVEALED
                 && round != null
                 && activity.currentQuestion != null
@@ -531,7 +532,7 @@ public class ActivityService {
     private void lockCurrentQuestion(Activity activity) {
         Question question = activity.currentQuestion;
         if (question != null) {
-            long now = System.currentTimeMillis();
+            long now = timingNow(activity);
             long openedAt = activity.questionNextEpochMs == null ? now : activity.questionNextEpochMs;
             for (Player player : activity.players.values()) {
                 if (hasSubmitted(activity, player.getId(), question)) {
@@ -557,17 +558,32 @@ public class ActivityService {
     private void finishRound(Activity activity) {
         clearTasks(activity);
         activity.timelineRunning = false;
-        activity.pausedAtEpochMs = System.currentTimeMillis();
-        activity.status = ActivityStatus.FINISHED;
-        activity.answerRevealed = true;
+        if (activity.pausedAtEpochMs == null) {
+            activity.pausedAtEpochMs = System.currentTimeMillis();
+        }
         if (!activity.leaderboardSaved) {
             Round round = requireRound(activity, activity.currentRoundId);
-            leaderboardStore.save(
-                    activity.id, activity.name, round.id(), round.name(), leaderboard(activity));
+            try {
+                leaderboardStore.save(
+                        activity.id, activity.name, round.id(), round.name(), leaderboard(activity));
+            } catch (RuntimeException exception) {
+                activity.archiveFailed = true;
+                throw exception;
+            }
             activity.leaderboardSaved = true;
         }
+        activity.archiveFailed = false;
+        activity.status = ActivityStatus.FINISHED;
+        activity.answerRevealed = true;
         broadcast(activity, "ACTIVITY_FINISHED");
         broadcast(activity, "ROUND_ENDED");
+    }
+
+    private long timingNow(Activity activity) {
+        if (!activity.timelineRunning && activity.pausedAtEpochMs != null) {
+            return activity.pausedAtEpochMs;
+        }
+        return System.currentTimeMillis();
     }
 
     private void resetRoom(Activity activity) {
@@ -586,6 +602,7 @@ public class ActivityService {
         activity.t0EpochMs = null;
         activity.pausedAtEpochMs = null;
         activity.leaderboardSaved = false;
+        activity.archiveFailed = false;
     }
 
     private void clearTasks(Activity activity) {
@@ -860,6 +877,7 @@ public class ActivityService {
         private boolean answerRevealed;
         private boolean timelineRunning;
         private boolean leaderboardSaved;
+        private boolean archiveFailed;
         private ScheduledFuture<?> roundEndFuture;
         private long revision;
 

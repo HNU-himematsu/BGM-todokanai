@@ -73,7 +73,7 @@ function confirmLock() {
 
     <div class="result-meta-grid">
       <div><span>已答题目</span><strong>{{ answered }} / {{ total }}</strong></div>
-      <div><span>有效作答耗时</span><strong>{{ formatDuration(duration) }}</strong></div>
+      <div><span>尝试总耗时</span><strong>{{ formatDuration(duration) }}</strong></div>
       <div v-if="isLocked"><span>线上榜名次</span><strong>第 {{ result?.onlineRank || '-' }} 名</strong></div>
       <div v-if="isLocked"><span>总榜名次</span><strong>第 {{ result?.totalRank || '-' }} 名</strong></div>
       <div v-if="isLocked" class="result-meta-wide"><span>锁定时间</span><strong>{{ formatTime(result?.lockedAt) }}</strong></div>

@@ -1,6 +1,7 @@
 package com.jisong.bgm;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jisong.bgm.dto.LeaderboardEntry;
 import com.jisong.bgm.dto.TotalLeaderboardEntry;
 import com.jisong.bgm.service.LeaderboardStore;
 import org.junit.jupiter.api.Test;
@@ -197,5 +198,23 @@ class LeaderboardStoreCompatibilityTests {
         assertThat(store.onlineLeaderboard("demo")).hasSize(1);
         assertThat(store.onlineLeaderboard("demo").get(0).score()).isEqualTo(40);
         assertThat(entries.get(1).participantId()).isEqualTo("p2");
+    }
+
+    @Test
+    void committedJsonSurvivesTextExportFailure() throws Exception {
+        Path offline = temporaryDirectory.resolve("leaderboards.json");
+        Path summaryDirectory = temporaryDirectory.resolve("summary-as-directory");
+        Files.createDirectories(summaryDirectory);
+        LeaderboardStore store = new LeaderboardStore(
+                new ObjectMapper().findAndRegisterModules(),
+                offline.toString(),
+                temporaryDirectory.resolve("online_leaderboard.json").toString(),
+                summaryDirectory.toString());
+
+        store.save("demo", "演示活动", "round-1", "第一轮", List.of(
+                new LeaderboardEntry(1, "p1", "player-1", "玩家甲", 10, 1200, 1, 1, null)));
+
+        assertThat(Files.exists(offline)).isTrue();
+        assertThat(store.history("demo")).hasSize(1);
     }
 }

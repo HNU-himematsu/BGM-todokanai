@@ -2,13 +2,18 @@
 import { ref } from 'vue'
 import { ChevronDown, ChevronUp } from 'lucide-vue-next'
 import { useOnlineStore } from '../stores/online'
-
 const online = useOnlineStore()
 const dotsOpen = ref(true)
 const dotsId = 'online-question-dots'
+const emit = defineEmits(['change'])
 
 function toggleDots() {
   dotsOpen.value = !dotsOpen.value
+}
+
+function selectQuestion(index) {
+  if (index === online.currentIndex) return
+  emit('change', index)
 }
 </script>
 
@@ -42,17 +47,21 @@ function toggleDots() {
       size="small"
     />
     <div v-show="dotsOpen" :id="dotsId" class="question-dots" aria-label="答题进度">
-      <span
+      <button
         v-for="question in online.questions"
         :key="question.id"
-        class="question-dot"
+        type="button"
+        class="question-dot question-dot-button"
         :class="{
           answered: Number.isInteger(online.answers[question.id]),
           current: question.index === online.currentIndex,
-          locked: question.index < online.currentIndex,
+          visited: question.index <= online.currentIndex,
         }"
         :title="`第 ${question.index + 1} 题`"
-      >{{ question.index + 1 }}</span>
+        :aria-current="question.index === online.currentIndex ? 'true' : undefined"
+        @click="selectQuestion(question.index)"
+      >{{ question.index + 1 }}
+      </button>
     </div>
   </a-card>
 </template>
