@@ -39,7 +39,7 @@ backend/data/
 - `eventId` 固定为 `jisong`，前端路由、线下二维码与主持人入口沿用现有地址。
 - `backend/data/event-offline.mp3` 是线下母带的本地联调产物；部署环境通过 `APP_AUDIO_URL` 指向 `oss://himematsu/bgm/event-offline.mp3`，服务器不保存音频文件。
 - 本地未配置外部地址时，音频路径相对各自编排文件所在目录解析；两份编排的 `audioFile` 保留文件名。
-- 线上模式播放 `姬松活动/bgm-music.mp3`，内容为纯 BGM；线下模式播放含播报的母带。两种模式的拓扑与配置见 [`dual-master-audio.md`](dual-master-audio.md)。
+- 线上模式播放 `bgm/event-online-cbr192.mp3`，内容为纯 BGM；线下模式播放含播报的母带。两种模式的拓扑与配置见 [`dual-master-audio.md`](dual-master-audio.md)。
 - `leaderboards.json`、`online_leaderboard.json`、`leaderboard_summary.txt` 由服务在首次写入时生成。
 
 ## 4. 音频成品
@@ -321,7 +321,7 @@ Copy-Item backend\data backend\data-backup -Recurse
 1. 本地联调时将线下母带命名为 `event-offline.mp3` 放入 `backend/data/`；线上母带命名为 `event-online.mp3` 放入同一目录。
 2. 将 `timeline.json`、`timeline-online.json` 与 `questions.json` 放入 `backend/data/`。
 3. 将 `leaderboards.json` 与 `online_leaderboard.json` 移出数据目录，或写入空数组 `[]`，使活动从零榜单开始。
-4. 部署时把 `backend/data/event-offline.mp3` 上传到 `oss://himematsu/bgm/event-offline.mp3`；线上母带复用 `oss://himematsu/姬松活动/bgm-music.mp3`；服务器数据目录只放两份编排、`questions.json` 与榜单文件。
+4. 部署时把 `backend/data/event-offline.mp3` 上传到 `oss://himematsu/bgm/event-offline.mp3`；线上母带使用 `oss://himematsu/bgm/event-online-cbr192.mp3`；服务器数据目录只放两份编排、`questions.json` 与榜单文件。
 
 ### 7.3 启动
 
@@ -349,7 +349,7 @@ Invoke-RestMethod -Method Head http://localhost:8080/api/events/jisong/audio
 | `/api/events/jisong/online/questions` | `totalQuestions` 为 40，题集首题 `audioStartMs` 为 0，末题 `audioEndMs` 为 2593000 |
 | `/api/events/jisong/state` | 四轮区间 0/562355、562355/1341690、1341690/2054605、2054605/2780110 |
 | 本地联调 `audioUrl` | 未配置 `app.audio-url-online` 时回落 `app.audio-url`；两者均为空时为 `/api/events/jisong/audio?mode=online` |
-| 部署环境 `audioUrl` | 指向 `https://himematsu.oss-cn-guangzhou.aliyuncs.com/%E5%A7%AC%E6%9D%BE%E6%B4%BB%E5%8A%A8/bgm-music.mp3` |
+| 部署环境 `audioUrl` | 指向 `https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-cbr192.mp3` |
 | 音频请求 | OSS 对象普通请求返回 200；带 `Range: bytes=0-1023` 时返回 206 |
 | 题集版本 | `questionSetVersion` 为非空十六进制字符串 |
 
@@ -383,7 +383,7 @@ Invoke-RestMethod -Method Head http://localhost:8080/api/events/jisong/audio
 ## 9. 上线前检查清单
 
 - `backend/data/event-offline.mp3` 时长为 2780.1 秒量级，浏览器可拖到末尾。
-- OSS 对象 `bgm/event-offline.mp3` 的大小与 MD5 与本地成品一致，匿名 `HEAD` 返回 200；线上对象 `姬松活动/bgm-music.mp3` 返回 200、`Content-Length` 42,274,159。
+- OSS 对象 `bgm/event-offline.mp3` 的大小与 MD5 与本地成品一致，匿名 `HEAD` 返回 200；线上对象 `bgm/event-online-cbr192.mp3` 返回 200、`Content-Length` 62,233,783。
 - `timeline.json` 的 `audioFile` 与实际文件名一致。
 - 四轮区间为 0/562355、562355/1341690、1341690/2054605、2054605/2780110。
 - 每轮首题音乐起点为本轮 `startMs + 33535`，轮首播报在首题音乐之前播放。

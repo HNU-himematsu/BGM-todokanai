@@ -10,7 +10,7 @@
 
 | 模式 | 播放者 | 音频对象 | 编排文件 | 音频地址来源 |
 | :--- | :--- | :--- | :--- | :--- |
-| 线上 ONLINE | 参与者浏览器 | `姬松活动/bgm-music.mp3` | `timeline-online.json` | 后端 `app.audio-url-online`，经 `OnlineQuestionSet.audioUrl` 下发 |
+| 线上 ONLINE | 参与者浏览器 | `bgm/event-online-cbr192.mp3` | `timeline-online.json` | 后端 `app.audio-url-online`，经 `OnlineQuestionSet.audioUrl` 下发 |
 | 线下 OFFLINE | 主持人控制台 | `bgm/event-offline.mp3` | `timeline.json` | 构建变量 `VITE_AUDIO_URL`；为空时走 `/api/events/{eventId}/audio` |
 
 - 两种模式共用 `questions.json`、计分规则、参与者身份标识与榜单存储。
@@ -23,10 +23,10 @@
 
 | 项目 | 值 |
 | :--- | :--- |
-| 对象路径 | `姬松活动/bgm-music.mp3` |
-| 访问地址 | `https://himematsu.oss-cn-guangzhou.aliyuncs.com/%E5%A7%AC%E6%9D%BE%E6%B4%BB%E5%8A%A8/bgm-music.mp3` |
-| 大小 | 42,274,159 字节 |
-| 时长 | 2593.149 秒 |
+| 对象路径 | `bgm/event-online-cbr192.mp3` |
+| 访问地址 | `https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-cbr192.mp3` |
+| 大小 | 62,233,783 字节 |
+| 时长 | 2593.000 秒 |
 | 采样率 / 声道 | 44100 Hz / 2 |
 | 编码 | MP3 VBR，平均约 130 kbps |
 | 帧表 | 99270 帧，Xing TOC 99 项非零 |
@@ -235,7 +235,7 @@ app:
   timeline-file: "${APP_TIMELINE_FILE:data/timeline.json}"
   online-timeline-file: "${APP_ONLINE_TIMELINE_FILE:data/timeline-online.json}"
   audio-url: "${APP_AUDIO_URL:https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3}"
-  audio-url-online: "${APP_AUDIO_URL_ONLINE:https://himematsu.oss-cn-guangzhou.aliyuncs.com/%E5%A7%AC%E6%9D%BE%E6%B4%BB%E5%8A%A8/bgm-music.mp3}"
+  audio-url-online: "${APP_AUDIO_URL_ONLINE:https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-cbr192.mp3}"
 ```
 
 | 配置项 | 缺省 | 说明 |
@@ -375,7 +375,7 @@ app:
 
 | 对象 | 状态 | 大小 |
 | :--- | :--- | ---: |
-| `姬松活动/bgm-music.mp3` | 已存在，直接复用 | 42,274,159 字节 |
+| `bgm/event-online-cbr192.mp3` | 已上传，CBR 192 kbps 重编码 | 62,233,783 字节 |
 | `bgm/event-offline.mp3` | 发布时上传 | 约 66.7 MB |
 | `bgm/event-demo.mp3` | 保留，用于回滚 | 64,309,541 字节 |
 
@@ -403,15 +403,15 @@ app:
 4. 音频或题目变化时，两份编排必须同时重算；只改一份会导致交叉校验失败或线上、线下题目错位。
 5. 线上题集版本与单母带形态的纯 BGM 版本一致，浏览器中残留的同版本进度可能被恢复，活动前清理一次本地存储。
 6. 线上与线下同时活动时，参与者听纯 BGM、现场听带播报母带，两边内容不同。
-7. 线上对象未设置 `Cache-Control`，浏览器缓存策略由 OSS 默认值决定，不影响播放与 Range。
+7. 线上对象带 `Cache-Control: public, max-age=31536000, immutable`，浏览器与 CDN 命中长缓存；替换音频时使用新对象名并同步 `APP_AUDIO_URL_ONLINE`。
 
 ## 11. 验收清单
 
 线上：
 
-- [ ] `GET /api/events/jisong/online/questions` 返回 40 题，`audioUrl` 为 `姬松活动/bgm-music.mp3` 的地址。
+- [ ] `GET /api/events/jisong/online/questions` 返回 40 题，`audioUrl` 为 `bgm/event-online-cbr192.mp3` 的地址。
 - [ ] 首题 `audioStartMs` 0、`answerStartMs` 1；末题 `audioEndMs` 2593000。
-- [ ] 对象普通请求 `200`、Range 请求 `206`，`Content-Length` 42,274,159。
+- [ ] 对象普通请求 `200`、Range 请求 `206`，`Content-Length` 62,233,783。
 - [ ] 40 题逐题定位，首次出声与素材相差不超过 0.5 秒，无超过 0.5 秒的多余静音。
 - [ ] 拍频抽检：轮次边界处的音频为音乐，不含人声。
 

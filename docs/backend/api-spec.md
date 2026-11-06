@@ -271,7 +271,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
   "data": {
     "eventId": "jisong",
     "eventName": "旮旯原声之届不到的 BGM",
-    "audioUrl": "https://himematsu.oss-cn-guangzhou.aliyuncs.com/%E5%A7%AC%E6%9D%BE%E6%B4%BB%E5%8A%A8/bgm-music.mp3",
+    "audioUrl": "https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-cbr192.mp3",
     "questionSetVersion": "b3f1f5f4b4d07b8f0d9f0d5c2a3e5c1f0e9c8a7b6d5e4f3a2b1c0d9e8f7a6b5c",
     "audioStartMs": 0,
     "audioEndMs": 90000,

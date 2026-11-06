@@ -102,7 +102,7 @@ tools/                   母带合成与移动端流程预览工具
 | `app.frontend-origin` | `http://localhost:5173` | WebSocket 允许的跨域来源 |
 | `app.host-password` | `123456` | 主持人控制台密码 |
 | `app.audio-url` | OSS `bgm/event-offline.mp3` | 线下母带地址 |
-| `app.audio-url-online` | OSS `姬松活动/bgm-music.mp3` | 线上母带地址 |
+| `app.audio-url-online` | OSS `bgm/event-online-cbr192.mp3` | 线上母带地址 |
 | `app.timeline-file` | `data/timeline.json` | 线下编排文件 |
 | `app.online-timeline-file` | `data/timeline-online.json` | 线上编排文件 |
 | `app.leaderboard-file` | `data/leaderboards.json` | 线下榜单文件 |
@@ -118,7 +118,7 @@ tools/                   母带合成与移动端流程预览工具
 ```text
 APP_HOST_PASSWORD=123456
 APP_AUDIO_URL=https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3
-APP_AUDIO_URL_ONLINE=https://himematsu.oss-cn-guangzhou.aliyuncs.com/%E5%A7%AC%E6%9D%BE%E6%B4%BB%E5%8A%A8/bgm-music.mp3
+APP_AUDIO_URL_ONLINE=https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-cbr192.mp3
 APP_TIMELINE_FILE=/opt/bgm-guess/shared/data/timeline.json
 APP_ONLINE_TIMELINE_FILE=/opt/bgm-guess/shared/data/timeline-online.json
 APP_LEADERBOARD_FILE=/opt/bgm-guess/shared/data/leaderboards.json
@@ -260,9 +260,9 @@ bash /opt/bgm-guess/bin/activate-release.sh <previous-release-id>
 | 用途 | 对象 | 规格 |
 | :--- | :--- | :--- |
 | 线下母带 | `bgm/event-offline.mp3` | 66,724,510 字节，2780.110 秒，MP3 CBR 192 kbps |
-| 线上母带 | `姬松活动/bgm-music.mp3` | 42,274,159 字节，2593.149 秒，MP3 VBR 约 130 kbps |
+| 线上母带 | `bgm/event-online-cbr192.mp3` | 62,233,783 字节，2593.000 秒，MP3 CBR 192 kbps |
 
-两个对象均为公共读，`Content-Type` 为 `audio/mpeg`，支持 Range 请求，普通请求返回 `200`、Range 请求返回 `206`。线下对象带 `Cache-Control: public, max-age=31536000, immutable`，替换音频时使用新对象名并同步 `APP_AUDIO_URL` 与 `VITE_AUDIO_URL`。
+两个对象均为公共读，`Content-Type` 为 `audio/mpeg`，支持 Range 请求，普通请求返回 `200`、Range 请求返回 `206`。两个对象均带 `Cache-Control: public, max-age=31536000, immutable`，替换音频时使用新对象名并同步 `APP_AUDIO_URL`、`APP_AUDIO_URL_ONLINE` 与 `VITE_AUDIO_URL`。
 
 服务器不保存音频文件；`/api/events/{eventId}/audio` 返回线下对象跳转，`?mode=online` 返回线上对象跳转。
 

@@ -132,7 +132,7 @@ app:
   timeline-file: data/timeline.json
   online-timeline-file: data/timeline-online.json
   audio-url: "${APP_AUDIO_URL:https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3}"
-  audio-url-online: "${APP_AUDIO_URL_ONLINE:https://himematsu.oss-cn-guangzhou.aliyuncs.com/%E5%A7%AC%E6%9D%BE%E6%B4%BB%E5%8A%A8/bgm-music.mp3}"
+  audio-url-online: "${APP_AUDIO_URL_ONLINE:https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-cbr192.mp3}"
   leaderboard-file: data/leaderboards.json
   online-leaderboard-file: data/online_leaderboard.json
   leaderboard-txt-file: data/leaderboard_summary.txt

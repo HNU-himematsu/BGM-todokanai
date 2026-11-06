@@ -10,7 +10,7 @@
 | 服务器 | `81.71.64.37`，Debian 12 |
 | 运行用户 | `bgm`（systemd 服务），`deploy`（发布） |
 | 部署根目录 | `/opt/bgm-guess` |
-| 音频来源 | OSS 对象 `bgm/event-offline.mp3` 与 `姬松活动/bgm-music.mp3` |
+| 音频来源 | OSS 对象 `bgm/event-offline.mp3` 与 `bgm/event-online-cbr192.mp3` |
 
 域名 `A` 记录指向服务器公网 IP，备案与 HTTPS 证书就绪。服务器安全组放行 `22`、`80`、`443`，`8080` 不对外开放。
 
@@ -157,7 +157,7 @@ ls -l /opt/bgm-guess/shared/data
 ```text
 APP_HOST_PASSWORD=<主持人密码>
 APP_AUDIO_URL=https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3
-APP_AUDIO_URL_ONLINE=https://himematsu.oss-cn-guangzhou.aliyuncs.com/%E5%A7%AC%E6%9D%BE%E6%B4%BB%E5%8A%A8/bgm-music.mp3
+APP_AUDIO_URL_ONLINE=https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-cbr192.mp3
 APP_TIMELINE_FILE=/opt/bgm-guess/shared/data/timeline.json
 APP_ONLINE_TIMELINE_FILE=/opt/bgm-guess/shared/data/timeline-online.json
 APP_LEADERBOARD_FILE=/opt/bgm-guess/shared/data/leaderboards.json

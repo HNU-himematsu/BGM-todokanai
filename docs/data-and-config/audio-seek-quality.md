@@ -11,7 +11,7 @@
 | 线上 | MP3 VBR，纯 BGM | `backend/data/event-online.mp3` | 2593.149 秒 | 2593000 |
 | 线下 | MP3 CBR 192 kbps，含播报 | `backend/data/event-offline.mp3` | 2780.110 秒 | 2780110 |
 
-线上部署直接复用 OSS 对象 `姬松活动/bgm-music.mp3`，内容与 `event-online.mp3` 相同；线下部署使用 OSS 对象 `bgm/event-offline.mp3`。双母带的运行形态见 [`dual-master-audio.md`](dual-master-audio.md)。
+线上部署使用 OSS 对象 `bgm/event-online-cbr192.mp3`，由 `music/bgm-music.mp3` 单次重编码为 CBR 192 kbps，内容与 `event-online.mp3` 相同；线下部署使用 OSS 对象 `bgm/event-offline.mp3`。双母带的运行形态见 [`dual-master-audio.md`](dual-master-audio.md)。
 
 适用场景：
 
@@ -161,7 +161,7 @@ Xing 头与 TOC 均存在，TOC 数值与帧表不一致，最大偏差 35.9 秒
 
 ### 4.9 线上母带（VBR 对象）
 
-4.1～4.7 的测量对象为 `work/event-demo-vbr-original-20261030.mp3`。OSS 对象 `姬松活动/bgm-music.mp3` 与该文件在 510 秒处逐样本一致，尾部多 5 帧、约 149 毫秒编码尾垫，因此 4.4 的 TOC 偏差结论对线上对象同样成立。
+4.1～4.7 的测量对象为 `work/event-demo-vbr-original-20261030.mp3`。上线初期的 OSS 对象 `姬松活动/bgm-music.mp3` 与该文件在 510 秒处逐样本一致，尾部多 5 帧、约 149 毫秒编码尾垫，4.4 的 TOC 偏差结论对该对象成立。该对象保留为线上音频的回滚对象。
 
 | 项目 | 实测值 |
 | :--- | :--- |
@@ -190,6 +190,32 @@ Xing 头与 TOC 均存在，TOC 数值与帧表不一致，最大偏差 35.9 秒
 | 定位 | 按 9.3 节方法对线下编排重跑 40 题的 `answerStartMs`，偏差不超过 0.5 秒 |
 
 合成规则、槽位表与生成流程见 [`announcer-voice.md`](announcer-voice.md) 与 [`dual-master-audio.md`](dual-master-audio.md) 第 4 节。
+
+### 4.11 线上成品对象（CBR 192 kbps）
+
+`bgm/event-online-cbr192.mp3` 由 `music/bgm-music.mp3` 按 6.1 节参数单次编码生成，替代 4.9 的 VBR 对象。
+
+| 项目 | 实测值 |
+| :--- | :--- |
+| 对象 URL | `https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-cbr192.mp3` |
+| 对象大小 | 62,233,783 字节 |
+| MD5 | `CF242A2CAF35D8AEB0A13A0AB687BA78` |
+| 时长 | 容器 2593.000 秒，帧表 2593.071 秒 |
+| 帧数 | 99266 |
+| 编码 | MP3 CBR 192 kbps，44100 Hz / 2 声道 |
+| 码率极差 | 1.0 倍 |
+| Xing 头 | `Info` 帧，100 项 TOC |
+| ETag | `4139A3C56E24A5FB6F1CEFF0BCDF8E2A-6` |
+| `Content-Type` | `audio/mpeg` |
+| `Cache-Control` | `public, max-age=31536000, immutable` |
+| 普通请求 / Range | `200` / `206`，已实测 |
+
+A/B 定位实测：headless Chrome 播放在同一本地 HTTP 服务下，对四轮共 40 题的 `answerStartMs` 逐点定位并采样 3 秒，判定 -35 dB 为出声。
+
+| 对象 | 定位后 3 秒内无声 | 首次出声偏差 |
+| :--- | ---: | --- |
+| VBR `姬松活动/bgm-music.mp3` | 16 / 40 | 有声题目最大 1.8 秒，其余全程数字静音 |
+| CBR `bgm/event-online-cbr192.mp3` | 0 / 40 | 最大 0.274 秒 |
 
 ## 5. 目标状态（素材规格）
 
@@ -246,11 +272,12 @@ ffmpeg -y -i "music\bgm-music.mp3" -c:a libmp3lame -b:a 192k -ar 44100 -ac 2 -t 
 4. 按 9.3 节方法逐题定位，线上覆盖 2593000 毫秒编排的 40 题 `answerStartMs`，线下覆盖 2780110 毫秒编排的 40 题 `answerStartMs`，确认出声时刻与素材内容一致。
 5. 替换文件并重启后端，确认 `GET /api/events/jisong/audio` 与 `GET /api/events/jisong/audio?mode=online` 均返回 `206`、`Content-Range` 覆盖完整区间、`Accept-Ranges: bytes`；部署环境两个地址为 OSS 302 跳转，直接对对象地址验证 Range。
 6. 按第 8 节逐项验收。
+7. 线上对象于 2026-11-06 完成切换：`bgm/event-online-cbr192.mp3` 已上传并生效，`APP_AUDIO_URL_ONLINE` 指向该对象，40 题定位复测全部通过。
 
 ## 8. 验收指标
 
 1. 线下母带自检（方案 A）：码率极差不超过 2 倍；TOC 与帧表一致，字节位置偏差不超过 1.3 个量化级；每题尾部静音上限 1.0 秒属于方案 B 指标，方案 A 保留素材自带静音垫。
-2. 线上母带自检：VBR 对象允许码率跳变，TOC 误差以 3 项实测为准；40 题逐题定位为放行条件，素材自检不单独作为线上放行依据。
+2. 线上母带自检：码率极差为 1.0 倍，帧表与容器时长相差不超过 100 毫秒；40 题逐题定位为放行条件。
 3. 逐题定位：线上、线下各 40 题分别定位到所属编排的 `answerStartMs`，采样 6 秒；浏览器首次出声时刻与素材在该时刻的实际出声时刻相差不超过 0.5 秒，且不出现超过 0.5 秒的多余连续静音。
 4. 线上流程：完整走完 40 题，无「倒计时在走、声音空白」的题目。
 5. 线下流程：主持人开始播放、逐题「下一题」、轮次切换三种操作均即时出声；手动下一题后音频位置与新题起点一致。
@@ -366,7 +393,7 @@ ffmpeg -hide_banner -ss 1710 -t 3 -i "backend\data\event-online.mp3" -af volumed
 
 ## 10. 回滚
 
-线上对象为 OSS 上的既有文件，回滚只需把 `app.audio-url-online` 切回 `姬松活动/bgm-music.mp3`。线下母带回滚时把 `bgm/event-demo.mp3` 切回 `app.audio-url`，并恢复上一版 `timeline.json` 与 `questions.json`；两处切换与数据还原完成后重启后端。方案 B 同时改动音频与编排，回滚需同时恢复 `timeline.json`、`questions.json` 与线上题集版本。
+线上回滚把 `app.audio-url-online` 切回 VBR 对象 `姬松活动/bgm-music.mp3`，该对象保留在 OSS。线下母带回滚时把 `bgm/event-demo.mp3` 切回 `app.audio-url`，并恢复上一版 `timeline.json` 与 `questions.json`；两处切换与数据还原完成后重启后端。方案 B 同时改动音频与编排，回滚需同时恢复 `timeline.json`、`questions.json` 与线上题集版本。
 
 ## 11. 关联文档
 
