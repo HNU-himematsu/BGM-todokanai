@@ -66,6 +66,8 @@ mvn clean compile
 mvn spring-boot:run
 ```
 
+`spring-boot:run` 与 JAR 启动使用同一份 `application.yml`：线下地址取 `app.audio-url` 指向的 OSS 对象 `bgm/event-offline.mp3`，线上题集取 `app.audio-url-online` 指向的 OSS 纯 BGM 对象。`/api/events/{eventId}/audio` 在这些配置下返回 302 跳转，音频流量不经过后端。把 `app.audio-url` 置空时，后端改为从 `backend/data/event-offline.mp3` 以 Range 流输出线下母带。
+
 健康检查：
 
 ```powershell
@@ -93,6 +95,8 @@ http://localhost:5173/
 ```
 
 Vite 把 `/api` 与 `/ws` 代理到 `http://localhost:8080`。
+
+本地前端与生产构建都使用 `.env` 文件中的 OSS 地址：`.env.development.local` 的 `VITE_AUDIO_URL` 指向 `bgm/event-offline.mp3`，主持人控制台直接从 OSS 加载音频。把该值置空时，主持人控制台回落到 `/api/events/{eventId}/audio`。
 
 ### 3.3 本地入口
 
@@ -262,7 +266,7 @@ https://xxxx-xxxx-xxxx.trycloudflare.com
 | `app.online-leaderboard-file` | 线上锁定记录文件路径。 |
 | `app.leaderboard-txt-file` | 文本总结路径。 |
 
-`app.online-leaderboard-file` 缺省为 `data/online_leaderboard.json`，与 `app.leaderboard-file` 使用同一数据目录。两个音频地址在本地联调时置空，生产环境指向 OSS 对象；配置契约见 [`../data-and-config/dual-master-audio.md`](../data-and-config/dual-master-audio.md) 第 5 节。
+`app.online-leaderboard-file` 缺省为 `data/online_leaderboard.json`，与 `app.leaderboard-file` 使用同一数据目录。两个音频地址在本地联调与生产环境都指向 OSS 对象；置空时回落本地文件。配置契约见 [`../data-and-config/dual-master-audio.md`](../data-and-config/dual-master-audio.md) 第 5 节。
 
 ### 7.2 前端参数
 

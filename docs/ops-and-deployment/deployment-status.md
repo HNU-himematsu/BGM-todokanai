@@ -12,8 +12,9 @@
 - 线上题集返回 `app.audio-url-online` 的地址；`/api/events/{eventId}/audio` 返回 302 跳转到线下对象，`/api/events/{eventId}/audio?mode=online` 返回 302 跳转到线上对象。
 - `VITE_AUDIO_URL` 指向线下对象，主持人控制台直接播放该地址。
 - `app.audio-url` 为空时，后端使用线下编排同目录的本地音频；`app.audio-url-online` 为空时依次回落 `app.audio-url` 与本地线上音频。
-- 后端测试共 21 项，覆盖本地音频 Range、外部音频 URL、无本地音频启动、线上答题流程与榜单兼容。
-- 双母带与双编排的代码改动处于规格阶段，实施项见 [`../data-and-config/dual-master-audio.md`](../data-and-config/dual-master-audio.md) 第 6 节。
+- 本地联调母带位于 `backend/data/event-offline.mp3`，时长 2780.110 秒，192 kbps CBR；该文件不进入版本库。
+- 后端测试共 34 项，覆盖本地音频 Range、外部音频 URL、无本地音频启动、线上答题流程、双母带加载与交叉校验、音频模式跳转与榜单兼容。
+- 双母带与双编排的后端实现覆盖配置、加载、交叉校验、音频模式分支与线上题集；配置契约见 [`../data-and-config/dual-master-audio.md`](../data-and-config/dual-master-audio.md) 第 5 节，测试清单见该文档第 8 节。
 - 前端生产构建通过。
 
 前端产物位于 `frontend/dist`，后端产物位于 `backend/target/bgm-guess-backend-0.0.1-SNAPSHOT.jar`。
@@ -67,14 +68,16 @@ https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3
 
 | 项目 | 状态 |
 | :--- | :--- |
-| 对象上传 | 待上传 |
-| 文件大小 | 约 66.7 MB |
+| 对象上传 | 已完成，2026-11-06，分片上传 |
+| 文件大小 | 66,724,510 字节 |
+| MD5 | `33688E3C8AFB41BC5D898CDAE15E1A48` |
 | 时长 | 2780.110 秒 |
 | 编码 | MP3 CBR 192 kbps，44.1 kHz / 2 声道 |
-| 访问权限 | 公共读（上传时设置） |
+| ETag | `88FEAA824926B8E444A3662F575AD210-8` |
+| 访问权限 | 公共读 |
 | `Content-Type` | `audio/mpeg` |
 | `Cache-Control` | `public, max-age=31536000, immutable` |
-| 普通请求 / Range | 上传后验收 `200` / `206` |
+| 普通请求 / Range | `200` / `206`，已实测 |
 
 回滚对象为单母带形态的历史成品，保留于 OSS：
 
@@ -91,7 +94,7 @@ OSS 配置的完整说明见 [`oss-audio.md`](oss-audio.md)。
 
 ## 4. 发布流水线状态
 
-双母带相关配置的代码与流水线改动待实施，实施后以下取值生效：
+双母带相关配置的代码与流水线取值如下：
 
 - `.github/workflows/ci.yml` 在拉取请求与手动触发时构建前端并验证后端。
 - `.github/workflows/deploy.yml` 通过手动触发执行发布或回滚。
@@ -102,14 +105,14 @@ OSS 配置的完整说明见 [`oss-audio.md`](oss-audio.md)。
 - 服务器目录与 systemd 单元由 `deploy/bootstrap-server.sh` 初始化。
 - `main` 推送自动发布在服务器初始化与 Secrets 配置完成后启用。
 
-CI/CD 的完整说明见 [`cicd.md`](cicd.md)。
+CI/CD 的完整说明见 [`cicd.md`](cicd.md)；不依赖 GitHub Actions 的手工发布流程见 [`manual-deploy-runbook.md`](manual-deploy-runbook.md)。
 
 ## 5. 上线顺序
 
 1. 确认线上对象 `姬松活动/bgm-music.mp3` 可读；上传线下对象 `bgm/event-offline.mp3`，设置 ACL、Content-Type 与 Cache-Control。
 2. 验证两个 OSS 对象的普通请求返回 `200`，Range 请求返回 `206`。
 3. 在服务器执行 `deploy/bootstrap-server.sh`，创建 `bgm`、`deploy` 用户与目录结构。
-4. 将 `timeline.json`、`timeline-online.json`、`questions.json` 与榜单文件放入 `/opt/bgm-guess/shared/data`。该目录不放置音频文件。
+4. 将 `timeline.json`、`timeline-online.json` 与 `questions.json` 放入 `/opt/bgm-guess/shared/data`。榜单文件由服务首次写入时创建，该目录不放置音频文件。
 5. 编辑 `/etc/bgm-guess/bgm-guess.env`，填写 `APP_HOST_PASSWORD`、`APP_AUDIO_URL`、`APP_AUDIO_URL_ONLINE` 与 `APP_ONLINE_TIMELINE_FILE`。
 6. 使用 `VITE_PUBLIC_BASE_URL` 与 `VITE_AUDIO_URL` 构建前端。
 7. 使用 Java 17 构建后端 JAR。

@@ -26,7 +26,9 @@ class OssOnlyAudioTests {
         TimelineStore store = new TimelineStore(
                 new ObjectMapper(),
                 tempDir.resolve("timeline.json").toString(),
-                AUDIO_URL
+                "",
+                AUDIO_URL,
+                ""
         );
 
         assertThat(store.audioPath()).doesNotExist();

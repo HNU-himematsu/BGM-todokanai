@@ -59,6 +59,19 @@ class EventControllerAudioRangeTests {
                 .andExpect(header().string(HttpHeaders.CONTENT_LENGTH, "1000"));
     }
 
+    @Test
+    void onlineModeStreamsOnlineAudioWithRange() throws Exception {
+        when(activityService.onlineAudioPath("demo")).thenReturn(audioFile());
+
+        mockMvc.perform(get("/api/events/demo/audio")
+                        .param("mode", "online")
+                        .header(HttpHeaders.RANGE, "bytes=2000-2999"))
+                .andExpect(status().isPartialContent())
+                .andExpect(header().string(HttpHeaders.CONTENT_RANGE,
+                        "bytes 2000-2999/" + AUDIO_BYTES))
+                .andExpect(header().string(HttpHeaders.CONTENT_LENGTH, "1000"));
+    }
+
     private Path audioFile() throws Exception {
         Path audio = tempDir.resolve("event-demo.mp3");
         Files.write(audio, new byte[AUDIO_BYTES]);

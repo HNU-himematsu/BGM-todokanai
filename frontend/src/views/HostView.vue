@@ -34,6 +34,7 @@ const nextRoundId = ref(null)
 const timelineRunning = ref(false)
 const timelineStarted = ref(false)
 const roundEnded = ref(false)
+const endedRoundId = ref(null)
 const error = ref('')
 const busy = ref(false)
 const socket = ref(null)
@@ -94,6 +95,25 @@ function isStaleRevision(value) {
 
 function roundById(roundId) {
   return rounds.value.find((item) => item.id === roundId) || null
+}
+
+function nextRoundAfter(roundId) {
+  const index = rounds.value.findIndex((item) => item.id === roundId)
+  if (index < 0 || rounds.value.length === 0) return roundId ?? null
+  return rounds.value[(index + 1) % rounds.value.length].id
+}
+
+function markRoundEnded(roundId = currentRoundId.value) {
+  const endedId = roundId ?? null
+  roundEnded.value = true
+  if (endedId === endedRoundId.value && nextRoundId.value) return
+  endedRoundId.value = endedId
+  nextRoundId.value = rounds.value.some((item) => item.id === endedId) ? nextRoundAfter(endedId) : null
+}
+
+function clearRoundEnded() {
+  roundEnded.value = false
+  endedRoundId.value = null
 }
 
 function updateAudioPosition(seconds) {
@@ -205,16 +225,15 @@ function onSocketEvent(event) {
   if (event.type === 'ACTIVITY_RESET' && event.roundId) currentRoundId.value = event.roundId
   if (event.type === 'ROUND_ENDED' || event.type === 'ACTIVITY_FINISHED') {
     timelineStarted.value = true
-    roundEnded.value = true
-    nextRoundId.value = currentRoundId.value
+    markRoundEnded(currentRoundId.value)
   }
   if (event.type === 'ACTIVITY_RESET') {
     timelineStarted.value = false
-    roundEnded.value = false
+    clearRoundEnded()
   }
   if (event.type === 'ACTIVITY_STARTED' || event.type === 'ACTIVITY_RESUMED') {
     timelineStarted.value = true
-    roundEnded.value = false
+    clearRoundEnded()
   }
   syncAudio(event.type, event.roundId)
   scheduleRefresh()
@@ -262,10 +281,7 @@ async function runRefresh() {
     rounds.value = snapshot?.rounds ?? roundList?.rounds ?? []
     currentRoundId.value = snapshot?.currentRoundId ?? roundList?.currentRoundId ?? null
     timelineRunning.value = Boolean(snapshot?.timelineRunning)
-    if (state.value?.status === 'FINISHED' && !timelineRunning.value) {
-      roundEnded.value = true
-      nextRoundId.value = currentRoundId.value
-    }
+    if (state.value?.status === 'FINISHED' && !timelineRunning.value) markRoundEnded(currentRoundId.value)
     roundLeaderboard.value = currentLeaderboard || state.value?.leaderboard || []
     if (timelineRunning.value || ['ANSWERING', 'ANSWER_LOCKED', 'ANSWER_REVEALED', 'FINISHED'].includes(state.value?.status)) timelineStarted.value = true
     if (state.value?.status === 'WAITING' && !timelineRunning.value && !roundEnded.value) timelineStarted.value = false
@@ -374,7 +390,7 @@ async function action(name) {
     }
     if (name === 'start') {
       timelineStarted.value = true
-      roundEnded.value = false
+      clearRoundEnded()
       seekTo(round.value?.startMs ?? 0)
       try { await audio.value?.play() } catch { error.value = '时间轴已启动，请允许浏览器播放音频' }
     }
@@ -382,13 +398,12 @@ async function action(name) {
     if (name === 'resume') syncAudio('ACTIVITY_RESUMED')
     if (name === 'reset') {
       timelineStarted.value = false
-      roundEnded.value = false
+      clearRoundEnded()
       syncAudio('ACTIVITY_RESET')
     }
     if (name === 'finish') {
       timelineStarted.value = true
-      roundEnded.value = true
-      nextRoundId.value = currentRoundId.value
+      markRoundEnded(currentRoundId.value)
       syncAudio('ROUND_ENDED')
       await refreshLeaderboards()
     }
@@ -419,7 +434,7 @@ async function beginSelectedRound() {
     noteRevision(selected?.revision)
     currentRoundId.value = targetRoundId
     timelineStarted.value = false
-    roundEnded.value = false
+    clearRoundEnded()
     await refresh()
     audio.value?.pause()
     seekTo(roundById(targetRoundId)?.startMs ?? 0)
@@ -456,7 +471,7 @@ function changeRound(roundId) {
         noteRevision(selected?.revision)
         currentRoundId.value = roundId
         timelineStarted.value = false
-        roundEnded.value = false
+        clearRoundEnded()
         await refresh()
         audio.value?.pause()
         seekTo(roundById(roundId)?.startMs ?? 0)

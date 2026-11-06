@@ -149,16 +149,22 @@ public class EventController {
     @GetMapping("/events/{eventId}/audio")
     public ResponseEntity<?> audio(
             @PathVariable String eventId,
+            @RequestParam(value = "mode", required = false, defaultValue = "offline") String mode,
             @RequestHeader(value = HttpHeaders.RANGE, required = false) String rangeHeader
     ) throws IOException {
-        String audioUrl = activityService.audioUrl(eventId);
+        boolean online = "online".equals(mode);
+        String audioUrl = online
+                ? activityService.onlineAudioUrl(eventId)
+                : activityService.audioUrl(eventId);
         if (audioUrl != null
                 && (audioUrl.startsWith("http://") || audioUrl.startsWith("https://"))) {
             return ResponseEntity.status(HttpStatus.FOUND)
                     .location(URI.create(audioUrl))
                     .build();
         }
-        Path audioPath = activityService.audioPath(eventId);
+        Path audioPath = online
+                ? activityService.onlineAudioPath(eventId)
+                : activityService.audioPath(eventId);
         if (audioPath == null || !Files.isReadable(audioPath)) {
             throw new ResourceNotFoundException("音频文件不可读：" + audioPath);
         }

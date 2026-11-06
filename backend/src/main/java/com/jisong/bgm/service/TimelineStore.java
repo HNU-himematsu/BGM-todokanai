@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 编排文件加载与合法性校验。启动时读取 timeline.json 和同目录 questions.json，
+ * 编排文件加载与合法性校验。启动时读取线下编排、可选的线上编排与同目录 questions.json，
  * 解析题目引用，生成线上题集并计算题集版本。
  */
 @Service
@@ -39,16 +39,21 @@ public class TimelineStore {
     private static final int REQUIRED_OPTION_COUNT = 4;
 
     private final Timeline timeline;
+    private final Timeline onlineTimeline;
     private final Map<String, Question> questionBank;
     private final List<OnlineQuestionWindow> onlineQuestions;
     private final String questionSetVersion;
     private final Path audioPath;
+    private final Path onlineAudioPath;
     private final String audioUrl;
+    private final String onlineAudioUrl;
 
     public TimelineStore(
             ObjectMapper objectMapper,
             @Value("${app.timeline-file:data/timeline.json}") String filePath,
-            @Value("${app.audio-url:}") String audioUrl
+            @Value("${app.online-timeline-file:data/timeline-online.json}") String onlineFilePath,
+            @Value("${app.audio-url:}") String audioUrl,
+            @Value("${app.audio-url-online:}") String onlineAudioUrl
     ) {
         Path path = resolveFile(filePath);
         Timeline rawTimeline = readTimeline(objectMapper, path);
@@ -58,13 +63,23 @@ public class TimelineStore {
         this.timeline = resolveQuestions(rawTimeline, questions);
         validateTimeline(this.timeline);
         this.questionBank = Collections.unmodifiableMap(new LinkedHashMap<>(questions));
-        this.onlineQuestions = generateOnlineQuestions(this.timeline);
+        this.onlineTimeline = loadOnlineTimeline(objectMapper, onlineFilePath, questions, this.timeline);
+        this.onlineQuestions = generateOnlineQuestions(this.onlineTimeline);
         validateOnlineQuestions(this.onlineQuestions, this.questionBank);
+        validateTimelineCoverage(this.timeline, this.questionBank, "线下编排");
+        validateTimelineCoverage(this.onlineTimeline, this.questionBank, "线上编排");
+        validateCrossTimeline(this.timeline, this.onlineTimeline);
         this.questionSetVersion = calculateQuestionSetVersion(this.onlineQuestions);
         this.audioPath = resolveAudioPath(path, this.timeline.audioFile());
-        this.audioUrl = isBlank(audioUrl) ? "" : audioUrl.trim();
+        Path onlinePath = isBlank(onlineFilePath) ? path : resolveFile(onlineFilePath);
+        this.onlineAudioPath = resolveAudioPath(onlinePath, this.onlineTimeline.audioFile());
+        this.audioUrl = normalizeUrl(audioUrl);
+        this.onlineAudioUrl = normalizeUrl(onlineAudioUrl);
         if (isBlank(this.audioUrl) && !Files.isReadable(audioPath)) {
             log.warn("编排文件声明的音频文件不可读，音频流与线上题集接口将返回素材错误：{}", audioPath);
+        }
+        if (isBlank(this.onlineAudioUrl) && isBlank(this.audioUrl) && !Files.isReadable(onlineAudioPath)) {
+            log.warn("线上编排文件声明的音频文件不可读，线上音频流接口将返回素材错误：{}", onlineAudioPath);
         }
     }
 
@@ -72,8 +87,16 @@ public class TimelineStore {
         return timeline;
     }
 
+    public Timeline onlineTimeline() {
+        return onlineTimeline;
+    }
+
     public Path audioPath() {
         return audioPath;
+    }
+
+    public Path onlineAudioPath() {
+        return onlineAudioPath;
     }
 
     public String audioUrl() {
@@ -83,12 +106,31 @@ public class TimelineStore {
         return "/api/events/" + timeline.eventId() + "/audio";
     }
 
+    public String onlineAudioUrl() {
+        if (!isBlank(onlineAudioUrl)) {
+            return onlineAudioUrl;
+        }
+        if (!isBlank(audioUrl)) {
+            return audioUrl;
+        }
+        return "/api/events/" + timeline.eventId() + "/audio?mode=online";
+    }
+
     public void requireAudioReadable() {
         if (!isBlank(audioUrl)) {
             return;
         }
         if (audioPath == null || !Files.isReadable(audioPath)) {
             throw new ResourceNotFoundException("音频文件不可读：" + audioPath);
+        }
+    }
+
+    public void requireOnlineAudioReadable() {
+        if (!isBlank(onlineAudioUrl) || !isBlank(audioUrl)) {
+            return;
+        }
+        if (onlineAudioPath == null || !Files.isReadable(onlineAudioPath)) {
+            throw new ResourceNotFoundException("线上音频文件不可读：" + onlineAudioPath);
         }
     }
 
@@ -121,6 +163,23 @@ public class TimelineStore {
 
     private static Path resolveAudioPath(Path timelinePath, String audioFile) {
         return timelinePath.toAbsolutePath().getParent().resolve(audioFile).normalize();
+    }
+
+    private static Timeline loadOnlineTimeline(
+            ObjectMapper objectMapper,
+            String onlineFilePath,
+            Map<String, Question> questions,
+            Timeline offlineTimeline
+    ) {
+        if (isBlank(onlineFilePath)) {
+            return offlineTimeline;
+        }
+        Path onlinePath = resolveFile(onlineFilePath);
+        Timeline rawOnlineTimeline = readTimeline(objectMapper, onlinePath);
+        validateTopLevel(rawOnlineTimeline);
+        Timeline resolvedOnlineTimeline = resolveQuestions(rawOnlineTimeline, questions);
+        validateTimeline(resolvedOnlineTimeline);
+        return resolvedOnlineTimeline;
     }
 
     private static Timeline readTimeline(ObjectMapper objectMapper, Path path) {
@@ -223,6 +282,59 @@ public class TimelineStore {
             rounds.add(new Round(round.id(), round.name(), round.startMs(), round.endMs(), items));
         }
         return new Timeline(timeline.eventId(), timeline.eventName(), timeline.audioFile(), rounds);
+    }
+
+    private static void validateTimelineCoverage(
+            Timeline timeline,
+            Map<String, Question> questionBank,
+            String label
+    ) {
+        Set<String> covered = new HashSet<>(orderedQuestionIds(timeline));
+        if (!covered.equals(questionBank.keySet())) {
+            Set<String> unreferenced = new HashSet<>(questionBank.keySet());
+            unreferenced.removeAll(covered);
+            throw new IllegalStateException(label + "未覆盖题库题目：" + unreferenced);
+        }
+    }
+
+    private static void validateCrossTimeline(Timeline offlineTimeline, Timeline onlineTimeline) {
+        if (!offlineTimeline.eventId().equals(onlineTimeline.eventId())) {
+            throw new IllegalStateException(
+                    "线下与线上编排的 eventId 不一致：" + offlineTimeline.eventId()
+                            + " 与 " + onlineTimeline.eventId());
+        }
+        if (!offlineTimeline.eventName().equals(onlineTimeline.eventName())) {
+            throw new IllegalStateException(
+                    "线下与线上编排的 eventName 不一致：" + offlineTimeline.eventName()
+                            + " 与 " + onlineTimeline.eventName());
+        }
+        List<String> offlineQuestionIds = orderedQuestionIds(offlineTimeline);
+        List<String> onlineQuestionIds = orderedQuestionIds(onlineTimeline);
+        if (!offlineQuestionIds.equals(onlineQuestionIds)) {
+            int limit = Math.min(offlineQuestionIds.size(), onlineQuestionIds.size());
+            for (int index = 0; index < limit; index++) {
+                if (!offlineQuestionIds.get(index).equals(onlineQuestionIds.get(index))) {
+                    throw new IllegalStateException(
+                            "线下与线上编排的题目顺序不一致：第 " + (index + 1) + " 题分别为 "
+                                    + offlineQuestionIds.get(index) + " 与 " + onlineQuestionIds.get(index));
+                }
+            }
+            throw new IllegalStateException(
+                    "线下与线上编排的题目数量不一致：" + offlineQuestionIds.size()
+                            + " 与 " + onlineQuestionIds.size());
+        }
+    }
+
+    private static List<String> orderedQuestionIds(Timeline timeline) {
+        Map<String, String> ids = new LinkedHashMap<>();
+        for (Round round : timeline.rounds()) {
+            for (TimelineItem item : round.items()) {
+                if (item.action() == ActionType.LOAD) {
+                    ids.putIfAbsent(item.questionId(), item.questionId());
+                }
+            }
+        }
+        return List.copyOf(ids.values());
     }
 
     private static void validateTimeline(Timeline timeline) {
@@ -474,6 +586,10 @@ public class TimelineStore {
 
     private static boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private static String normalizeUrl(String value) {
+        return isBlank(value) ? "" : value.trim();
     }
 
     private enum ItemState {

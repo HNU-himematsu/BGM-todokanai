@@ -47,7 +47,7 @@ public class OnlineAttemptService {
 
     public OnlineQuestionSet questionSet(String eventId) {
         Timeline timeline = requireEvent(eventId);
-        timelineStore.requireAudioReadable();
+        timelineStore.requireOnlineAudioReadable();
         List<OnlineQuestionView> questions = new ArrayList<>();
         for (int index = 0; index < timelineStore.onlineQuestions().size(); index++) {
             OnlineQuestionWindow window = timelineStore.onlineQuestions().get(index);
@@ -68,7 +68,7 @@ public class OnlineAttemptService {
         return new OnlineQuestionSet(
                 timeline.eventId(),
                 timeline.eventName(),
-                timelineStore.audioUrl(),
+                timelineStore.onlineAudioUrl(),
                 timelineStore.questionSetVersion(),
                 timelineStore.onlineQuestions().get(0).audioStartMs(),
                 timelineStore.onlineQuestions().get(timelineStore.onlineQuestions().size() - 1).audioEndMs(),

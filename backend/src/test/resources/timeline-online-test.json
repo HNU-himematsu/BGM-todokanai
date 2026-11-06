@@ -1,0 +1,24 @@
+{
+  "eventId": "demo",
+  "eventName": "编排联调演示",
+  "audioFile": "event-test.wav",
+  "rounds": [
+    {
+      "id": "round-1",
+      "name": "线上联调轮次",
+      "startMs": 0,
+      "endMs": 3000,
+      "items": [
+        {"atMs": 0, "action": "LOAD", "questionId": "t-01", "audioStartMs": 0, "audioEndMs": 1000},
+        {"atMs": 10, "action": "NEXT"},
+        {"atMs": 800, "action": "LOCK"},
+        {"atMs": 900, "action": "REVEAL"},
+        {"atMs": 1000, "action": "LOAD", "questionId": "t-02", "audioStartMs": 1000, "audioEndMs": 3000},
+        {"atMs": 1100, "action": "NEXT"},
+        {"atMs": 2800, "action": "LOCK"},
+        {"atMs": 2900, "action": "REVEAL"},
+        {"atMs": 3000, "action": "FINISH"}
+      ]
+    }
+  ]
+}

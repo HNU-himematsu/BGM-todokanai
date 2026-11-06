@@ -44,7 +44,7 @@ VITE_AUDIO_URL=https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline
 | Region | `oss-cn-guangzhou` | `oss-cn-guangzhou` |
 | 对象路径 | `姬松活动/bgm-music.mp3` | `bgm/event-offline.mp3` |
 | 对象 URL | `https://himematsu.oss-cn-guangzhou.aliyuncs.com/%E5%A7%AC%E6%9D%BE%E6%B4%BB%E5%8A%A8/bgm-music.mp3` | `https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3` |
-| 大小 | 42,274,159 字节 | 约 66.7 MB |
+| 大小 | 42,274,159 字节 | 66,724,510 字节 |
 | 时长 | 2593.149 秒 | 2780.110 秒 |
 | 访问权限 | 公共读 | 公共读 |
 | Content-Type | `audio/mpeg` | `audio/mpeg` |
@@ -77,7 +77,9 @@ OSS 跨域规则：
 
 ## 4. 上传音频
 
-线下对象使用 ossutil 上传：
+线下对象已上传，源文件为 `work/event-offline.mp3`，MD5 为 `33688E3C8AFB41BC5D898CDAE15E1A48`。OSS 记录的对象大小为 66,724,510 字节，与源文件一致。分片上传产生的 ETag 带分片后缀（`88FEAA824926B8E444A3662F575AD210-8`），与 MD5 不相等属于正常现象。
+
+覆盖上传可使用 ossutil：
 
 ```bash
 ossutil cp work/event-offline.mp3 \

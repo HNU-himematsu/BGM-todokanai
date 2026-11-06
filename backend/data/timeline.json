@@ -1,7 +1,7 @@
 {
   "eventId": "demo",
   "eventName": "旮旯原声之届不到的 BGM",
-  "audioFile": "event-demo.mp3",
+  "audioFile": "event-offline.mp3",
   "rounds": [
     {
       "id": "round-1",
@@ -209,200 +209,200 @@
       "id": "round-2",
       "name": "第二轮",
       "startMs": 562355,
-      "endMs": 1308155,
+      "endMs": 1341690,
       "items": [
         {
-          "atMs": 562355,
+          "atMs": 595890,
           "action": "LOAD",
           "questionId": "q-11",
           "audioStartMs": 562355,
-          "audioEndMs": 606355
+          "audioEndMs": 639890
         },
         {
-          "atMs": 562356,
+          "atMs": 595891,
           "action": "NEXT"
         },
         {
-          "atMs": 603355,
+          "atMs": 636890,
           "action": "LOCK"
         },
         {
-          "atMs": 604355,
+          "atMs": 637890,
           "action": "REVEAL"
         },
         {
-          "atMs": 605355,
+          "atMs": 638890,
           "action": "LOAD",
           "questionId": "q-12",
-          "audioStartMs": 606355,
-          "audioEndMs": 648355
+          "audioStartMs": 639890,
+          "audioEndMs": 681890
         },
         {
-          "atMs": 606355,
+          "atMs": 639890,
           "action": "NEXT"
         },
         {
-          "atMs": 645355,
+          "atMs": 678890,
           "action": "LOCK"
         },
         {
-          "atMs": 646355,
+          "atMs": 679890,
           "action": "REVEAL"
         },
         {
-          "atMs": 647355,
+          "atMs": 680890,
           "action": "LOAD",
           "questionId": "q-13",
-          "audioStartMs": 648355,
-          "audioEndMs": 714635
+          "audioStartMs": 681890,
+          "audioEndMs": 748170
         },
         {
-          "atMs": 648355,
+          "atMs": 681890,
           "action": "NEXT"
         },
         {
-          "atMs": 708355,
+          "atMs": 741890,
           "action": "LOCK"
         },
         {
-          "atMs": 709355,
+          "atMs": 742890,
           "action": "REVEAL"
         },
         {
-          "atMs": 713635,
+          "atMs": 747170,
           "action": "LOAD",
           "questionId": "q-14",
-          "audioStartMs": 714635,
-          "audioEndMs": 814635
+          "audioStartMs": 748170,
+          "audioEndMs": 848170
         },
         {
-          "atMs": 714635,
+          "atMs": 748170,
           "action": "NEXT"
         },
         {
-          "atMs": 811635,
+          "atMs": 845170,
           "action": "LOCK"
         },
         {
-          "atMs": 812635,
+          "atMs": 846170,
           "action": "REVEAL"
         },
         {
-          "atMs": 813635,
+          "atMs": 847170,
           "action": "LOAD",
           "questionId": "q-15",
-          "audioStartMs": 814635,
-          "audioEndMs": 915635
+          "audioStartMs": 848170,
+          "audioEndMs": 949170
         },
         {
-          "atMs": 814635,
+          "atMs": 848170,
           "action": "NEXT"
         },
         {
-          "atMs": 912635,
+          "atMs": 946170,
           "action": "LOCK"
         },
         {
-          "atMs": 913635,
+          "atMs": 947170,
           "action": "REVEAL"
         },
         {
-          "atMs": 914635,
+          "atMs": 948170,
           "action": "LOAD",
           "questionId": "q-16",
-          "audioStartMs": 915635,
-          "audioEndMs": 987875
+          "audioStartMs": 949170,
+          "audioEndMs": 1021410
         },
         {
-          "atMs": 915635,
+          "atMs": 949170,
           "action": "NEXT"
         },
         {
-          "atMs": 981635,
+          "atMs": 1015170,
           "action": "LOCK"
         },
         {
-          "atMs": 982635,
+          "atMs": 1016170,
           "action": "REVEAL"
         },
         {
-          "atMs": 986875,
+          "atMs": 1020410,
           "action": "LOAD",
           "questionId": "q-17",
-          "audioStartMs": 987875,
-          "audioEndMs": 1078875
+          "audioStartMs": 1021410,
+          "audioEndMs": 1112410
         },
         {
-          "atMs": 987875,
+          "atMs": 1021410,
           "action": "NEXT"
         },
         {
-          "atMs": 1075875,
+          "atMs": 1109410,
           "action": "LOCK"
         },
         {
-          "atMs": 1076875,
+          "atMs": 1110410,
           "action": "REVEAL"
         },
         {
-          "atMs": 1077875,
+          "atMs": 1111410,
           "action": "LOAD",
           "questionId": "q-18",
-          "audioStartMs": 1078875,
-          "audioEndMs": 1183395
+          "audioStartMs": 1112410,
+          "audioEndMs": 1216930
         },
         {
-          "atMs": 1078875,
+          "atMs": 1112410,
           "action": "NEXT"
         },
         {
-          "atMs": 1175875,
+          "atMs": 1209410,
           "action": "LOCK"
         },
         {
-          "atMs": 1176875,
+          "atMs": 1210410,
           "action": "REVEAL"
         },
         {
-          "atMs": 1182395,
+          "atMs": 1215930,
           "action": "LOAD",
           "questionId": "q-19",
-          "audioStartMs": 1183395,
-          "audioEndMs": 1235155
+          "audioStartMs": 1216930,
+          "audioEndMs": 1268690
         },
         {
-          "atMs": 1183395,
+          "atMs": 1216930,
           "action": "NEXT"
         },
         {
-          "atMs": 1230395,
+          "atMs": 1263930,
           "action": "LOCK"
         },
         {
-          "atMs": 1231395,
+          "atMs": 1264930,
           "action": "REVEAL"
         },
         {
-          "atMs": 1234155,
+          "atMs": 1267690,
           "action": "LOAD",
           "questionId": "q-20",
-          "audioStartMs": 1235155,
-          "audioEndMs": 1308155
+          "audioStartMs": 1268690,
+          "audioEndMs": 1341690
         },
         {
-          "atMs": 1235155,
+          "atMs": 1268690,
           "action": "NEXT"
         },
         {
-          "atMs": 1305155,
+          "atMs": 1338690,
           "action": "LOCK"
         },
         {
-          "atMs": 1306155,
+          "atMs": 1339690,
           "action": "REVEAL"
         },
         {
-          "atMs": 1308155,
+          "atMs": 1341690,
           "action": "FINISH"
         }
       ]
@@ -410,201 +410,201 @@
     {
       "id": "round-3",
       "name": "第三轮",
-      "startMs": 1308155,
-      "endMs": 1987535,
+      "startMs": 1341690,
+      "endMs": 2054605,
       "items": [
         {
-          "atMs": 1308155,
+          "atMs": 1375225,
           "action": "LOAD",
           "questionId": "q-21",
-          "audioStartMs": 1308155,
-          "audioEndMs": 1343155
+          "audioStartMs": 1341690,
+          "audioEndMs": 1410225
         },
         {
-          "atMs": 1308156,
+          "atMs": 1375226,
           "action": "NEXT"
         },
         {
-          "atMs": 1340155,
+          "atMs": 1407225,
           "action": "LOCK"
         },
         {
-          "atMs": 1341155,
+          "atMs": 1408225,
           "action": "REVEAL"
         },
         {
-          "atMs": 1342155,
+          "atMs": 1409225,
           "action": "LOAD",
           "questionId": "q-22",
-          "audioStartMs": 1343155,
-          "audioEndMs": 1398155
+          "audioStartMs": 1410225,
+          "audioEndMs": 1465225
         },
         {
-          "atMs": 1343155,
+          "atMs": 1410225,
           "action": "NEXT"
         },
         {
-          "atMs": 1395155,
+          "atMs": 1462225,
           "action": "LOCK"
         },
         {
-          "atMs": 1396155,
+          "atMs": 1463225,
           "action": "REVEAL"
         },
         {
-          "atMs": 1397155,
+          "atMs": 1464225,
           "action": "LOAD",
           "questionId": "q-23",
-          "audioStartMs": 1398155,
-          "audioEndMs": 1436435
+          "audioStartMs": 1465225,
+          "audioEndMs": 1503505
         },
         {
-          "atMs": 1398155,
+          "atMs": 1465225,
           "action": "NEXT"
         },
         {
-          "atMs": 1430155,
+          "atMs": 1497225,
           "action": "LOCK"
         },
         {
-          "atMs": 1431155,
+          "atMs": 1498225,
           "action": "REVEAL"
         },
         {
-          "atMs": 1435435,
+          "atMs": 1502505,
           "action": "LOAD",
           "questionId": "q-24",
-          "audioStartMs": 1436435,
-          "audioEndMs": 1560775
+          "audioStartMs": 1503505,
+          "audioEndMs": 1627845
         },
         {
-          "atMs": 1436435,
+          "atMs": 1503505,
           "action": "NEXT"
         },
         {
-          "atMs": 1554435,
+          "atMs": 1621505,
           "action": "LOCK"
         },
         {
-          "atMs": 1555435,
+          "atMs": 1622505,
           "action": "REVEAL"
         },
         {
-          "atMs": 1559775,
+          "atMs": 1626845,
           "action": "LOAD",
           "questionId": "q-25",
-          "audioStartMs": 1560775,
-          "audioEndMs": 1640775
+          "audioStartMs": 1627845,
+          "audioEndMs": 1707845
         },
         {
-          "atMs": 1560775,
+          "atMs": 1627845,
           "action": "NEXT"
         },
         {
-          "atMs": 1637775,
+          "atMs": 1704845,
           "action": "LOCK"
         },
         {
-          "atMs": 1638775,
+          "atMs": 1705845,
           "action": "REVEAL"
         },
         {
-          "atMs": 1639775,
+          "atMs": 1706845,
           "action": "LOAD",
           "questionId": "q-26",
-          "audioStartMs": 1640775,
-          "audioEndMs": 1715775
+          "audioStartMs": 1707845,
+          "audioEndMs": 1782845
         },
         {
-          "atMs": 1640775,
+          "atMs": 1707845,
           "action": "NEXT"
         },
         {
-          "atMs": 1712775,
+          "atMs": 1779845,
           "action": "LOCK"
         },
         {
-          "atMs": 1713775,
+          "atMs": 1780845,
           "action": "REVEAL"
         },
         {
-          "atMs": 1714775,
+          "atMs": 1781845,
           "action": "LOAD",
           "questionId": "q-27",
-          "audioStartMs": 1715775,
-          "audioEndMs": 1790775
+          "audioStartMs": 1782845,
+          "audioEndMs": 1857845
         },
         {
-          "atMs": 1715775,
+          "atMs": 1782845,
           "action": "NEXT"
         },
         {
-          "atMs": 1787775,
+          "atMs": 1854845,
           "action": "LOCK"
         },
         {
-          "atMs": 1788775,
+          "atMs": 1855845,
           "action": "REVEAL"
         },
         {
-          "atMs": 1789775,
+          "atMs": 1856845,
           "action": "LOAD",
           "questionId": "q-28",
-          "audioStartMs": 1790775,
-          "audioEndMs": 1865775
+          "audioStartMs": 1857845,
+          "audioEndMs": 1932845
         },
         {
-          "atMs": 1790775,
+          "atMs": 1857845,
           "action": "NEXT"
         },
         {
-          "atMs": 1862775,
+          "atMs": 1929845,
           "action": "LOCK"
         },
         {
-          "atMs": 1863775,
+          "atMs": 1930845,
           "action": "REVEAL"
         },
         {
-          "atMs": 1864775,
+          "atMs": 1931845,
           "action": "LOAD",
           "questionId": "q-29",
-          "audioStartMs": 1865775,
-          "audioEndMs": 1912535
+          "audioStartMs": 1932845,
+          "audioEndMs": 1979605
         },
         {
-          "atMs": 1865775,
+          "atMs": 1932845,
           "action": "NEXT"
         },
         {
-          "atMs": 1907775,
+          "atMs": 1974845,
           "action": "LOCK"
         },
         {
-          "atMs": 1908775,
+          "atMs": 1975845,
           "action": "REVEAL"
         },
         {
-          "atMs": 1911535,
+          "atMs": 1978605,
           "action": "LOAD",
           "questionId": "q-30",
-          "audioStartMs": 1912535,
-          "audioEndMs": 1987535
+          "audioStartMs": 1979605,
+          "audioEndMs": 2054605
         },
         {
-          "atMs": 1912535,
+          "atMs": 1979605,
           "action": "NEXT"
         },
         {
-          "atMs": 1984535,
+          "atMs": 2051605,
           "action": "LOCK"
         },
         {
-          "atMs": 1985535,
+          "atMs": 2052605,
           "action": "REVEAL"
         },
         {
-          "atMs": 1987535,
+          "atMs": 2054605,
           "action": "FINISH"
         }
       ]
@@ -612,201 +612,201 @@
     {
       "id": "round-4",
       "name": "第四轮",
-      "startMs": 1987535,
-      "endMs": 2679505,
+      "startMs": 2054605,
+      "endMs": 2780110,
       "items": [
         {
-          "atMs": 1987535,
+          "atMs": 2088140,
           "action": "LOAD",
           "questionId": "q-31",
-          "audioStartMs": 1987535,
-          "audioEndMs": 2062535
+          "audioStartMs": 2054605,
+          "audioEndMs": 2163140
         },
         {
-          "atMs": 1987536,
+          "atMs": 2088141,
           "action": "NEXT"
         },
         {
-          "atMs": 2059535,
+          "atMs": 2160140,
           "action": "LOCK"
         },
         {
-          "atMs": 2060535,
+          "atMs": 2161140,
           "action": "REVEAL"
         },
         {
-          "atMs": 2061535,
+          "atMs": 2162140,
           "action": "LOAD",
           "questionId": "q-32",
-          "audioStartMs": 2062535,
-          "audioEndMs": 2102535
+          "audioStartMs": 2163140,
+          "audioEndMs": 2203140
         },
         {
-          "atMs": 2062535,
+          "atMs": 2163140,
           "action": "NEXT"
         },
         {
-          "atMs": 2099535,
+          "atMs": 2200140,
           "action": "LOCK"
         },
         {
-          "atMs": 2100535,
+          "atMs": 2201140,
           "action": "REVEAL"
         },
         {
-          "atMs": 2101535,
+          "atMs": 2202140,
           "action": "LOAD",
           "questionId": "q-33",
-          "audioStartMs": 2102535,
-          "audioEndMs": 2176535
+          "audioStartMs": 2203140,
+          "audioEndMs": 2277140
         },
         {
-          "atMs": 2102535,
+          "atMs": 2203140,
           "action": "NEXT"
         },
         {
-          "atMs": 2173535,
+          "atMs": 2274140,
           "action": "LOCK"
         },
         {
-          "atMs": 2174535,
+          "atMs": 2275140,
           "action": "REVEAL"
         },
         {
-          "atMs": 2175535,
+          "atMs": 2276140,
           "action": "LOAD",
           "questionId": "q-34",
-          "audioStartMs": 2176535,
-          "audioEndMs": 2251535
+          "audioStartMs": 2277140,
+          "audioEndMs": 2352140
         },
         {
-          "atMs": 2176535,
+          "atMs": 2277140,
           "action": "NEXT"
         },
         {
-          "atMs": 2248535,
+          "atMs": 2349140,
           "action": "LOCK"
         },
         {
-          "atMs": 2249535,
+          "atMs": 2350140,
           "action": "REVEAL"
         },
         {
-          "atMs": 2250535,
+          "atMs": 2351140,
           "action": "LOAD",
           "questionId": "q-35",
-          "audioStartMs": 2251535,
-          "audioEndMs": 2328535
+          "audioStartMs": 2352140,
+          "audioEndMs": 2429140
         },
         {
-          "atMs": 2251535,
+          "atMs": 2352140,
           "action": "NEXT"
         },
         {
-          "atMs": 2325535,
+          "atMs": 2426140,
           "action": "LOCK"
         },
         {
-          "atMs": 2326535,
+          "atMs": 2427140,
           "action": "REVEAL"
         },
         {
-          "atMs": 2327535,
+          "atMs": 2428140,
           "action": "LOAD",
           "questionId": "q-36",
-          "audioStartMs": 2328535,
-          "audioEndMs": 2408535
+          "audioStartMs": 2429140,
+          "audioEndMs": 2509140
         },
         {
-          "atMs": 2328535,
+          "atMs": 2429140,
           "action": "NEXT"
         },
         {
-          "atMs": 2405535,
+          "atMs": 2506140,
           "action": "LOCK"
         },
         {
-          "atMs": 2406535,
+          "atMs": 2507140,
           "action": "REVEAL"
         },
         {
-          "atMs": 2407535,
+          "atMs": 2508140,
           "action": "LOAD",
           "questionId": "q-37",
-          "audioStartMs": 2408535,
-          "audioEndMs": 2483535
+          "audioStartMs": 2509140,
+          "audioEndMs": 2584140
         },
         {
-          "atMs": 2408535,
+          "atMs": 2509140,
           "action": "NEXT"
         },
         {
-          "atMs": 2480535,
+          "atMs": 2581140,
           "action": "LOCK"
         },
         {
-          "atMs": 2481535,
+          "atMs": 2582140,
           "action": "REVEAL"
         },
         {
-          "atMs": 2482535,
+          "atMs": 2583140,
           "action": "LOAD",
           "questionId": "q-38",
-          "audioStartMs": 2483535,
-          "audioEndMs": 2552535
+          "audioStartMs": 2584140,
+          "audioEndMs": 2653140
         },
         {
-          "atMs": 2483535,
+          "atMs": 2584140,
           "action": "NEXT"
         },
         {
-          "atMs": 2549535,
+          "atMs": 2650140,
           "action": "LOCK"
         },
         {
-          "atMs": 2550535,
+          "atMs": 2651140,
           "action": "REVEAL"
         },
         {
-          "atMs": 2551535,
+          "atMs": 2652140,
           "action": "LOAD",
           "questionId": "q-39",
-          "audioStartMs": 2552535,
-          "audioEndMs": 2602295
+          "audioStartMs": 2653140,
+          "audioEndMs": 2702900
         },
         {
-          "atMs": 2552535,
+          "atMs": 2653140,
           "action": "NEXT"
         },
         {
-          "atMs": 2597535,
+          "atMs": 2698140,
           "action": "LOCK"
         },
         {
-          "atMs": 2598535,
+          "atMs": 2699140,
           "action": "REVEAL"
         },
         {
-          "atMs": 2601295,
+          "atMs": 2701900,
           "action": "LOAD",
           "questionId": "q-40",
-          "audioStartMs": 2602295,
-          "audioEndMs": 2679505
+          "audioStartMs": 2702900,
+          "audioEndMs": 2780110
         },
         {
-          "atMs": 2602295,
+          "atMs": 2702900,
           "action": "NEXT"
         },
         {
-          "atMs": 2674295,
+          "atMs": 2774900,
           "action": "LOCK"
         },
         {
-          "atMs": 2675295,
+          "atMs": 2775900,
           "action": "REVEAL"
         },
         {
-          "atMs": 2679505,
+          "atMs": 2780110,
           "action": "FINISH"
         }
       ]

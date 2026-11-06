@@ -14,6 +14,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(properties = {
         "app.timeline-file=src/test/resources/timeline-test.json",
+        "app.online-timeline-file=",
+        "app.audio-url-online=",
         "app.audio-url=https://cdn.example.com/bgm/event-test.wav",
         "app.leaderboard-file=target/test-data/leaderboards.json",
         "app.online-leaderboard-file=target/test-data/online_leaderboard.json",

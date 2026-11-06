@@ -1,0 +1,815 @@
+{
+  "eventId": "demo",
+  "eventName": "旮旯原声之届不到的 BGM",
+  "audioFile": "event-online.mp3",
+  "rounds": [
+    {
+      "id": "round-1",
+      "name": "第一轮",
+      "startMs": 0,
+      "endMs": 501000,
+      "items": [
+        {
+          "atMs": 0,
+          "action": "LOAD",
+          "questionId": "q-01",
+          "audioStartMs": 0,
+          "audioEndMs": 46000
+        },
+        {
+          "atMs": 1,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 43000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 44000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 45000,
+          "action": "LOAD",
+          "questionId": "q-02",
+          "audioStartMs": 46000,
+          "audioEndMs": 105000
+        },
+        {
+          "atMs": 46000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 102000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 103000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 104000,
+          "action": "LOAD",
+          "questionId": "q-03",
+          "audioStartMs": 105000,
+          "audioEndMs": 158000
+        },
+        {
+          "atMs": 105000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 155000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 156000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 157000,
+          "action": "LOAD",
+          "questionId": "q-04",
+          "audioStartMs": 158000,
+          "audioEndMs": 193000
+        },
+        {
+          "atMs": 158000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 190000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 191000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 192000,
+          "action": "LOAD",
+          "questionId": "q-05",
+          "audioStartMs": 193000,
+          "audioEndMs": 236000
+        },
+        {
+          "atMs": 193000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 233000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 234000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 235000,
+          "action": "LOAD",
+          "questionId": "q-06",
+          "audioStartMs": 236000,
+          "audioEndMs": 296000
+        },
+        {
+          "atMs": 236000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 293000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 294000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 295000,
+          "action": "LOAD",
+          "questionId": "q-07",
+          "audioStartMs": 296000,
+          "audioEndMs": 336000
+        },
+        {
+          "atMs": 296000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 333000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 334000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 335000,
+          "action": "LOAD",
+          "questionId": "q-08",
+          "audioStartMs": 336000,
+          "audioEndMs": 401000
+        },
+        {
+          "atMs": 336000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 398000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 399000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 400000,
+          "action": "LOAD",
+          "questionId": "q-09",
+          "audioStartMs": 401000,
+          "audioEndMs": 443000
+        },
+        {
+          "atMs": 401000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 440000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 441000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 442000,
+          "action": "LOAD",
+          "questionId": "q-10",
+          "audioStartMs": 443000,
+          "audioEndMs": 501000
+        },
+        {
+          "atMs": 443000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 498000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 499000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 501000,
+          "action": "FINISH"
+        }
+      ]
+    },
+    {
+      "id": "round-2",
+      "name": "第二轮",
+      "startMs": 501000,
+      "endMs": 1234000,
+      "items": [
+        {
+          "atMs": 501000,
+          "action": "LOAD",
+          "questionId": "q-11",
+          "audioStartMs": 501000,
+          "audioEndMs": 545000
+        },
+        {
+          "atMs": 501001,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 542000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 543000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 544000,
+          "action": "LOAD",
+          "questionId": "q-12",
+          "audioStartMs": 545000,
+          "audioEndMs": 587000
+        },
+        {
+          "atMs": 545000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 584000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 585000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 586000,
+          "action": "LOAD",
+          "questionId": "q-13",
+          "audioStartMs": 587000,
+          "audioEndMs": 650000
+        },
+        {
+          "atMs": 587000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 647000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 648000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 649000,
+          "action": "LOAD",
+          "questionId": "q-14",
+          "audioStartMs": 650000,
+          "audioEndMs": 750000
+        },
+        {
+          "atMs": 650000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 747000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 748000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 749000,
+          "action": "LOAD",
+          "questionId": "q-15",
+          "audioStartMs": 750000,
+          "audioEndMs": 851000
+        },
+        {
+          "atMs": 750000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 848000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 849000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 850000,
+          "action": "LOAD",
+          "questionId": "q-16",
+          "audioStartMs": 851000,
+          "audioEndMs": 920000
+        },
+        {
+          "atMs": 851000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 917000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 918000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 919000,
+          "action": "LOAD",
+          "questionId": "q-17",
+          "audioStartMs": 920000,
+          "audioEndMs": 1011000
+        },
+        {
+          "atMs": 920000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 1008000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 1009000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 1010000,
+          "action": "LOAD",
+          "questionId": "q-18",
+          "audioStartMs": 1011000,
+          "audioEndMs": 1111000
+        },
+        {
+          "atMs": 1011000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 1108000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 1109000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 1110000,
+          "action": "LOAD",
+          "questionId": "q-19",
+          "audioStartMs": 1111000,
+          "audioEndMs": 1161000
+        },
+        {
+          "atMs": 1111000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 1158000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 1159000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 1160000,
+          "action": "LOAD",
+          "questionId": "q-20",
+          "audioStartMs": 1161000,
+          "audioEndMs": 1234000
+        },
+        {
+          "atMs": 1161000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 1231000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 1232000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 1234000,
+          "action": "FINISH"
+        }
+      ]
+    },
+    {
+      "id": "round-3",
+      "name": "第三轮",
+      "startMs": 1234000,
+      "endMs": 1905000,
+      "items": [
+        {
+          "atMs": 1234000,
+          "action": "LOAD",
+          "questionId": "q-21",
+          "audioStartMs": 1234000,
+          "audioEndMs": 1269000
+        },
+        {
+          "atMs": 1234001,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 1266000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 1267000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 1268000,
+          "action": "LOAD",
+          "questionId": "q-22",
+          "audioStartMs": 1269000,
+          "audioEndMs": 1324000
+        },
+        {
+          "atMs": 1269000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 1321000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 1322000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 1323000,
+          "action": "LOAD",
+          "questionId": "q-23",
+          "audioStartMs": 1324000,
+          "audioEndMs": 1359000
+        },
+        {
+          "atMs": 1324000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 1356000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 1357000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 1358000,
+          "action": "LOAD",
+          "questionId": "q-24",
+          "audioStartMs": 1359000,
+          "audioEndMs": 1480000
+        },
+        {
+          "atMs": 1359000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 1477000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 1478000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 1479000,
+          "action": "LOAD",
+          "questionId": "q-25",
+          "audioStartMs": 1480000,
+          "audioEndMs": 1560000
+        },
+        {
+          "atMs": 1480000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 1557000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 1558000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 1559000,
+          "action": "LOAD",
+          "questionId": "q-26",
+          "audioStartMs": 1560000,
+          "audioEndMs": 1635000
+        },
+        {
+          "atMs": 1560000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 1632000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 1633000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 1634000,
+          "action": "LOAD",
+          "questionId": "q-27",
+          "audioStartMs": 1635000,
+          "audioEndMs": 1710000
+        },
+        {
+          "atMs": 1635000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 1707000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 1708000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 1709000,
+          "action": "LOAD",
+          "questionId": "q-28",
+          "audioStartMs": 1710000,
+          "audioEndMs": 1785000
+        },
+        {
+          "atMs": 1710000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 1782000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 1783000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 1784000,
+          "action": "LOAD",
+          "questionId": "q-29",
+          "audioStartMs": 1785000,
+          "audioEndMs": 1830000
+        },
+        {
+          "atMs": 1785000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 1827000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 1828000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 1829000,
+          "action": "LOAD",
+          "questionId": "q-30",
+          "audioStartMs": 1830000,
+          "audioEndMs": 1905000
+        },
+        {
+          "atMs": 1830000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 1902000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 1903000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 1905000,
+          "action": "FINISH"
+        }
+      ]
+    },
+    {
+      "id": "round-4",
+      "name": "第四轮",
+      "startMs": 1905000,
+      "endMs": 2593000,
+      "items": [
+        {
+          "atMs": 1905000,
+          "action": "LOAD",
+          "questionId": "q-31",
+          "audioStartMs": 1905000,
+          "audioEndMs": 1980000
+        },
+        {
+          "atMs": 1905001,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 1977000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 1978000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 1979000,
+          "action": "LOAD",
+          "questionId": "q-32",
+          "audioStartMs": 1980000,
+          "audioEndMs": 2020000
+        },
+        {
+          "atMs": 1980000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 2017000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 2018000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 2019000,
+          "action": "LOAD",
+          "questionId": "q-33",
+          "audioStartMs": 2020000,
+          "audioEndMs": 2094000
+        },
+        {
+          "atMs": 2020000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 2091000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 2092000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 2093000,
+          "action": "LOAD",
+          "questionId": "q-34",
+          "audioStartMs": 2094000,
+          "audioEndMs": 2169000
+        },
+        {
+          "atMs": 2094000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 2166000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 2167000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 2168000,
+          "action": "LOAD",
+          "questionId": "q-35",
+          "audioStartMs": 2169000,
+          "audioEndMs": 2246000
+        },
+        {
+          "atMs": 2169000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 2243000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 2244000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 2245000,
+          "action": "LOAD",
+          "questionId": "q-36",
+          "audioStartMs": 2246000,
+          "audioEndMs": 2326000
+        },
+        {
+          "atMs": 2246000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 2323000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 2324000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 2325000,
+          "action": "LOAD",
+          "questionId": "q-37",
+          "audioStartMs": 2326000,
+          "audioEndMs": 2401000
+        },
+        {
+          "atMs": 2326000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 2398000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 2399000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 2400000,
+          "action": "LOAD",
+          "questionId": "q-38",
+          "audioStartMs": 2401000,
+          "audioEndMs": 2470000
+        },
+        {
+          "atMs": 2401000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 2467000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 2468000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 2469000,
+          "action": "LOAD",
+          "questionId": "q-39",
+          "audioStartMs": 2470000,
+          "audioEndMs": 2518000
+        },
+        {
+          "atMs": 2470000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 2515000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 2516000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 2517000,
+          "action": "LOAD",
+          "questionId": "q-40",
+          "audioStartMs": 2518000,
+          "audioEndMs": 2593000
+        },
+        {
+          "atMs": 2518000,
+          "action": "NEXT"
+        },
+        {
+          "atMs": 2590000,
+          "action": "LOCK"
+        },
+        {
+          "atMs": 2591000,
+          "action": "REVEAL"
+        },
+        {
+          "atMs": 2593000,
+          "action": "FINISH"
+        }
+      ]
+    }
+  ]
+}

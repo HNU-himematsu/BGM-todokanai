@@ -80,6 +80,16 @@ public class ActivityService {
         return timelineStore.audioUrl();
     }
 
+    public Path onlineAudioPath(String eventId) {
+        getActivity(eventId);
+        return timelineStore.onlineAudioPath();
+    }
+
+    public String onlineAudioUrl(String eventId) {
+        getActivity(eventId);
+        return timelineStore.onlineAudioUrl();
+    }
+
     public synchronized ActivitySummary getActivitySummary(String eventId) {
         Activity activity = getActivity(eventId);
         return new ActivitySummary(activity.id, activity.name, questionCount(activity), activity.status);
