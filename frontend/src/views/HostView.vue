@@ -1,6 +1,6 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { Check, ChevronRight, Copy, Eye, KeyRound, ListRestart, LockKeyhole, Pause, Play, Radio, RefreshCw, UsersRound } from 'lucide-vue-next'
+import { Check, ChevronLeft, ChevronRight, Copy, Eye, KeyRound, ListRestart, LockKeyhole, Pause, Play, Radio, RefreshCw, UsersRound } from 'lucide-vue-next'
 import { message, Modal } from 'ant-design-vue'
 import QRCode from 'qrcode'
 import { useRoute } from 'vue-router'
@@ -27,6 +27,7 @@ const authenticated = ref(Boolean(hostToken.value))
 const password = ref('')
 const state = ref(null)
 const canAdvanceQuestion = ref(false)
+const canRetreatQuestion = ref(false)
 const canFinishRound = ref(false)
 const players = ref([])
 const rounds = ref([])
@@ -308,6 +309,7 @@ async function runRefresh() {
     noteRevision(snapshotRevision)
     state.value = snapshot?.state ?? null
     canAdvanceQuestion.value = Boolean(snapshot?.canAdvanceQuestion)
+    canRetreatQuestion.value = Boolean(snapshot?.canRetreatQuestion)
     canFinishRound.value = Boolean(snapshot?.canFinishRound)
     players.value = snapshot?.players ?? []
     rounds.value = snapshot?.rounds ?? roundList?.rounds ?? []
@@ -428,6 +430,10 @@ async function action(name) {
     }
     if (name === 'pause') audio.value?.pause()
     if (name === 'resume') syncAudio('ACTIVITY_RESUMED')
+    if (name === 'prev') {
+      timelineStarted.value = true
+      clearRoundEnded()
+    }
     if (name === 'reset') {
       timelineStarted.value = false
       clearRoundEnded()
@@ -440,7 +446,7 @@ async function action(name) {
       await refreshLeaderboards()
     }
     await refresh()
-    if (name === 'next' && result?.audioPositionMs != null) {
+    if ((name === 'next' || name === 'prev') && result?.audioPositionMs != null) {
       if (!await seekToReady(Number(result.audioPositionMs))) {
         audio.value?.pause()
         error.value = '题目已切换，但音频定位失败，请刷新控制台后重试'
@@ -634,6 +640,7 @@ function formatDateTime(value) {
           <a-space wrap>
             <a-button :disabled="busy || state.status !== 'ANSWERING'" @click="action('lock')">锁卷</a-button>
             <a-button :disabled="busy || state.status !== 'ANSWER_LOCKED'" @click="action('reveal')"><Eye :size="15" />揭晓答案</a-button>
+            <a-button :disabled="busy || !canRetreatQuestion" @click="action('prev')"><ChevronLeft :size="15" />上一题</a-button>
             <a-button v-if="!canFinishRound" :disabled="busy || !canAdvanceQuestion" @click="action('next')">下一题<ChevronRight :size="15" /></a-button>
             <a-button v-else type="primary" :loading="busy" @click="action('finish')">结束本轮<ChevronRight :size="15" /></a-button>
           </a-space>

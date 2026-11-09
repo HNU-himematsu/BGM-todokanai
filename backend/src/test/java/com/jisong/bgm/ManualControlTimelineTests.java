@@ -84,6 +84,62 @@ class ManualControlTimelineTests {
         awaitTimelineStopped(playerId, 3000);
     }
 
+    @Test
+    void manualPreviousReturnsToThePriorQuestionAndKeepsAnswers() throws Exception {
+        String token = login();
+        String playerId = prepareRound(token);
+
+        awaitState(playerId, "ANSWERING", "t-01", 2000);
+        perform(post("/api/events/demo/answers")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"playerId\":\"" + playerId + "\",\"questionId\":\"t-01\",\"optionIndex\":1}"));
+
+        data(post("/api/events/demo/host/pause").header(TOKEN_HEADER, token));
+        data(post("/api/events/demo/host/lock").header(TOKEN_HEADER, token));
+        JsonNode revealedFirst = data(post("/api/events/demo/host/reveal").header(TOKEN_HEADER, token));
+        assertThat(revealedFirst.get("question").get("id").asText()).isEqualTo("t-01");
+
+        JsonNode firstQuestionHostState = data(get("/api/events/demo/host/state").header(TOKEN_HEADER, token));
+        assertThat(firstQuestionHostState.get("canRetreatQuestion").asBoolean()).isFalse();
+        mockMvc.perform(post("/api/events/demo/host/prev").header(TOKEN_HEADER, token))
+                .andExpect(status().isBadRequest());
+
+        JsonNode advanced = data(post("/api/events/demo/host/next").header(TOKEN_HEADER, token));
+        assertThat(advanced.get("question").get("id").asText()).isEqualTo("t-02");
+        data(post("/api/events/demo/host/lock").header(TOKEN_HEADER, token));
+        data(post("/api/events/demo/host/reveal").header(TOKEN_HEADER, token));
+        JsonNode secondQuestionHostState = data(get("/api/events/demo/host/state").header(TOKEN_HEADER, token));
+        assertThat(secondQuestionHostState.get("state").get("currentQuestionIndex").asInt()).isEqualTo(1);
+        assertThat(secondQuestionHostState.get("canRetreatQuestion").asBoolean()).isTrue();
+
+        JsonNode rewound = data(post("/api/events/demo/host/prev").header(TOKEN_HEADER, token));
+        assertThat(rewound.get("status").asText()).isEqualTo("ANSWERING");
+        assertThat(rewound.get("currentQuestionIndex").asInt()).isZero();
+        assertThat(rewound.get("question").get("id").asText()).isEqualTo("t-01");
+        assertThat(rewound.get("audioPositionMs").asLong()).isLessThan(200L);
+
+        JsonNode rewoundPlayerState = state(playerId);
+        assertThat(rewoundPlayerState.get("status").asText()).isEqualTo("ANSWERING");
+        assertThat(rewoundPlayerState.get("question").get("id").asText()).isEqualTo("t-01");
+        assertThat(rewoundPlayerState.get("hasAnswered").asBoolean()).isTrue();
+        assertThat(rewoundPlayerState.get("selectedOption").asInt()).isEqualTo(1);
+
+        JsonNode rewoundHostState = data(get("/api/events/demo/host/state").header(TOKEN_HEADER, token));
+        assertThat(rewoundHostState.get("canRetreatQuestion").asBoolean()).isFalse();
+        assertThat(rewoundHostState.get("state").get("status").asText()).isEqualTo("ANSWERING");
+        assertThat(rewoundHostState.get("canAdvanceQuestion").asBoolean()).isFalse();
+
+        data(post("/api/events/demo/host/resume").header(TOKEN_HEADER, token));
+        awaitState(playerId, "ANSWER_LOCKED", "t-01", 3000);
+        awaitState(playerId, "ANSWER_REVEALED", "t-01", 3000);
+        awaitState(playerId, "ANSWERING", "t-02", 3000);
+        awaitState(playerId, "ANSWER_LOCKED", "t-02", 3000);
+        awaitState(playerId, "ANSWER_REVEALED", "t-02", 3000);
+        awaitState(playerId, "ANSWERING", "t-03", 3000);
+        awaitState(playerId, "FINISHED", "t-03", 6000);
+        awaitTimelineStopped(playerId, 3000);
+    }
+
     private String prepareRound(String token) throws Exception {
         perform(post("/api/events/demo/host/reset").header(TOKEN_HEADER, token));
         JsonNode joined = data(post("/api/events/demo/join")

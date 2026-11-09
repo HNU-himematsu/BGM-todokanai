@@ -9,6 +9,7 @@ public record HostStateResponse(
         String currentRoundId,
         boolean timelineRunning,
         boolean canAdvanceQuestion,
+        boolean canRetreatQuestion,
         boolean canFinishRound
 ) {
     public HostStateResponse {

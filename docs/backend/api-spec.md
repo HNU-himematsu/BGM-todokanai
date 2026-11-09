@@ -1005,12 +1005,15 @@ X-Host-Token: 6dc1e7aa-3f7d-4c61-92e4-8ef317cd09a4
     "currentRoundId": "round-1",
     "timelineRunning": true,
     "canAdvanceQuestion": false,
+    "canRetreatQuestion": false,
     "canFinishRound": false
   }
 }
 ```
 
 `canAdvanceQuestion` 仅当时间轴已启动、主持人状态为 `WAITING` 或 `ANSWER_REVEALED` 且本轮存在下一题时为 `true`。控制台使用该字段控制「下一题」按钮。下一题尚未预加载时，主持人动作直接读取本轮编排中的下一道题，并取消该题尚未触发的 `LOAD` 与 `NEXT` 条目；后续题目的自动触发保持不变。
+
+`canRetreatQuestion` 仅当时间轴已启动、主持人状态为 `WAITING` 或 `ANSWER_REVEALED` 且当前题之前本轮存在上一题时为 `true`。控制台使用该字段控制「上一题」按钮。回退动作把当前题定位到上一题，并把时间基准对齐到该题 `audioStartMs`；从该题起重新登记锁卷、揭晓与后续题目的编排任务，已提交的作答记录与玩家分数保持不变。回退后主持人状态为 `ANSWERING`。
 
 `canFinishRound` 仅当时间轴已启动、当前题为本轮最后一题且状态为 `ANSWER_REVEALED` 时为 `true`。控制台使用该字段控制「结束本轮」按钮。
 
@@ -1030,6 +1033,7 @@ X-Host-Token: 6dc1e7aa-3f7d-4c61-92e4-8ef317cd09a4
 | `POST /api/events/{eventId}/host/lock` | 无 | `ANSWERING` | 关闭当前题作答并补记缺席耗时，广播 `ANSWER_LOCKED`。 |
 | `POST /api/events/{eventId}/host/reveal` | 无 | `ANSWER_LOCKED` | 公开当前题答案、解析与出题人，广播 `ANSWER_REVEALED`。 |
 | `POST /api/events/{eventId}/host/next` | 无 | `WAITING` 或 `ANSWER_REVEALED`，本轮存在下一题 | 上屏下一题并开放作答，把时间基准对齐到新题 `audioStartMs` 并重排剩余任务，广播 `QUESTION_STARTED`。 |
+| `POST /api/events/{eventId}/host/prev` | 无 | `WAITING` 或 `ANSWER_REVEALED`，当前题之前本轮存在上一题 | 回退到上一题并开放作答，把时间基准对齐到该题 `audioStartMs`，从该题起重排锁卷、揭晓与后续任务，广播 `QUESTION_STARTED`。 |
 | `POST /api/events/{eventId}/host/finish` | 无 | `ANSWER_REVEALED`，当前题为本轮最后一题 | 立即结算本轮并归档线下榜，停止时间轴并广播 `ACTIVITY_FINISHED` 与 `ROUND_ENDED`。 |
 | `POST /api/events/{eventId}/host/reset` | 无 | 任意状态 | 清空在线玩家、答题记录与时间轴，回到 `WAITING`，广播 `ACTIVITY_RESET`。 |
 

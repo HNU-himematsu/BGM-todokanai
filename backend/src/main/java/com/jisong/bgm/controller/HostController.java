@@ -124,6 +124,15 @@ public class HostController {
         return ApiResponse.ok(activityService.nextQuestion(eventId));
     }
 
+    @PostMapping("/events/{eventId}/host/prev")
+    public ApiResponse<EventState> previous(
+            @PathVariable String eventId,
+            @RequestHeader(value = "X-Host-Token", required = false) String token
+    ) {
+        hostAuthService.requireValid(token);
+        return ApiResponse.ok(activityService.previousQuestion(eventId));
+    }
+
     @PostMapping("/events/{eventId}/host/finish")
     public ApiResponse<EventState> finish(
             @PathVariable String eventId,

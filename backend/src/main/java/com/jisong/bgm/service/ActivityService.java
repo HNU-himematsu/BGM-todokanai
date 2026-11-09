@@ -175,6 +175,7 @@ public class ActivityService {
                 activity.currentRoundId,
                 activity.timelineRunning,
                 canAdvanceQuestion(activity),
+                canRetreatQuestion(activity),
                 canFinishRound(activity));
     }
 
@@ -309,6 +310,27 @@ public class ActivityService {
         return toState(activity, null, false);
     }
 
+    public synchronized EventState previousQuestion(String eventId) {
+        Activity activity = getActivity(eventId);
+        if (activity.status != ActivityStatus.WAITING && activity.status != ActivityStatus.ANSWER_REVEALED) {
+            throw new IllegalStateException("仅等待或揭晓状态下可以回退上一题");
+        }
+        Round round = requireRound(activity, activity.currentRoundId);
+        if (activity.t0EpochMs == null) {
+            throw new IllegalStateException("本轮时间轴尚未启动");
+        }
+        Question previousQuestion = previousQuestionInRound(activity, round);
+        if (previousQuestion == null) {
+            throw new IllegalStateException("本轮已是第一题");
+        }
+        rebaseTimelineToQuestion(activity, round, previousQuestion);
+        rescheduleFromQuestion(activity, round, previousQuestion);
+        activity.currentQuestionIndex = questionOrdinalInRound(round, previousQuestion) - 1;
+        activity.pendingQuestion = previousQuestion;
+        openQuestion(activity, round);
+        return toState(activity, null, false);
+    }
+
     public synchronized EventState finishCurrentRound(String eventId) {
         Activity activity = getActivity(eventId);
         if (!canFinishRound(activity)) {
@@ -357,6 +379,15 @@ public class ActivityService {
                 && nextQuestionInRound(activity, round) != null;
     }
 
+    private boolean canRetreatQuestion(Activity activity) {
+        Round round = round(activity, activity.currentRoundId);
+        return !activity.archiveFailed
+                && activity.t0EpochMs != null
+                && (activity.status == ActivityStatus.WAITING || activity.status == ActivityStatus.ANSWER_REVEALED)
+                && round != null
+                && previousQuestionInRound(activity, round) != null;
+    }
+
     private boolean canFinishRound(Activity activity) {
         Round round = round(activity, activity.currentRoundId);
         return (activity.timelineRunning || activity.archiveFailed)
@@ -391,6 +422,80 @@ public class ActivityService {
             }
         }
         return null;
+    }
+
+    private static Question previousQuestionInRound(Activity activity, Round round) {
+        int currentLoadIndex = questionLoadIndex(round, activity.currentQuestion);
+        if (currentLoadIndex < 0) {
+            return null;
+        }
+        for (int index = currentLoadIndex - 1; index >= 0; index--) {
+            TimelineItem item = round.items().get(index);
+            if (item.action() == ActionType.LOAD) {
+                return item.question();
+            }
+        }
+        return null;
+    }
+
+    private static int questionLoadIndex(Round round, Question question) {
+        if (question == null) {
+            return -1;
+        }
+        for (int index = 0; index < round.items().size(); index++) {
+            TimelineItem item = round.items().get(index);
+            if (item.action() == ActionType.LOAD && question.id().equals(item.questionId())) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    private static int questionOrdinalInRound(Round round, Question question) {
+        int loadIndex = questionLoadIndex(round, question);
+        if (loadIndex < 0) {
+            return -1;
+        }
+        int ordinal = 0;
+        for (int index = 0; index <= loadIndex; index++) {
+            if (round.items().get(index).action() == ActionType.LOAD) {
+                ordinal++;
+            }
+        }
+        return ordinal - 1;
+    }
+
+    private void rescheduleFromQuestion(Activity activity, Round round, Question question) {
+        int loadIndex = questionLoadIndex(round, question);
+        if (loadIndex < 0) {
+            return;
+        }
+        int triggerIndex = loadIndex;
+        for (int index = loadIndex + 1; index < round.items().size(); index++) {
+            if (round.items().get(index).action() == ActionType.NEXT) {
+                triggerIndex = index;
+                break;
+            }
+        }
+        clearPendingItems(activity);
+        cancel(activity.roundEndFuture);
+        activity.roundEndFuture = null;
+        long now = System.currentTimeMillis();
+        for (int index = triggerIndex + 1; index < round.items().size(); index++) {
+            TimelineItem item = round.items().get(index);
+            PendingTask task = new PendingTask(round.id(), index, item.atMs(), item.action());
+            if (activity.timelineRunning) {
+                long due = activity.t0EpochMs + (item.atMs() - round.startMs());
+                task.future = scheduler.schedule(
+                        () -> runItem(activity.id, task), Math.max(0L, due - now), TimeUnit.MILLISECONDS);
+            }
+            activity.pendingTasks.add(task);
+        }
+        if (activity.timelineRunning) {
+            long roundEndDue = activity.t0EpochMs + (round.endMs() - round.startMs());
+            activity.roundEndFuture = scheduler.schedule(
+                    () -> runRoundEnd(activity.id, round.id()), Math.max(0L, roundEndDue - now), TimeUnit.MILLISECONDS);
+        }
     }
 
     private static void cancelPendingQuestionTrigger(
