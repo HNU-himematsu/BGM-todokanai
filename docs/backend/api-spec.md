@@ -365,6 +365,8 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
     "status": "NOT_LOCKED",
     "score": null,
     "answeredCount": null,
+    "correctCount": null,
+    "wrongCount": null,
     "totalQuestions": null,
     "durationMs": null,
     "onlineRank": null,
@@ -383,8 +385,10 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
   "data": {
     "participantId": "18f1e6a2-6af8-4fc2-bc87-13d603e4868f",
     "status": "LOCKED",
-    "score": 40,
+    "score": 18,
     "answeredCount": 5,
+    "correctCount": 3,
+    "wrongCount": 2,
     "totalQuestions": 6,
     "durationMs": 68210,
     "onlineRank": 12,
@@ -400,6 +404,8 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
 | `status` | String | `NOT_LOCKED` 或 `LOCKED`。 |
 | `score` | Integer / null | 锁定成绩；未锁定时为 `null`。 |
 | `answeredCount` | Integer / null | 已提交选项的题目数量。 |
+| `correctCount` | Integer / null | 已提交且正确的题目数量；未锁定时为 `null`。 |
+| `wrongCount` | Integer / null | 已提交且错误的题目数量；未锁定时为 `null`。 |
 | `totalQuestions` | Integer / null | 锁定时线上题集总题数。 |
 | `durationMs` | Long / null | 锁定记录中的有效作答耗时。 |
 | `onlineRank` | Integer / null | 线上积分榜名次；未锁定时为 `null`。 |
@@ -441,8 +447,10 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
   "code": 200,
   "message": "success",
   "data": {
-    "score": 20,
+    "score": 7,
     "answeredCount": 2,
+    "correctCount": 1,
+    "wrongCount": 1,
     "totalQuestions": 6,
     "durationMs": 68210,
     "questionSetVersion": "b3f1f5f4b4d07b8f0d9f0d5c2a3e5c1f0e9c8a7b6d5e4f3a2b1c0d9e8f7a6b5c"
@@ -472,8 +480,8 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
 
 预览规则：
 
-- 每题正确得 10 分，错误或未作答得 0 分。
-- 响应只包含总分、已答数、总题数、耗时和题集版本。
+- 答对按题目难度计分：简单题 2 分，中等题 3 分，困难题 5 分；错误或未作答得 0 分。
+- 响应包含总分、已答数、答对数、答错数、总题数、耗时和题集版本。
 - 响应不得包含正确答案、作品名、解析、逐题对错或榜单名次。
 - 预览不写入 `online_leaderboard.json`，不改变锁定状态，不广播榜单事件。
 
@@ -513,8 +521,10 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
     "attemptId": "3e8d7c56-32b1-4f80-9d1f-5e6a4a9b2c77",
     "participantId": "18f1e6a2-6af8-4fc2-bc87-13d603e4868f",
     "nickname": "风见幽香",
-    "score": 20,
+    "score": 7,
     "answeredCount": 2,
+    "correctCount": 1,
+    "wrongCount": 1,
     "totalQuestions": 6,
     "durationMs": 68210,
     "onlineRank": 18,
@@ -553,7 +563,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
         "rank": 1,
         "participantId": "18f1e6a2-6af8-4fc2-bc87-13d603e4868f",
         "nickname": "风见幽香",
-        "score": 60,
+        "score": 27,
         "answeredCount": 6,
         "totalQuestions": 6,
         "durationMs": 74120,
@@ -680,13 +690,14 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
       "type": "WORK",
       "options": ["《CLANNAD》", "《白色相簿2》", "《命运石之门》", "《千恋＊万花》"],
       "workName": null,
-      "analysis": null,
+      "analysis": "党争、三角恋、下雪天",
       "author": null,
       "answerIndex": null
     },
     "hasAnswered": false,
     "selectedOption": null,
     "playerScore": 0,
+    "playerWrongCount": 0,
     "playerDurationMs": 0,
     "playerRank": 0,
     "playerCount": 12,
@@ -713,6 +724,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
 | `hasAnswered` | Boolean | 当前玩家是否已提交本题。 |
 | `selectedOption` | Integer / null | 当前玩家提交的选项下标。 |
 | `playerScore` | Integer | 本轮得分；非 `FINISHED` 状态为 0。 |
+| `playerWrongCount` | Integer | 本轮答错题数，统计已提交且错误的题目；非 `FINISHED` 状态为 0。 |
 | `playerDurationMs` | Long | 本轮累计有效耗时。 |
 | `playerRank` | Integer | 本轮名次；非 `FINISHED` 状态为 0。 |
 | `playerCount` | Integer | 当前在线玩家数。 |
@@ -729,7 +741,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
 | `type` | String | 题型枚举。 |
 | `options` | String[] | 四个选项。 |
 | `workName` | String / null | 作品名；仅 `ANSWER_REVEALED`、`FINISHED` 与主持人快照可见。 |
-| `analysis` | String / null | 解析；仅 `ANSWER_REVEALED` 与 `FINISHED` 可见。 |
+| `analysis` | String / null | 提示文本；线下带 `playerId` 的参与者快照自 `ANSWERING` 起可见，匿名快照与主持人快照仅在 `ANSWER_REVEALED` 及之后可见。 |
 | `author` | String / null | 出题人署名；仅 `ANSWER_REVEALED`、`FINISHED` 与主持人快照可见。 |
 | `answerIndex` | Integer / null | 正确选项下标；仅 `ANSWER_REVEALED` 与 `FINISHED` 可见。 |
 
@@ -738,7 +750,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
 - `WAITING`：参与者在册，尚未上屏题目。
 - `ANSWERING`：当前题开放作答。
 - `ANSWER_LOCKED`：当前题关闭作答，正确答案保持隐藏。
-- `ANSWER_REVEALED`：正确答案、解析、作品名与出题人公开。
+- `ANSWER_REVEALED`：正确答案、作品名与出题人公开；`analysis` 作为提示自 `ANSWERING` 起已可见。
 - `FINISHED`：本轮完成结算并生成线下快照。
 - 暂停期间墙上时刻字段冻结；恢复后按暂停时长平移。
 
@@ -963,6 +975,7 @@ X-Host-Token: 6dc1e7aa-3f7d-4c61-92e4-8ef317cd09a4
       "hasAnswered": false,
       "selectedOption": null,
       "playerScore": 0,
+      "playerWrongCount": 0,
       "playerDurationMs": 0,
       "playerRank": 0,
       "playerCount": 12,

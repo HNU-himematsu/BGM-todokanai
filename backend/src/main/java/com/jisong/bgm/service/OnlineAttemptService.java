@@ -29,8 +29,6 @@ import java.util.stream.Collectors;
 
 @Service
 public class OnlineAttemptService {
-    private static final int POINTS_PER_CORRECT = 10;
-
     private final TimelineStore timelineStore;
     private final LeaderboardStore leaderboardStore;
     private final SimpMessagingTemplate messagingTemplate;
@@ -106,6 +104,8 @@ public class OnlineAttemptService {
                 submission.nickname,
                 result.score(),
                 result.answeredCount(),
+                result.correctCount(),
+                result.wrongCount(),
                 result.totalQuestions(),
                 result.durationMs(),
                 result.questionSetVersion(),
@@ -124,13 +124,16 @@ public class OnlineAttemptService {
             return new OnlineStatusResponse(
                     normalizedParticipantId,
                     OnlineLockStatus.NOT_LOCKED,
-                    null, null, null, null, null, null, null);
+                    null, null, null, null, null, null, null, null, null);
         }
+        OnlineScoreCounts counts = counts(record);
         return new OnlineStatusResponse(
                 normalizedParticipantId,
                 OnlineLockStatus.LOCKED,
                 record.score(),
                 record.answeredCount(),
+                counts.correctCount(),
+                counts.wrongCount(),
                 record.totalQuestions(),
                 record.durationMs(),
                 leaderboardStore.onlineRank(eventId, normalizedParticipantId),
@@ -151,12 +154,15 @@ public class OnlineAttemptService {
     }
 
     private OnlineLockResponse lockResponse(OnlineScoreRecord record) {
+        OnlineScoreCounts counts = counts(record);
         return new OnlineLockResponse(
                 record.attemptId(),
                 record.participantId(),
                 record.nickname(),
                 record.score(),
                 record.answeredCount(),
+                counts.correctCount(),
+                counts.wrongCount(),
                 record.totalQuestions(),
                 record.durationMs(),
                 leaderboardStore.onlineRank(record.eventId(), record.participantId()),
@@ -215,6 +221,7 @@ public class OnlineAttemptService {
     private OnlineScoreResult score(Submission submission) {
         int score = 0;
         int answeredCount = 0;
+        int correctCount = 0;
         for (OnlineQuestionWindow window : timelineStore.onlineQuestions()) {
             Integer optionIndex = submission.answers.get(window.questionId());
             if (optionIndex == null) {
@@ -223,15 +230,37 @@ public class OnlineAttemptService {
             answeredCount++;
             Question question = timelineStore.question(window.questionId());
             if (question.correctOption() != null && question.correctOption().equals(optionIndex)) {
-                score += POINTS_PER_CORRECT;
+                score += question.difficulty().points();
+                correctCount++;
             }
         }
         return new OnlineScoreResult(
                 score,
                 answeredCount,
+                correctCount,
+                answeredCount - correctCount,
                 timelineStore.onlineQuestions().size(),
                 submission.durationMs,
                 timelineStore.questionSetVersion());
+    }
+
+    private OnlineScoreCounts counts(OnlineScoreRecord record) {
+        if (record.correctCount() != null && record.wrongCount() != null) {
+            return new OnlineScoreCounts(record.correctCount(), record.wrongCount());
+        }
+        int correctCount = 0;
+        int wrongCount = 0;
+        for (OnlineAnswer answer : record.answers()) {
+            Question question = timelineStore.question(answer.questionId());
+            if (question != null
+                    && question.correctOption() != null
+                    && question.correctOption().equals(answer.optionIndex())) {
+                correctCount++;
+            } else {
+                wrongCount++;
+            }
+        }
+        return new OnlineScoreCounts(correctCount, wrongCount);
     }
 
     private List<OnlineAnswer> normalizedAnswers(Submission submission) {
@@ -293,5 +322,8 @@ public class OnlineAttemptService {
             this.durationMs = durationMs;
             this.answers = answers;
         }
+    }
+
+    private record OnlineScoreCounts(int correctCount, int wrongCount) {
     }
 }

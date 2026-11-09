@@ -39,8 +39,6 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 public class ActivityService {
-    private static final int POINTS_PER_CORRECT = 10;
-
     private final SimpMessagingTemplate messagingTemplate;
     private final LeaderboardStore leaderboardStore;
     private final TimelineStore timelineStore;
@@ -198,7 +196,7 @@ public class ActivityService {
         long now = timingNow(activity);
         long duration = activity.questionNextEpochMs == null ? 0L : Math.max(0L, now - activity.questionNextEpochMs);
         boolean correct = question.correctOption() != null && question.correctOption() == request.optionIndex();
-        int points = correct ? POINTS_PER_CORRECT : 0;
+        int points = correct ? question.difficulty().points() : 0;
         activity.answers.put(key, new AnswerRecord(request.optionIndex(), correct, points, duration));
         player.addScore(points);
         player.addDuration(duration);
@@ -660,6 +658,11 @@ public class ActivityService {
         Question question = activity.currentQuestion;
         boolean revealAnswer = activity.answerRevealed;
         boolean showPrivateMeta = hostView || revealAnswer;
+        boolean showHint = player != null
+                && (activity.status == ActivityStatus.ANSWERING
+                || activity.status == ActivityStatus.ANSWER_LOCKED
+                || revealAnswer);
+        int playerWrongCount = showLeaderboard ? wrongCount(activity, player) : 0;
         QuestionView questionView = question == null ? null : new QuestionView(
                 question.id(),
                 question.prompt(),
@@ -667,7 +670,7 @@ public class ActivityService {
                 question.type(),
                 question.options(),
                 showPrivateMeta ? question.workName() : null,
-                revealAnswer ? question.explanation() : null,
+                revealAnswer || showHint ? question.explanation() : null,
                 showPrivateMeta ? question.author() : null,
                 revealAnswer ? question.correctOption() : null);
         AnswerRecord answer = player == null || question == null
@@ -690,6 +693,7 @@ public class ActivityService {
                 submitted,
                 submitted ? answer.optionIndex() : null,
                 showLeaderboard && player != null ? player.getScore() : 0,
+                playerWrongCount,
                 player != null ? player.getTotalDurationMs() : 0L,
                 playerRank,
                 activity.players.size(),
@@ -727,6 +731,20 @@ public class ActivityService {
         int count = 0;
         for (Player player : activity.players.values()) {
             if (hasSubmitted(activity, player.getId(), question)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static int wrongCount(Activity activity, Player player) {
+        if (player == null) {
+            return 0;
+        }
+        String prefix = player.getId() + ":";
+        int count = 0;
+        for (Map.Entry<String, AnswerRecord> entry : activity.answers.entrySet()) {
+            if (entry.getKey().startsWith(prefix) && !entry.getValue().correct()) {
                 count++;
             }
         }

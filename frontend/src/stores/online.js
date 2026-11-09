@@ -351,6 +351,8 @@ export const useOnlineStore = defineStore('online', () => {
       participantId: remoteStatus.participantId,
       score: remoteStatus.score,
       answeredCount: remoteStatus.answeredCount,
+      correctCount: remoteStatus.correctCount,
+      wrongCount: remoteStatus.wrongCount,
       totalQuestions: remoteStatus.totalQuestions,
       durationMs: remoteStatus.durationMs,
       onlineRank: remoteStatus.onlineRank,

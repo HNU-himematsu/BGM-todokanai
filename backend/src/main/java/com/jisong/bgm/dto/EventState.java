@@ -20,6 +20,7 @@ public record EventState(
         boolean hasAnswered,
         Integer selectedOption,
         int playerScore,
+        int playerWrongCount,
         long playerDurationMs,
         int playerRank,
         int playerCount,

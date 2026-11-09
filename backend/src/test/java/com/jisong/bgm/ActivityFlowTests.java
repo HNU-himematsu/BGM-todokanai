@@ -101,7 +101,7 @@ class ActivityFlowTests {
         assertThat(answering.get("timelineRunning").asBoolean()).isTrue();
         assertThat(answering.get("question").get("id").asText()).isEqualTo("t-01");
         assertThat(answering.get("question").get("answerIndex").isNull()).isTrue();
-        assertThat(answering.get("question").get("analysis").isNull()).isTrue();
+        assertThat(answering.get("question").get("analysis").asText()).isEqualTo("联调第一题解析");
         assertThat(answering.get("question").get("workName").isNull()).isTrue();
         assertThat(answering.get("question").get("author").isNull()).isTrue();
         assertThat(answering.get("canAnswer").asBoolean()).isTrue();
@@ -112,6 +112,10 @@ class ActivityFlowTests {
         String latePlayerId = join("乙");
         assertThat(state(latePlayerId).get("canAnswer").asBoolean()).isTrue();
 
+        JsonNode anonymous = data(get("/api/events/demo/state"));
+        assertThat(anonymous.get("question").get("analysis").isNull()).isTrue();
+        assertThat(anonymous.get("question").get("workName").isNull()).isTrue();
+
         perform(post("/api/events/demo/answers")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"playerId\":\"" + playerId + "\",\"questionId\":\"t-01\",\"optionIndex\":1}"));
@@ -121,6 +125,7 @@ class ActivityFlowTests {
         assertThat(hostState.get("state").get("answeredCount").asInt()).isEqualTo(1);
         assertThat(hostState.get("state").get("question").get("workName").asText()).isEqualTo("联调作品甲");
         assertThat(hostState.get("state").get("question").get("author").asText()).isEqualTo("联调出题人甲");
+        assertThat(hostState.get("state").get("question").get("analysis").isNull()).isTrue();
         assertThat(hostState.get("rounds")).hasSize(2);
 
         JsonNode paused = data(post("/api/events/demo/host/pause").header(TOKEN_HEADER, token));
@@ -131,6 +136,7 @@ class ActivityFlowTests {
         JsonNode locked = state(playerId);
         assertThat(locked.get("status").asText()).isEqualTo("ANSWER_LOCKED");
         assertThat(locked.get("question").get("answerIndex").isNull()).isTrue();
+        assertThat(locked.get("question").get("analysis").asText()).isEqualTo("联调第一题解析");
         assertThat(locked.get("canAnswer").asBoolean()).isFalse();
 
         perform(post("/api/events/demo/host/reveal").header(TOKEN_HEADER, token));
@@ -138,6 +144,7 @@ class ActivityFlowTests {
         assertThat(revealed.get("status").asText()).isEqualTo("ANSWER_REVEALED");
         assertThat(revealed.get("question").get("answerIndex").asInt()).isEqualTo(1);
         assertThat(revealed.get("question").get("analysis").asText()).isEqualTo("联调第一题解析");
+        assertThat(revealed.get("question").get("workName").asText()).isEqualTo("联调作品甲");
         assertThat(revealed.get("question").get("author").asText()).isEqualTo("联调出题人甲");
 
         JsonNode revealSnapshot = data(get("/api/events/demo/host/state").header(TOKEN_HEADER, token));
@@ -154,7 +161,8 @@ class ActivityFlowTests {
         assertThat(resumed.get("question").get("id").asText()).isEqualTo("t-02");
 
         JsonNode finished = awaitStatus(playerId, "FINISHED", 6000);
-        assertThat(finished.get("playerScore").asInt()).isEqualTo(10);
+        assertThat(finished.get("playerScore").asInt()).isEqualTo(2);
+        assertThat(finished.get("playerWrongCount").asInt()).isZero();
         assertThat(finished.get("playerRank").asInt()).isEqualTo(1);
         assertThat(finished.get("playerDurationMs").asLong()).isGreaterThan(0L);
         assertThat(finished.get("leaderboard")).hasSize(2);
@@ -162,7 +170,7 @@ class ActivityFlowTests {
         JsonNode leaderboard = data(get("/api/events/demo/leaderboard"));
         assertThat(leaderboard).hasSize(2);
         assertThat(leaderboard.get(0).get("nickname").asText()).isEqualTo("甲");
-        assertThat(leaderboard.get(0).get("score").asInt()).isEqualTo(10);
+        assertThat(leaderboard.get(0).get("score").asInt()).isEqualTo(2);
 
         mockMvc.perform(post("/api/events/demo/join")
                         .contentType(MediaType.APPLICATION_JSON)

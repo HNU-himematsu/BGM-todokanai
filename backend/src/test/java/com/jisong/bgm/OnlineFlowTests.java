@@ -100,8 +100,10 @@ class OnlineFlowTests {
                 .content(submission(participantId, "预览玩家", attemptId, version, 68210L,
                         new int[][]{{0, 1}, {1, 1}})));
 
-        assertThat(preview.get("score").asInt()).isEqualTo(10);
+        assertThat(preview.get("score").asInt()).isEqualTo(2);
         assertThat(preview.get("answeredCount").asInt()).isEqualTo(2);
+        assertThat(preview.get("correctCount").asInt()).isEqualTo(1);
+        assertThat(preview.get("wrongCount").asInt()).isEqualTo(1);
         assertThat(preview.get("totalQuestions").asInt()).isEqualTo(2);
         assertThat(preview.get("durationMs").asLong()).isEqualTo(68210L);
         assertThat(preview.get("questionSetVersion").asText()).isEqualTo(version);
@@ -148,7 +150,9 @@ class OnlineFlowTests {
                 .content(body));
         assertThat(locked.get("attemptId").asText()).isEqualTo(attemptId);
         assertThat(locked.get("participantId").asText()).isEqualTo(participantId);
-        assertThat(locked.get("score").asInt()).isEqualTo(20);
+        assertThat(locked.get("score").asInt()).isEqualTo(7);
+        assertThat(locked.get("correctCount").asInt()).isEqualTo(2);
+        assertThat(locked.get("wrongCount").asInt()).isZero();
         assertThat(locked.get("onlineRank").asInt()).isGreaterThanOrEqualTo(1);
         assertThat(locked.get("totalRank").asInt()).isGreaterThanOrEqualTo(1);
         assertThat(locked.get("lockedAt").asText()).isNotBlank();
@@ -158,7 +162,7 @@ class OnlineFlowTests {
                 .content(submission(participantId, "锁定玩家", attemptId, "stale-version", 1L,
                         new int[][]{})));
         assertThat(repeated.get("lockedAt").asText()).isEqualTo(locked.get("lockedAt").asText());
-        assertThat(repeated.get("score").asInt()).isEqualTo(20);
+        assertThat(repeated.get("score").asInt()).isEqualTo(7);
 
         mockMvc.perform(post("/api/events/demo/online/lock")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -168,21 +172,23 @@ class OnlineFlowTests {
 
         JsonNode status = onlineStatus(participantId);
         assertThat(status.get("status").asText()).isEqualTo("LOCKED");
-        assertThat(status.get("score").asInt()).isEqualTo(20);
+        assertThat(status.get("score").asInt()).isEqualTo(7);
         assertThat(status.get("answeredCount").asInt()).isEqualTo(2);
+        assertThat(status.get("correctCount").asInt()).isEqualTo(2);
+        assertThat(status.get("wrongCount").asInt()).isZero();
         assertThat(status.get("totalQuestions").asInt()).isEqualTo(2);
 
         JsonNode onlineLeaderboard = data(get("/api/events/demo/leaderboards/online"));
         JsonNode onlineEntry = findByParticipant(onlineLeaderboard.get("entries"), participantId);
         assertThat(onlineEntry).isNotNull();
-        assertThat(onlineEntry.get("score").asInt()).isEqualTo(20);
+        assertThat(onlineEntry.get("score").asInt()).isEqualTo(7);
         assertThat(onlineEntry.get("durationMs").asLong()).isEqualTo(32100L);
 
         JsonNode totalLeaderboard = data(get("/api/events/demo/leaderboards/total"));
         JsonNode totalEntry = findByParticipant(totalLeaderboard.get("entries"), participantId);
         assertThat(totalEntry).isNotNull();
-        assertThat(totalEntry.get("totalScore").asInt()).isEqualTo(20);
-        assertThat(totalEntry.get("onlineScore").asInt()).isEqualTo(20);
+        assertThat(totalEntry.get("totalScore").asInt()).isEqualTo(7);
+        assertThat(totalEntry.get("onlineScore").asInt()).isEqualTo(7);
         assertThat(totalEntry.get("offlineRoundCount").asInt()).isZero();
         assertThat(totalEntry.get("onlineLocked").asBoolean()).isTrue();
 
@@ -191,7 +197,7 @@ class OnlineFlowTests {
                 .content("{\"nickname\":\"锁定玩家\",\"mode\":\"ONLINE\",\"participantId\":\""
                         + participantId + "\"}"));
         assertThat(joined.get("onlineLocked").asBoolean()).isTrue();
-        assertThat(joined.get("onlineScore").asInt()).isEqualTo(20);
+        assertThat(joined.get("onlineScore").asInt()).isEqualTo(7);
     }
 
     @Test

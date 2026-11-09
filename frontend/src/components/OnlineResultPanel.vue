@@ -11,6 +11,7 @@ const isLocked = computed(() => online.phase === 'LOCKED')
 const result = computed(() => isLocked.value ? online.lockResult : online.preview)
 const score = computed(() => result.value?.score ?? '--')
 const answered = computed(() => result.value?.answeredCount ?? online.answeredCount)
+const wrong = computed(() => result.value?.wrongCount ?? '--')
 const total = computed(() => result.value?.totalQuestions ?? online.totalQuestions)
 const duration = computed(() => result.value?.durationMs ?? online.activeDurationMs)
 
@@ -73,10 +74,16 @@ function confirmLock() {
 
     <div class="result-meta-grid">
       <div><span>已答题目</span><strong>{{ answered }} / {{ total }}</strong></div>
+      <div><span>答错题数</span><strong>{{ wrong }} 题</strong></div>
       <div><span>尝试总耗时</span><strong>{{ formatDuration(duration) }}</strong></div>
       <div v-if="isLocked"><span>线上榜名次</span><strong>第 {{ result?.onlineRank || '-' }} 名</strong></div>
       <div v-if="isLocked"><span>总榜名次</span><strong>第 {{ result?.totalRank || '-' }} 名</strong></div>
       <div v-if="isLocked" class="result-meta-wide"><span>锁定时间</span><strong>{{ formatTime(result?.lockedAt) }}</strong></div>
+    </div>
+
+    <div class="scoring-rules">
+      <span class="scoring-rules-label">计分规则</span>
+      <p>简单题 <strong>2</strong> 分 · 中等题 <strong>3</strong> 分 · 困难题 <strong>5</strong> 分；答错与未作答均为 0 分。</p>
     </div>
 
     <a-alert

@@ -72,7 +72,7 @@
 | `participantId` | String / null | 总榜合并键。 |
 | `playerId` | String | 本轮线下会话标识。 |
 | `nickname` | String | 本轮展示昵称。 |
-| `score` | Integer | 本轮得分，每题正确 10 分。 |
+| `score` | Integer | 本轮得分，按答对题目的难度分累加：简单题 2 分、中等题 3 分、困难题 5 分。 |
 | `durationMs` | Long | 本轮累计有效耗时。 |
 | `answeredCount` | Integer | 本轮提交过答案的题目数量。 |
 | `totalQuestions` | Integer | 本轮题目总数。 |
@@ -109,8 +109,10 @@
     "attemptId": "3e8d7c56-32b1-4f80-9d1f-5e6a4a9b2c77",
     "participantId": "18f1e6a2-6af8-4fc2-bc87-13d603e4868f",
     "nickname": "风见幽香",
-    "score": 40,
-    "answeredCount": 5,
+    "score": 7,
+    "answeredCount": 2,
+    "correctCount": 1,
+    "wrongCount": 1,
     "totalQuestions": 6,
     "durationMs": 68210,
     "questionSetVersion": "b3f1f5f4b4d07b8f0d9f0d5c2a3e5c1f0e9c8a7b6d5e4f3a2b1c0d9e8f7a6b5c",
@@ -139,6 +141,8 @@
 | `nickname` | String | 锁定时展示昵称。 |
 | `score` | Integer | 服务端重新判分后的总分。 |
 | `answeredCount` | Integer | 已提交选项的题目数量。 |
+| `correctCount` | Integer | 已提交且正确的题目数量。 |
+| `wrongCount` | Integer | 已提交且错误的题目数量。 |
 | `totalQuestions` | Integer | 锁定时的线上题集总题数。 |
 | `durationMs` | Long | 有效作答耗时。 |
 | `questionSetVersion` | String | 锁定时题集版本。 |

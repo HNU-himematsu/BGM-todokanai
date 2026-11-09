@@ -159,7 +159,7 @@ app:
 
 ## 6. 数据脱敏
 
-- 线下 `ANSWERING` 与 `ANSWER_LOCKED` 下发的题目不含 `answerIndex`、`workName`、`analysis`、`author`。
+- 线下 `ANSWERING` 与 `ANSWER_LOCKED` 下发的题目不含 `answerIndex`、`workName` 与 `author`；`analysis` 作为提示下发。
 - 线上题集下发 `author`，不含答案、解析与作品名；预览与锁定响应不含题目内容。
 - 主持人快照保留 `workName` 与 `author`，仅供控制台展示。
 

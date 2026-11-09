@@ -10,6 +10,8 @@ public record OnlineStatusResponse(
         OnlineLockStatus status,
         Integer score,
         Integer answeredCount,
+        Integer correctCount,
+        Integer wrongCount,
         Integer totalQuestions,
         Long durationMs,
         Integer onlineRank,

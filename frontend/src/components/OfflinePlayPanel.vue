@@ -39,6 +39,14 @@ const audioPercent = computed(() => {
   return Math.max(0, Math.min(100, audioRemainingMs.value / (end - start) * 100))
 })
 const selectedLetter = computed(() => selected.value === null ? '' : String.fromCharCode(65 + selected.value))
+const correctLetter = computed(() => {
+  const index = question.value?.answerIndex
+  return Number.isInteger(index) ? String.fromCharCode(65 + index) : ''
+})
+const hintText = computed(() => {
+  const text = question.value?.analysis?.trim()
+  return text && text !== '无' && text !== '無' ? text : ''
+})
 const displayQuestionNo = computed(() => Math.max(0, (state.value?.currentQuestionIndex ?? -1) + 1))
 const progressPercent = computed(() => {
   if (!state.value?.totalQuestions) return 0
@@ -212,13 +220,19 @@ function leave() {
             <Send :size="16" />
           </a-button>
         </div>
-        <a-alert v-if="isRevealing && question.analysis" class="explanation-alert" type="info" show-icon>
-          <template #message><strong>{{ question.workName }}</strong></template>
+        <a-alert v-if="isRevealing && (question.workName || question.author || correctLetter)" class="explanation-alert" type="info" show-icon>
+          <template #message>
+            <strong v-if="correctLetter">正确答案：{{ correctLetter }}<span v-if="question.workName"> · {{ question.workName }}</span></strong>
+            <strong v-else>{{ question.workName }}</strong>
+          </template>
           <template #description>
             <p v-if="question.author" class="author-line">出题人：{{ question.author }}</p>
-            <p class="analysis-line">{{ question.analysis }}</p>
           </template>
         </a-alert>
+        <div v-if="hintText" class="question-hint">
+          <span class="question-hint-label">提示</span>
+          <span>{{ hintText }}</span>
+        </div>
       </a-card>
 
       <a-card v-else-if="isFinished" class="state-card">
@@ -228,7 +242,12 @@ function leave() {
           <template #extra>
             <div class="final-result">
               <a-statistic title="最终得分" :value="state.playerScore" :value-style="{ color: 'var(--accent)', fontSize: '42px' }" />
+              <p class="muted">答错 <strong>{{ state.playerWrongCount }}</strong> 题</p>
               <p class="muted">总用时：<strong>{{ (state.playerDurationMs / 1000).toFixed(1) }}</strong> 秒 · 最终排名：第 <strong>{{ state.playerRank || '-' }}</strong> 名</p>
+              <div class="scoring-rules">
+                <span class="scoring-rules-label">计分规则</span>
+                <p>简单题 <strong>2</strong> 分 · 中等题 <strong>3</strong> 分 · 困难题 <strong>5</strong> 分；答错与未作答均为 0 分。</p>
+              </div>
             </div>
           </template>
         </a-result>

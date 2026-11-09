@@ -21,7 +21,7 @@
     "audioCode": "TEST-02",
     "prompt": "联调第二题题干",
     "type": "ATMOSPHERE",
-    "difficulty": "EASY",
+    "difficulty": "HARD",
     "options": [
       "选项甲",
       "选项乙",

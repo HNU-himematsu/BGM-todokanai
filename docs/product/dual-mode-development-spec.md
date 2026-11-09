@@ -78,7 +78,7 @@
 | `options` | String[] | 长度 4 | 四个选项。 |
 | `correctOption` | Integer | 0 至 3 | 正确选项下标。 |
 | `workName` | String | 非空 | 作品名称，线上模式不得下发。 |
-| `explanation` | String | 非空 | 解析文本，线上模式不得下发。 |
+| `explanation` | String | 非空 | 提示文本，线下题目上屏后展示，线上模式不得下发。 |
 | `author` | String | 非空 | 出题人署名，线下揭晓、主持人控制台与线上题卡展示，线上题库照常下发。 |
 | `audioCode` | String | 非空 | 音频素材编号，用于素材核对。 |
 
@@ -347,7 +347,7 @@ questionId, audioStartMs, audioEndMs, answerStartMs, answerEndMs
 - `durationMs` 为有效音频播放耗时，不含页面隐藏期间的暂停时间。
 - 服务端校验题目编号与选项下标，使用题库正确答案计算总分。
 - 客户端提交的 `questionSetVersion` 必须与服务端一致。
-- 响应只返回 `score`、`answeredCount`、`totalQuestions`、`durationMs`、`questionSetVersion`。
+- 响应只返回 `score`、`answeredCount`、`correctCount`、`wrongCount`、`totalQuestions`、`durationMs`、`questionSetVersion`。
 - 响应不包含 `correctOption`、`workName`、`explanation` 或逐题对错。
 
 ### 6.7 重试
@@ -377,16 +377,20 @@ questionId, audioStartMs, audioEndMs, answerStartMs, answerEndMs
 
 - 本次总分。
 - 已答题目数 / 总题目数。
+- 答错题数。
 - 尝试总耗时。
+- 计分规则：简单题 2 分、中等题 3 分、困难题 5 分；答错与未作答均为 0 分。
 - 「重试」按钮。
 - 「锁定分数」按钮。
 
 锁定后显示：
 
 - 总分。
+- 答错题数。
 - 线上积分榜名次。
 - 总榜名次。
 - 锁定时间。
+- 计分规则：简单题 2 分、中等题 3 分、困难题 5 分；答错与未作答均为 0 分。
 - 不显示重试按钮。
 
 结果页不显示正确答案、解析、作品名或逐题对错。
@@ -399,7 +403,7 @@ questionId, audioStartMs, audioEndMs, answerStartMs, answerEndMs
 2. 主持人登录 `/host`，选择轮次并点击开始播放。
 3. 控制台将音频定位到 `round.startMs` 并播放，同时调用启动接口建立时间轴零点 `T0`。
 4. 服务端按 `T0 + (atMs - startMs)` 触发 `LOAD`、`NEXT`、`LOCK`、`REVEAL`、`FINISH`。
-5. 参与者逐题作答；`NEXT` 上屏，`LOCK` 关闭作答，`REVEAL` 公布答案与解析。
+5. 参与者逐题作答；`NEXT` 上屏并展示提示，`LOCK` 关闭作答，`REVEAL` 公布答案、作品名与出题人。
 6. `FINISH` 结算本轮，生成线下轮次快照与线下榜。
 7. 到达 `round.endMs` 时时间轴与音频暂停，主持人切换轮次或重置。
 8. 最后一题揭晓后，主持人可点击「结束本轮」立即结算；「下一题」在最后一题位置由「结束本轮」替代。
@@ -412,10 +416,10 @@ questionId, audioStartMs, audioEndMs, answerStartMs, answerEndMs
 
 ### 8.1 题目计分
 
-- 每题正确得 10 分。
+- 答对按题目难度计分：简单题 2 分，中等题 3 分，困难题 5 分。
 - 答错或未作答得 0 分。
-- 线上总分 = 全部题目正确数 × 10。
-- 线下单轮得分 = 本轮正确数 × 10。
+- 线上总分 = 全部答对题目的难度分之和。
+- 线下单轮得分 = 本轮答对题目的难度分之和。
 
 ### 8.2 线下榜
 

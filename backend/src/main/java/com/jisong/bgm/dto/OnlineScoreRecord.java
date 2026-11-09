@@ -12,6 +12,8 @@ public record OnlineScoreRecord(
         String nickname,
         int score,
         int answeredCount,
+        Integer correctCount,
+        Integer wrongCount,
         int totalQuestions,
         long durationMs,
         String questionSetVersion,
