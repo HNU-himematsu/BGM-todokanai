@@ -80,6 +80,8 @@
 5. 激活脚本切换 `current` 软链接、重启 `bgm-guess`、轮询 `/api/health`。
 6. 重启命令失败或健康检查失败时切回上一版本并再次重启；没有可恢复版本时脚本以失败状态退出。
 
+Nginx 对 `/assets/` 返回 `Cache-Control: public, max-age=31536000, immutable`，对入口与 SPA 路由返回 `Cache-Control: no-cache`。发布后浏览器重新校验 `index.html`，并加载新哈希资源。
+
 发布包只包含代码产物。`shared/data` 中的题库与榜单由服务器侧维护，音频固定由 OSS 提供，服务器不保存音频文件。
 
 服务器初始化与 GitHub Secrets 配置完成后，可为 `deploy.yml` 增加 `main` 分支推送触发。

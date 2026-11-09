@@ -223,6 +223,8 @@ nginx -t
 systemctl reload nginx
 ```
 
+该配置对 `/assets/` 使用一年期 immutable 缓存，对入口与 SPA 路由使用 `Cache-Control: no-cache`。发布后刷新页面即可加载新哈希资源。
+
 自动续期由 `certbot.timer` 负责：
 
 ```bash
