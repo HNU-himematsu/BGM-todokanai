@@ -1,6 +1,6 @@
 # 部署状态与上线清单
 
-记录日期：2026-11-06
+记录日期：2026-11-10
 
 本文记录当前代码、服务器、OSS 与发布流水线的状态，以及上线前的剩余步骤。
 
@@ -21,12 +21,13 @@
 
 ## 2. 服务器状态
 
-线上服务器状态（2026-11-06）：
+线上服务器状态（2026-11-10）：
 
 - 操作系统为 Debian 13（trixie），SSH 端口 `33`，密钥登录。
 - 运行时为 OpenJDK 21，满足 Java 17 字节码要求。
 - `bgm-guess` 由 systemd 管理并设为开机自启，后端监听 `8080`，公网流量只经 Nginx `443` 进入。
-- 当前版本为 `20261106165538-local`，`current` 指向 `/opt/bgm-guess/releases/20261106165538-local`。
+- 当前版本为 `20261110193553-21a8aa1`，`current` 指向 `/opt/bgm-guess/releases/20261110193553-21a8aa1`。
+- 当前版本包含加入页总榜入口与总榜弹窗，总榜数据来源为 `GET /api/events/{eventId}/leaderboards/total`。
 - `/opt/bgm-guess/shared/data` 保存 `timeline.json`、`timeline-online.json` 与 `questions.json`，不含音频与榜单文件。
 - `game.himematsu.cn` 使用独立 Nginx 站点与 certbot 证书，`certbot.timer` 负责续期。
 - 主站 `himematsu.cn` 与 `www.himematsu.cn` 继续使用 `/etc/letsencrypt/live/himematsu.cn/` 证书，未受子域变更影响。
@@ -103,6 +104,7 @@ OSS 配置的完整说明见 [`oss-audio.md`](oss-audio.md)。
 - 发布任务使用 `production` environment。
 - 发布用户 `deploy`、sudoers 规则与服务器目录已由 `deploy/bootstrap-server.sh` 初始化；GitHub Secrets 与 Variables 待配置。
 - 首个版本通过手工上传发布包完成激活，发布记录为 `20261106165538-local`。
+- 2026-11-10 通过手工发布流程激活 `20261110193553-21a8aa1`。
 - `main` 推送自动发布在服务器初始化与 Secrets 配置完成后启用。
 
 CI/CD 的完整说明见 [`cicd.md`](cicd.md)；不依赖 GitHub Actions 的手工发布流程见 [`manual-deploy-runbook.md`](manual-deploy-runbook.md)。
