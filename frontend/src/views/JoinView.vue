@@ -1,11 +1,12 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { ArrowRight, Clock3, Music, Radio, Trophy } from 'lucide-vue-next'
+import { ArrowRight, ChevronRight, Clock3, Music, Radio, Trophy } from 'lucide-vue-next'
 import { message } from 'ant-design-vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getEvent } from '../services/api'
 import { MODES, parseModeQuery } from '../services/storage'
 import { useActivityStore } from '../stores/activity'
+import TotalLeaderboardModal from '../components/TotalLeaderboardModal.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -15,6 +16,7 @@ const loading = ref(false)
 const eventLoading = ref(false)
 const error = ref('')
 const rulesVisible = ref(false)
+const totalBoardVisible = ref(false)
 const eventSummary = ref(null)
 
 const modeQuery = computed(() => parseModeQuery(route.query.mode))
@@ -151,6 +153,14 @@ function switchToOnline() {
         进入线上模式
         <ArrowRight :size="15" />
       </a-button>
+      <button type="button" class="leaderboard-entry" @click="totalBoardVisible = true">
+        <span class="leaderboard-entry-icon"><Trophy :size="15" /></span>
+        <span class="leaderboard-entry-body">
+          <span class="leaderboard-entry-title">总榜</span>
+          <span class="leaderboard-entry-sub">查看大家的分数排名</span>
+        </span>
+        <ChevronRight :size="16" class="leaderboard-entry-arrow" />
+      </button>
     </a-card>
 
     <a-modal
@@ -237,5 +247,12 @@ function switchToOnline() {
         </a-button>
       </div>
     </a-modal>
+
+    <TotalLeaderboardModal
+      v-model:open="totalBoardVisible"
+      :event-id="eventId"
+      :event-name="eventSummary?.name || eventId"
+      :participant-id="store.participantId"
+    />
   </section>
 </template>

@@ -43,6 +43,7 @@ frontend/
     │   ├── OnlinePlayPanel.vue
     │   ├── OnlineProgress.vue
     │   ├── OnlineResultPanel.vue
+    │   ├── TotalLeaderboardModal.vue
     │   └── LeaderboardPanel.vue
     └── views/
         ├── JoinView.vue
@@ -64,6 +65,7 @@ frontend/
 | `stores/host.js` | 保存主持人令牌、轮次、主持人快照与榜单页签。 |
 | `components/OfflinePlayPanel.vue` | 线下等待、逐题作答、锁卷、揭晓与结算。 |
 | `components/OnlinePlayPanel.vue` | 线上开始、自动答题、进度控件、结果页与锁定。 |
+| `components/TotalLeaderboardModal.vue` | 加入页总榜入口弹窗：读取总榜、轮询刷新、空榜与错误状态、本机名次高亮。 |
 
 ## 3. 启动与模式解析
 
@@ -118,6 +120,14 @@ https://example.test/?mode=offline
 - 切换模式不删除 `participantId`、昵称与线上进度。
 - 线下 `playerId` 只属于线下会话；切回线上时保留但不使用。
 - 同一浏览器再次通过线下二维码加入时，生成新的 `playerId`，沿用现有 `participantId`。
+
+### 3.4 总榜入口
+
+- `JoinView.vue` 在昵称卡片末尾渲染总榜入口，点击后打开 `TotalLeaderboardModal.vue`。
+- 入口在线上与线下登记页均显示，不读取或修改加入状态。
+- 弹窗打开时调用 `getTotalLeaderboard(eventId)`；组件内部维护加载、刷新、错误与空榜状态。
+- 打开期间每 20 秒轮询一次；`document.visibilityState` 非 `visible` 时跳过；关闭弹窗或组件卸载时清除计时器。
+- 当前设备使用 `activity` store 的 `participantId` 高亮对应条目。
 
 ## 4. 浏览器存储
 
