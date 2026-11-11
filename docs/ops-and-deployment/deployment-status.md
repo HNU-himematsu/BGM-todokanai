@@ -1,6 +1,6 @@
 # 部署状态与上线清单
 
-记录日期：2026-11-10
+记录日期：2026-11-11
 
 本文记录当前代码、服务器、OSS 与发布流水线的状态，以及上线前的剩余步骤。
 
@@ -13,7 +13,7 @@
 - `VITE_AUDIO_URL` 指向线下对象，主持人控制台直接播放该地址。
 - `app.audio-url` 为空时，后端使用线下编排同目录的本地音频；`app.audio-url-online` 为空时依次回落 `app.audio-url` 与本地线上音频。
 - 本地联调母带位于 `backend/data/event-offline.mp3`，时长 2780.110 秒，192 kbps CBR；该文件不进入版本库。
-- 后端测试共 34 项，覆盖本地音频 Range、外部音频 URL、无本地音频启动、线上答题流程、双母带加载与交叉校验、音频模式跳转与榜单兼容。
+- 后端测试共 50 项，覆盖本地音频 Range、外部音频 URL、无本地音频启动、线上答题流程、双母带加载与交叉校验、音频模式跳转、昵称认领与冲突处理以及榜单兼容。
 - 双母带与双编排的后端实现覆盖配置、加载、交叉校验、音频模式分支与线上题集；配置契约见 [`../data-and-config/dual-master-audio.md`](../data-and-config/dual-master-audio.md) 第 5 节，测试清单见该文档第 8 节。
 - 前端生产构建通过。
 
@@ -21,17 +21,17 @@
 
 ## 2. 服务器状态
 
-线上服务器状态（2026-11-10）：
+线上服务器状态（2026-11-11）：
 
 - 操作系统为 Debian 13（trixie），SSH 端口 `33`，密钥登录。
 - 运行时为 OpenJDK 21，满足 Java 17 字节码要求。
 - `bgm-guess` 由 systemd 管理并设为开机自启，后端监听 `8080`，公网流量只经 Nginx `443` 进入。
-- 当前版本为 `20261110193553-21a8aa1`，`current` 指向 `/opt/bgm-guess/releases/20261110193553-21a8aa1`。
-- 当前版本包含加入页总榜入口与总榜弹窗，总榜数据来源为 `GET /api/events/{eventId}/leaderboards/total`。
-- `/opt/bgm-guess/shared/data` 保存 `timeline.json`、`timeline-online.json` 与 `questions.json`，不含音频与榜单文件。
+- 当前版本为 `20261111234219-3fe31fc`，`current` 指向 `/opt/bgm-guess/releases/20261111234219-3fe31fc`。
+- 当前版本包含出题人署名的随题展示，以及昵称认领、冲突记录与主持人释放/改绑接口。
+- `/opt/bgm-guess/shared/data` 保存 `timeline.json`、`timeline-online.json`、`questions.json` 与 `nickname_claims.json`；榜单文件由服务运行时生成，该目录不放置音频文件。
 - `game.himematsu.cn` 使用独立 Nginx 站点与 certbot 证书，`certbot.timer` 负责续期。
 - 主站 `himematsu.cn` 与 `www.himematsu.cn` 继续使用 `/etc/letsencrypt/live/himematsu.cn/` 证书，未受子域变更影响。
-- `https://game.himematsu.cn/`、`/host` 与 `/api/health` 返回 `200`；`/api/events/jisong/audio` 返回 `302` 跳转到 OSS 线下对象；`/ws` 完成 WebSocket Upgrade。
+- `https://game.himematsu.cn/`、`/host` 与 `/api/health` 返回 `200`；`/api/events/jisong/audio` 返回 `302` 跳转到 OSS 线下对象；`/ws` 完成 WebSocket Upgrade。\n- 线上加入接口写入 `shared/data/nickname_claims.json` 正常，空表内容为 `[]`。
 
 ## 3. OSS 状态
 
