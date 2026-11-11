@@ -6,6 +6,7 @@
 | :--- | :--- | :--- |
 | `backend/data/leaderboards.json` | 线下轮次快照数组 | 每轮 `FINISH`。 |
 | `backend/data/online_leaderboard.json` | 线上锁定记录数组 | 线上成绩首次锁定成功。 |
+| `backend/data/nickname_claims.json` | 昵称认领记录数组 | 首次认领、主持人释放或改绑后。 |
 | `backend/data/leaderboard_summary.txt` | 线下轮次榜、线上榜与总榜的文本导出 | 每次线下结算或线上锁定后。 |
 
 文件编码统一为 UTF-8。JSON 文件使用两空格缩进，时间字段使用 ISO-8601 UTC 字符串。
@@ -16,11 +17,42 @@
 
 | 标识 | 用途 |
 | :--- | :--- |
-| `participantId` | 线上与线下共用的总榜合并键。 |
+| `participantId` | 线上与线下共用的总榜合并键，同时是昵称归属对象。 |
 | `playerId` | 线下单次玩家会话标识，用于本轮答题与快照条目。 |
 | `attemptId` | 线上 attempt 标识，用于幂等锁定与审计。 |
 
-昵称只用于展示，不作为唯一键。历史线下条目缺少 `participantId` 时，以 `playerId` 作为总榜合并键。
+昵称不参与总榜聚合，但通过认领表与 `participantId` 建立唯一归属。历史线下条目缺少 `participantId` 时，以 `playerId` 作为总榜合并键。
+
+### 2.1 昵称认领
+
+每个活动维护一份昵称认领表，`eventId + nicknameKey` 唯一：
+
+| 字段 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `claimId` | String | 认领记录标识；主持人操作按该字段定位。 |
+| `eventId` | String | 活动标识。 |
+| `nicknameKey` | String | 归一化后的昵称键。 |
+| `nickname` | String | 认领时的展示昵称。 |
+| `participantId` | String | 昵称归属的参与者标识。 |
+| `source` | String | `JOIN`、`HOST` 或 `SEED`。 |
+| `claimedAt` | String | 首次认领时间。 |
+| `updatedAt` | String | 最近一次创建或改绑时间。 |
+
+归一化规则：Unicode NFKC、去除首尾空白、连续空白折叠为单个空格、去除零宽字符、转小写。归一化只用于判定，展示昵称保留参与者输入。
+
+加入判定：
+
+1. 无认领记录时创建记录并放行。
+2. 记录中的 `participantId` 与请求身份一致时放行。
+3. 记录中的 `participantId` 与请求身份不一致时返回 `409`，同时记录一条待处理冲突。
+
+认领表在服务端串行保护下读写，写入使用临时文件原子替换。认领写入失败时加入请求失败，不降级放行。
+
+认领文件不存在时视为空表，并在首次认领时创建。
+
+同一轮次内同一 `participantId` 重复加入时复用已有 `playerId`，不创建第二个玩家会话。切换轮次后在线玩家会话清空，下一次加入生成新的 `playerId`，昵称归属保持不变。
+
+昵称认领不随轮次切换、活动重置或服务重启失效。释放、改绑与改名只通过主持人接口执行。
 
 ## 3. 线下轮次快照
 
@@ -394,11 +426,30 @@ python parse_leaderboard.py
 
 脚本不修改两个 JSON 文件，只读取并输出文本。
 
+### 8.1 昵称认领种子
+
+`seed_nickname_claims.py` 从历史榜单生成昵称认领种子报告：
+
+```powershell
+python seed_nickname_claims.py --offline backend/data/leaderboards.json --online backend/data/online_leaderboard.json --output work/nickname-claim-seed.json
+```
+
+目标行为：
+
+1. 读取线下轮次快照与线上锁定记录，文件缺失时按空数组处理。
+2. 按 `eventId + nicknameKey` 分组，归一化规则与 Java 服务一致。
+3. 同一昵称键对应多个 `participantId` 时，按累计得分、线下轮次数、首次出现时间、`participantId` 依次排序，得分最高者作为候选归属。
+4. 输出 `claims` 与 `review` 两段；`claims` 可直接作为 `nickname_claims.json` 的根数组，`review` 列出需要人工确认的同名记录。
+5. 脚本不写 `backend/data/nickname_claims.json`。确认候选归属后，把 `claims` 写入该文件，再启动服务。
+
+活动开始前预置历史昵称，避免同名玩家在首轮抢占他人昵称。归属有歧义时由主持人依据 `review` 候选列表决定，必要时通过主持人改绑接口调整。
+
 ## 9. 备份与恢复
 
-- 活动开始前备份 `questions.json`、`timeline.json` 与音频文件。
+- 活动开始前备份 `questions.json`、`timeline.json`、`nickname_claims.json` 与音频文件。
 - 每轮结束后备份 `leaderboards.json` 与文本总结。
 - 线上活动期间定期备份 `online_leaderboard.json`。
+- 主持人释放、改绑或预置昵称认领后备份 `nickname_claims.json`。
 - 恢复时把备份文件放回 `backend/data/`，再启动服务。
 - 恢复文件后重新生成文本总结，核对线下总人数、线上锁定人数与总榜条目。
 
@@ -421,3 +472,9 @@ python parse_leaderboard.py
 - 文本总结包含三个板块且排序与接口一致。
 - 服务重启后历史快照与线上锁定记录保持可读。
 - Python 工具生成的文本与 Java 服务输出规则一致。
+- 同一活动内一个归一化昵称只归属一个 `participantId`。
+- 昵称归属者切换轮次或跨天重新加入时正常放行，并生成新的 `playerId`。
+- 其他身份使用已认领昵称时返回 `409`，不创建玩家会话。
+- 同一轮次内同一 `participantId` 重复加入只保留一个玩家会话。
+- 主持人释放昵称后，其他身份可以重新认领。
+- 主持人改绑昵称后，新身份加入成功，旧身份使用该昵称返回 `409`。

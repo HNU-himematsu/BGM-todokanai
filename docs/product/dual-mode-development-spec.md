@@ -79,7 +79,7 @@
 | `correctOption` | Integer | 0 至 3 | 正确选项下标。 |
 | `workName` | String | 非空 | 作品名称，线上模式不得下发。 |
 | `explanation` | String | 非空 | 提示文本，线下题目上屏后展示，线上模式不得下发。 |
-| `author` | String | 非空 | 出题人署名，线下揭晓、主持人控制台与线上题卡展示，线上题库照常下发。 |
+| `author` | String | 非空 | 出题人署名，题目上屏后展示于题干下方；线下题卡、主持人控制台与线上题卡一致。 |
 | `audioCode` | String | 非空 | 音频素材编号，用于素材核对。 |
 
 ### 4.2 编排文件 `timeline.json`
@@ -186,18 +186,21 @@ questionId, audioStartMs, audioEndMs, answerStartMs, answerEndMs
 
 | 标识 | 存储位置 | 生命周期 | 用途 |
 | :--- | :--- | :--- | :--- |
-| `participantId` | `localStorage` | 长期，直到清除站点数据 | 线上与线下共用身份，用于总榜合并。 |
-| `nickname` | `localStorage` / `sessionStorage` | 长期，直到用户修改 | 页面展示与榜单展示。 |
+| `participantId` | `localStorage` | 长期，直到清除站点数据 | 线上与线下共用身份，用于总榜合并与昵称归属。 |
+| `nickname` | `localStorage` / `sessionStorage`；服务端认领表 | 长期；认领后由主持人释放或改绑 | 页面展示与榜单展示。 |
 | `playerId` | `sessionStorage` | 单次线下加入会话 | 线下轮次内的玩家会话标识。 |
 | `attemptId` | `localStorage` | 单次线上尝试 | 线上重试、预览与锁定幂等。 |
 
 `participantId` 由浏览器使用 `crypto.randomUUID()` 生成；不可用时使用时间戳与随机数组合。服务端只校验其非空与长度，不将其视为身份认证凭据。
+
+昵称在同一活动内通过认领表唯一归属一个 `participantId`。认领键由昵称经 Unicode NFKC、去首尾空白、连续空白折叠、去零宽字符与小写化得到。展示昵称保留参与者输入。
 
 ### 5.2 线上加入
 
 线上加入不创建线下玩家会话。`POST /api/events/{eventId}/join` 在 `mode=ONLINE` 时：
 
 - 校验昵称非空、长度不超过 20。
+- 按归一化昵称键校验认领归属：无记录时创建，归属相同放行，归属不同返回 `409`。
 - 读取或生成 `participantId`。
 - 查询该 `participantId` 是否已锁定线上成绩。
 - 返回 `mode=ONLINE`、`participantId`、`nickname` 与锁定状态。
@@ -207,7 +210,8 @@ questionId, audioStartMs, audioEndMs, answerStartMs, answerEndMs
 线下加入在 `mode=OFFLINE` 时：
 
 - 校验昵称非空、长度不超过 20。
-- 生成单次 `playerId`。
+- 按归一化昵称键校验认领归属：无记录时创建，归属相同放行，归属不同返回 `409`。
+- 生成单次 `playerId`；同一 `participantId` 在当前轮已有 `playerId` 时复用。
 - 记录 `participantId`、昵称与加入时刻。
 - 轮次已进入 `FINISHED` 时拒绝加入。
 
@@ -403,7 +407,7 @@ questionId, audioStartMs, audioEndMs, answerStartMs, answerEndMs
 2. 主持人登录 `/host`，选择轮次并点击开始播放。
 3. 控制台将音频定位到 `round.startMs` 并播放，同时调用启动接口建立时间轴零点 `T0`。
 4. 服务端按 `T0 + (atMs - startMs)` 触发 `LOAD`、`NEXT`、`LOCK`、`REVEAL`、`FINISH`。
-5. 参与者逐题作答；`NEXT` 上屏并展示提示，`LOCK` 关闭作答，`REVEAL` 公布答案、作品名与出题人。
+5. 参与者逐题作答；`NEXT` 上屏并展示提示与出题人，`LOCK` 关闭作答，`REVEAL` 公布答案与作品名。
 6. `FINISH` 结算本轮，生成线下轮次快照与线下榜。
 7. 到达 `round.endMs` 时时间轴与音频暂停，主持人切换轮次或重置。
 8. 最后一题揭晓后，主持人可点击「结束本轮」立即结算；「下一题」在最后一题位置由「结束本轮」替代。
@@ -469,7 +473,9 @@ questionId, audioStartMs, audioEndMs, answerStartMs, answerEndMs
 - 线上与线下共用 `participantId` 时，总榜合并同一参与者的线下各轮成绩与线上锁定成绩。
 - 缺少 `participantId` 的历史线下记录以 `playerId` 作为合并键。
 - 历史记录缺少 `roundId` 时，以快照序号生成轮次键。
-- 昵称用于展示，不作为唯一合并键。
+- 昵称不参与总榜聚合，但通过认领表唯一归属一个 `participantId`；昵称唯一性不改变总榜合并键。
+- 昵称归属者切换轮次、跨天或刷新后重新加入时正常放行；其他身份使用已认领昵称时拒绝加入并提示更换昵称。
+- 同一轮次内同一 `participantId` 重复加入时复用已有 `playerId`。
 
 ## 9. 接口契约
 
@@ -600,6 +606,8 @@ questionId, audioStartMs, audioEndMs, answerStartMs, answerEndMs
 - 线上预览与锁定均由服务端计算分数；客户端提交的分数不参与计算。
 - 本地进度可被用户修改；服务端以锁定请求中的答案重新判分。计时公平性由浏览器本地执行，服务端不提供防篡改计时。
 - `participantId` 是浏览器生成的合并键，不是认证凭据。清除站点数据后生成新标识，可能形成新的线上锁定记录。
+- 昵称认领是唯一性约束，不是身份认证。认领判定只比较 `participantId` 字符串；跨设备或清除站点数据后的找回由主持人改绑完成。
+- 认领表写入失败时加入请求失败，不降级放行，避免出现未持久化的昵称归属。
 - 主持人接口继续使用 `X-Host-Token` 校验。
 - 榜单只展示昵称、分数、耗时与时间，不展示答题选项。
 
@@ -647,6 +655,16 @@ questionId, audioStartMs, audioEndMs, answerStartMs, answerEndMs
 - 线下榜只包含对应轮次的线下成绩。
 - 总榜包含线下各轮最佳成绩之和与线上锁定成绩。
 - 总榜名次在锁定响应中返回。
+
+### 15.7 昵称唯一性
+
+- 同一活动内一个归一化昵称只归属一个 `participantId`。
+- 归属者切换轮次、跨天或刷新后重新加入时正常放行。
+- 其他身份使用已认领昵称时返回 `409`，页面弹窗提示更换昵称并显示身份码。
+- 同一轮次内同一 `participantId` 重复加入只保留一个玩家会话。
+- 主持人在线释放昵称后，其他身份可以重新认领。
+- 主持人改绑后，新身份加入成功，旧身份使用该昵称返回 `409`。
+- 认领记录在服务重启后保持可读。
 
 ## 16. 开发任务拆分
 

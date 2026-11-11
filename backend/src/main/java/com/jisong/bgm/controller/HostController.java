@@ -5,11 +5,16 @@ import com.jisong.bgm.dto.EventState;
 import com.jisong.bgm.dto.HostLoginRequest;
 import com.jisong.bgm.dto.HostLoginResponse;
 import com.jisong.bgm.dto.HostStateResponse;
+import com.jisong.bgm.dto.NicknameClaim;
+import com.jisong.bgm.dto.NicknameConflict;
+import com.jisong.bgm.dto.NicknameRebindRequest;
 import com.jisong.bgm.dto.RoundListResponse;
 import com.jisong.bgm.dto.SelectRoundRequest;
 import com.jisong.bgm.service.ActivityService;
 import com.jisong.bgm.service.HostAuthService;
+import com.jisong.bgm.service.NicknameClaimStore;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,10 +28,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class HostController {
     private final ActivityService activityService;
     private final HostAuthService hostAuthService;
+    private final NicknameClaimStore nicknameClaimStore;
 
-    public HostController(ActivityService activityService, HostAuthService hostAuthService) {
+    public HostController(
+            ActivityService activityService,
+            HostAuthService hostAuthService,
+            NicknameClaimStore nicknameClaimStore
+    ) {
         this.activityService = activityService;
         this.hostAuthService = hostAuthService;
+        this.nicknameClaimStore = nicknameClaimStore;
     }
 
     @PostMapping("/host/login")
@@ -149,5 +160,49 @@ public class HostController {
     ) {
         hostAuthService.requireValid(token);
         return ApiResponse.ok(activityService.reset(eventId));
+    }
+
+    @GetMapping("/events/{eventId}/host/nickname-claims")
+    public ApiResponse<List<NicknameClaim>> nicknameClaims(
+            @PathVariable String eventId,
+            @RequestHeader(value = "X-Host-Token", required = false) String token
+    ) {
+        hostAuthService.requireValid(token);
+        activityService.getActivitySummary(eventId);
+        return ApiResponse.ok(nicknameClaimStore.list(eventId));
+    }
+
+    @PostMapping("/events/{eventId}/host/nickname-claims/{claimId}/release")
+    public ApiResponse<Void> releaseNickname(
+            @PathVariable String eventId,
+            @PathVariable String claimId,
+            @RequestHeader(value = "X-Host-Token", required = false) String token
+    ) {
+        hostAuthService.requireValid(token);
+        activityService.getActivitySummary(eventId);
+        nicknameClaimStore.release(eventId, claimId);
+        return ApiResponse.ok();
+    }
+
+    @PostMapping("/events/{eventId}/host/nickname-claims/{claimId}/rebind")
+    public ApiResponse<NicknameClaim> rebindNickname(
+            @PathVariable String eventId,
+            @PathVariable String claimId,
+            @Valid @RequestBody NicknameRebindRequest request,
+            @RequestHeader(value = "X-Host-Token", required = false) String token
+    ) {
+        hostAuthService.requireValid(token);
+        activityService.getActivitySummary(eventId);
+        return ApiResponse.ok(nicknameClaimStore.rebind(eventId, claimId, request.participantId()));
+    }
+
+    @GetMapping("/events/{eventId}/host/nickname-conflicts")
+    public ApiResponse<List<NicknameConflict>> nicknameConflicts(
+            @PathVariable String eventId,
+            @RequestHeader(value = "X-Host-Token", required = false) String token
+    ) {
+        hostAuthService.requireValid(token);
+        activityService.getActivitySummary(eventId);
+        return ApiResponse.ok(nicknameClaimStore.conflicts(eventId));
     }
 }

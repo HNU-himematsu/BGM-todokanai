@@ -41,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 public class ActivityService {
     private final SimpMessagingTemplate messagingTemplate;
     private final LeaderboardStore leaderboardStore;
+    private final NicknameClaimStore nicknameClaimStore;
     private final TimelineStore timelineStore;
     private final Map<String, Activity> activities = new HashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
@@ -52,10 +53,12 @@ public class ActivityService {
     public ActivityService(
             SimpMessagingTemplate messagingTemplate,
             LeaderboardStore leaderboardStore,
+            NicknameClaimStore nicknameClaimStore,
             TimelineStore timelineStore
     ) {
         this.messagingTemplate = messagingTemplate;
         this.leaderboardStore = leaderboardStore;
+        this.nicknameClaimStore = nicknameClaimStore;
         this.timelineStore = timelineStore;
         Timeline timeline = timelineStore.timeline();
         Activity activity = new Activity(timeline.eventId(), timeline.eventName(), timeline.rounds());
@@ -132,11 +135,17 @@ public class ActivityService {
         if (mode == AppMode.OFFLINE && activity.status == ActivityStatus.FINISHED) {
             throw new IllegalStateException("本场活动已经结束");
         }
+        nicknameClaimStore.claim(eventId, nickname, participantId);
         String playerId = null;
         if (mode == AppMode.OFFLINE) {
-            playerId = UUID.randomUUID().toString();
-            activity.players.put(playerId, new Player(playerId, participantId, nickname));
-            broadcast(activity, "PLAYER_JOINED");
+            Player existing = findPlayerByParticipant(activity, participantId);
+            if (existing != null) {
+                playerId = existing.getId();
+            } else {
+                playerId = UUID.randomUUID().toString();
+                activity.players.put(playerId, new Player(playerId, participantId, nickname));
+                broadcast(activity, "PLAYER_JOINED");
+            }
         }
         return new JoinResponse(
                 activity.id,
@@ -708,6 +717,15 @@ public class ActivityService {
         activity.archiveFailed = false;
     }
 
+    private static Player findPlayerByParticipant(Activity activity, String participantId) {
+        for (Player player : activity.players.values()) {
+            if (participantId.equals(player.getParticipantId())) {
+                return player;
+            }
+        }
+        return null;
+    }
+
     private void clearTasks(Activity activity) {
         clearPendingItems(activity);
         cancel(activity.roundEndFuture);
@@ -776,7 +794,7 @@ public class ActivityService {
                 question.options(),
                 showPrivateMeta ? question.workName() : null,
                 revealAnswer || showHint ? question.explanation() : null,
-                showPrivateMeta ? question.author() : null,
+                question.author(),
                 revealAnswer ? question.correctOption() : null);
         AnswerRecord answer = player == null || question == null
                 ? null

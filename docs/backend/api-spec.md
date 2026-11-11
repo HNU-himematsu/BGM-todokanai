@@ -51,7 +51,7 @@
 | `400 Bad Request` | `400` | 字段缺失、格式错误、状态守卫不满足、题目或轮次参数不合法。 |
 | `401 Unauthorized` | `401` | 主持人令牌缺失、失效或密码错误。 |
 | `404 Not Found` | `404` | 活动、轮次或静态素材不存在。 |
-| `409 Conflict` | `409` | 题集版本不一致、同一参与者以不同 attempt 重复锁定。 |
+| `409 Conflict` | `409` | 昵称已被其他身份认领、题集版本不一致、同一参与者以不同 attempt 重复锁定。 |
 | `416 Range Not Satisfiable` | `416` | 音频 Range 超出文件长度。 |
 | `500 Internal Server Error` | `500` | 榜单写入、文件读取或音频流输出失败。 |
 
@@ -62,7 +62,7 @@
 | 字段 | 规则 |
 | :--- | :--- |
 | `eventId` | 非空，与 `timeline.json` 的 `eventId` 一致。 |
-| `nickname` | 去除首尾空白后长度 1 至 20。 |
+| `nickname` | 去除首尾空白后长度 1 至 20；归一化后在同一活动内唯一。 |
 | `participantId` | 非空，长度 1 至 64；浏览器生成，不是认证凭据。 |
 | `playerId` | 服务端生成的线下玩家会话标识，UUID 字符串。 |
 | `attemptId` | 客户端生成的线上答题尝试标识，长度 1 至 64。 |
@@ -78,11 +78,13 @@
 | 标识 | 生成方 | 存储方 | 用途 |
 | :--- | :--- | :--- | :--- |
 | `participantId` | 浏览器 | 浏览器 `localStorage`；服务端写入榜单记录 | 线上与线下身份合并、总榜聚合。 |
-| `nickname` | 参与者 | 浏览器与服务端记录 | 页面展示与榜单展示。 |
+| `nickname` | 参与者 | 浏览器与服务端记录 | 页面展示与榜单展示；通过认领表绑定 `participantId`。 |
 | `playerId` | 服务端 | 浏览器 `sessionStorage`；线下活动内存 | 线下单次会话与答题提交。 |
 | `attemptId` | 浏览器 | 浏览器线上进度与服务端锁定记录 | 线上重试、预览和锁定幂等。 |
 
 `participantId` 不承担认证职责。清除站点数据或更换访问域名会生成新的 `participantId`，并形成新的线上锁定记录。
+
+昵称认领表以 `eventId + nicknameKey` 为唯一键。`nicknameKey` 由昵称经 Unicode NFKC、去首尾空白、连续空白折叠、去零宽字符与小写化得到。认领记录包含 `claimId`、`nickname`、`participantId`、`source` 与时间字段。
 
 ## 3. 参与者公共接口
 
@@ -213,6 +215,21 @@
 - `ONLINE` 加入不创建线下玩家会话。
 - `OFFLINE` 加入生成新的 `playerId`，并记录 `participantId`、昵称和加入时刻。
 - 当前线下轮次处于 `FINISHED` 时，`OFFLINE` 加入返回 `400`。
+- 昵称按 `nicknameKey` 认领。无认领记录时创建记录并放行。
+- 认领记录的 `participantId` 与请求身份一致时放行；昵称归属者切换轮次、跨天或刷新后重新加入不受影响。
+- 认领记录的 `participantId` 与请求身份不一致时返回 `409`，不创建玩家会话，并记录一条待处理冲突供主持人处理。
+- 同一轮次内同一 `participantId` 再次 `OFFLINE` 加入时复用已有 `playerId`，不创建第二个玩家会话。
+- 是否线上锁定仍以 `participantId` 判断，与昵称认领相互独立。
+
+昵称冲突响应示例：
+
+```json
+{
+  "code": 409,
+  "message": "该昵称已被注册，请更换昵称或联系主持人找回身份",
+  "data": null
+}
+```
 - 同一浏览器重复加入生成新的线下 `playerId`，但沿用同一 `participantId`。
 - 未知 `mode` 返回 `400`；前端在调用接口前把无法识别的查询参数归一为 `ONLINE`。
 
@@ -691,7 +708,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
       "options": ["《CLANNAD》", "《白色相簿2》", "《命运石之门》", "《千恋＊万花》"],
       "workName": null,
       "analysis": "党争、三角恋、下雪天",
-      "author": null,
+      "author": "Munch",
       "answerIndex": null
     },
     "hasAnswered": false,
@@ -742,7 +759,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
 | `options` | String[] | 四个选项。 |
 | `workName` | String / null | 作品名；仅 `ANSWER_REVEALED`、`FINISHED` 与主持人快照可见。 |
 | `analysis` | String / null | 提示文本；线下带 `playerId` 的参与者快照自 `ANSWERING` 起可见，匿名快照与主持人快照仅在 `ANSWER_REVEALED` 及之后可见。 |
-| `author` | String / null | 出题人署名；仅 `ANSWER_REVEALED`、`FINISHED` 与主持人快照可见。 |
+| `author` | String / null | 出题人署名；当前题存在时随题下发，自 `ANSWERING` 起对参与者、主持人与匿名快照可见。 |
 | `answerIndex` | Integer / null | 正确选项下标；仅 `ANSWER_REVEALED` 与 `FINISHED` 可见。 |
 
 状态约束：
@@ -750,7 +767,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
 - `WAITING`：参与者在册，尚未上屏题目。
 - `ANSWERING`：当前题开放作答。
 - `ANSWER_LOCKED`：当前题关闭作答，正确答案保持隐藏。
-- `ANSWER_REVEALED`：正确答案、作品名与出题人公开；`analysis` 作为提示自 `ANSWERING` 起已可见。
+- `ANSWER_REVEALED`：正确答案与作品名公开；`author` 自 `ANSWERING` 起随题可见，`analysis` 作为提示自 `ANSWERING` 起已可见。
 - `FINISHED`：本轮完成结算并生成线下快照。
 - 暂停期间墙上时刻字段冻结；恢复后按暂停时长平移。
 
@@ -1019,7 +1036,7 @@ X-Host-Token: 6dc1e7aa-3f7d-4c61-92e4-8ef317cd09a4
 
 `audioPositionMs` 为当前时间轴对应的音频毫秒位置；时间轴尚未启动时为 `null`。主持人播放器使用该字段校准播放位置。
 
-主持人快照允许展示 `workName` 与 `author`，用于现场提示。正确答案与解析仍只在揭晓状态下公开。`players[].answered` 表示该玩家是否已提交当前题。
+主持人快照允许展示 `workName`，用于现场提示；`author` 随当前题下发。正确答案与解析仍只在揭晓状态下公开。`players[].answered` 表示该玩家是否已提交当前题。
 
 ### 6.6 线下动作接口
 
@@ -1031,7 +1048,7 @@ X-Host-Token: 6dc1e7aa-3f7d-4c61-92e4-8ef317cd09a4
 | `POST /api/events/{eventId}/host/pause` | 无 | 时间轴运行中 | 注销挂起任务并冻结墙上时刻，广播 `ACTIVITY_PAUSED`。 |
 | `POST /api/events/{eventId}/host/resume` | 无 | 时间轴已暂停 | 平移时间基准并重排剩余任务，广播 `ACTIVITY_RESUMED`。 |
 | `POST /api/events/{eventId}/host/lock` | 无 | `ANSWERING` | 关闭当前题作答并补记缺席耗时，广播 `ANSWER_LOCKED`。 |
-| `POST /api/events/{eventId}/host/reveal` | 无 | `ANSWER_LOCKED` | 公开当前题答案、解析与出题人，广播 `ANSWER_REVEALED`。 |
+| `POST /api/events/{eventId}/host/reveal` | 无 | `ANSWER_LOCKED` | 公开当前题答案与解析，广播 `ANSWER_REVEALED`。 |
 | `POST /api/events/{eventId}/host/next` | 无 | `WAITING` 或 `ANSWER_REVEALED`，本轮存在下一题 | 上屏下一题并开放作答，把时间基准对齐到新题 `audioStartMs` 并重排剩余任务，广播 `QUESTION_STARTED`。 |
 | `POST /api/events/{eventId}/host/prev` | 无 | `WAITING` 或 `ANSWER_REVEALED`，当前题之前本轮存在上一题 | 回退到上一题并开放作答，把时间基准对齐到该题 `audioStartMs`，从该题起重排锁卷、揭晓与后续任务，广播 `QUESTION_STARTED`。 |
 | `POST /api/events/{eventId}/host/finish` | 无 | `ANSWER_REVEALED`，当前题为本轮最后一题 | 立即结算本轮并归档线下榜，停止时间轴并广播 `ACTIVITY_FINISHED` 与 `ROUND_ENDED`。 |
@@ -1040,6 +1057,59 @@ X-Host-Token: 6dc1e7aa-3f7d-4c61-92e4-8ef317cd09a4
 轮次结束后，主持人可调用现有 `POST /api/events/{eventId}/host/round` 选择任一已配置轮次，再调用 `POST /api/events/{eventId}/host/start` 开启该轮。选择轮次会清空当前在线玩家与作答记录。
 
 动作不满足前置状态时返回 `400`，服务端状态保持不变。前端动作按钮以主持人快照中的状态为准，不自行推测成功。
+
+### 6.7 昵称认领管理
+
+所有接口沿用 `X-Host-Token` 校验。
+
+| 方法与路径 | 请求体 | 作用 |
+| :--- | :--- | :--- |
+| `GET /api/events/{eventId}/host/nickname-claims` | 无 | 返回该活动的全部昵称认领记录。 |
+| `POST /api/events/{eventId}/host/nickname-claims/{claimId}/release` | 无 | 删除认领记录，释放昵称。 |
+| `POST /api/events/{eventId}/host/nickname-claims/{claimId}/rebind` | `{ "participantId": "..." }` | 把昵称改绑到新的参与者标识，并记录待处理冲突的清除。 |
+| `GET /api/events/{eventId}/host/nickname-conflicts` | 无 | 返回最近的昵称冲突尝试，按时间倒序，最多 200 条。 |
+
+冲突记录保存在服务进程内存中，服务重启后清空。认领记录持久化在 `nickname_claims.json`，不受重启影响。
+
+认领记录响应示例：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "claimId": "c-7f3a2b91",
+      "eventId": "jisong",
+      "nickname": "aki",
+      "nicknameKey": "aki",
+      "participantId": "18f1e6a2-6af8-4fc2-bc87-13d603e4868f",
+      "source": "JOIN",
+      "claimedAt": "2026-11-10T08:00:00Z",
+      "updatedAt": "2026-11-10T08:00:00Z"
+    }
+  ]
+}
+```
+
+冲突记录响应示例：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "nickname": "aki",
+      "nicknameKey": "aki",
+      "participantId": "9c2e4b10-7d33-4c55-9a01-2f6e8b7c1d40",
+      "requestedAt": "2026-11-10T08:12:31Z"
+    }
+  ]
+}
+```
+
+改绑请求中的 `participantId` 必填，长度 1 至 64。改绑成功后该昵称只归属新身份；旧身份再次使用该昵称返回 `409`。
 
 ## 7. WebSocket 与 STOMP 协议
 
@@ -1077,7 +1147,7 @@ X-Host-Token: 6dc1e7aa-3f7d-4c61-92e4-8ef317cd09a4
 | `ACTIVITY_STARTED` | 线下时间轴启动 | 线下参与者与主持人刷新快照，主持人校准音频播放。 |
 | `QUESTION_STARTED` | 线下 `NEXT` 上屏 | 线下参与者刷新当前题与作答状态。 |
 | `ANSWER_LOCKED` | 线下 `LOCK` 关闭作答 | 线下参与者禁用选项并刷新提交状态。 |
-| `ANSWER_REVEALED` | 线下 `REVEAL` 公开答案 | 线下参与者刷新答案、解析、作品名与出题人。 |
+| `ANSWER_REVEALED` | 线下 `REVEAL` 公开答案 | 线下参与者刷新答案、解析与作品名；出题人自题目上屏起已显示。 |
 | `ACTIVITY_FINISHED` | 线下 `FINISH` 完成结算 | 线下参与者与主持人刷新本轮榜与结算快照；主持人立即暂停音频并定位到本轮终点。 |
 | `ROUND_ENDED` | 到达轮次 `endMs` 或主持人结束末题 | 主持人暂停音频并定位到 `round.endMs`；页面保留当前结算数据。 |
 | `ACTIVITY_RESET` | 重置活动或切换轮次 | 线下参与者返回登记页；主持人刷新轮次与房间状态。 |
@@ -1094,6 +1164,8 @@ X-Host-Token: 6dc1e7aa-3f7d-4c61-92e4-8ef317cd09a4
 | 场景 | HTTP 状态 | 服务端行为 |
 | :--- | :--- | :--- |
 | 昵称为空或超过 20 个字符 | `400` | 拒绝加入，不创建玩家。 |
+| 昵称已被其他身份认领 | `409` | 拒绝加入，不创建玩家，记录一条待处理冲突。 |
+| 认领表读写失败 | `500` | 加入失败，不降级放行。 |
 | 未知 `mode` | `400` | 拒绝接口请求；前端把未知查询参数归一为 `ONLINE`。 |
 | 活动标识不存在 | `404` | 返回活动不存在。 |
 | 线下轮次已 `FINISHED` 时加入 | `400` | 拒绝新玩家。 |
@@ -1109,11 +1181,15 @@ X-Host-Token: 6dc1e7aa-3f7d-4c61-92e4-8ef317cd09a4
 | 音频或榜单文件不可读 | `404` 或 `500` | 返回可诊断错误，不返回半成品数据。 |
 | 主持人令牌失效 | `401` | 拒绝主持人操作。 |
 | 主持人动作状态守卫不满足 | `400` | 保持原状态，不执行动作。 |
+| 主持人改绑到空参与者标识 | `400` | 拒绝操作，认领记录保持不变。 |
+| 主持人操作不存在的认领记录 | `404` | 返回认领记录不存在。 |
 
 ## 9. 幂等、并发与一致性
 
 - 线上预览无持久化副作用，可重复调用。
 - 线上锁定以 `eventId + participantId` 作为唯一记录键，以 `attemptId` 识别重复请求。
+- 昵称认领以 `eventId + nicknameKey` 作为唯一键，同一键只归属一个 `participantId`。
+- 认领创建、释放与改绑在串行保护下执行，写入使用临时文件原子替换。
 - 线下答案按 `playerId + questionId` 唯一，首次提交生效。
 - 线下 `FINISH` 对同一轮次只写入一次快照；重复调度不产生重复记录。
 - 线上锁定、线下结算与文本榜单刷新使用串行保护。
@@ -1126,6 +1202,8 @@ X-Host-Token: 6dc1e7aa-3f7d-4c61-92e4-8ef317cd09a4
 - `event` 查询参数缺省为 `jisong`。
 - 加入接口的 `mode` 请求字段缺省为 `ONLINE`。
 - `participantId` 缺省时由服务端生成并写入响应。
+- 认领表文件不存在时按空数组处理，并在首次认领时创建。
+- 历史昵称在认领表为空时不自动归属，由首次加入或种子数据建立归属。
 - 线下历史快照缺少 `participantId` 时，以 `playerId` 作为总榜合并键。
 - 线下历史快照缺少 `roundId` 时，以该活动内快照序号生成 `legacy-round-{n}`。
 - 线下历史条目缺少 `answeredCount` 或 `totalQuestions` 时按 0 处理。

@@ -10,11 +10,15 @@ import {
   getHostRounds,
   getHostState,
   getLeaderboard,
+  getNicknameClaims,
+  getNicknameConflicts,
   getOnlineLeaderboard,
   getTotalLeaderboard,
   hostAction,
   hostLogin,
   hostLogout,
+  rebindNicknameClaim,
+  releaseNicknameClaim,
   selectHostRound,
 } from '../services/api'
 import { createActivitySocket } from '../services/socket'
@@ -49,6 +53,9 @@ const onlineLeaderboard = ref([])
 const totalLeaderboard = ref([])
 const activeLeaderboardTab = ref('round')
 const leaderboardLoading = ref(false)
+const nicknameClaims = ref([])
+const nicknameConflicts = ref([])
+const nicknameLoading = ref(false)
 let lastAppliedRevision = 0
 let refreshTimer = 0
 let refreshPromise = null
@@ -56,7 +63,15 @@ let refreshQueued = false
 let leaderboardTimer = 0
 let leaderboardPromise = null
 let leaderboardQueued = false
+let nicknamePoll = 0
 let lastPositionUpdate = 0
+
+const nicknameColumns = [
+  { title: '昵称', dataIndex: 'nickname', key: 'nickname' },
+  { title: '身份码', key: 'participantId', width: 110 },
+  { title: '来源', dataIndex: 'source', key: 'source', width: 70 },
+  { title: '操作', key: 'actions', width: 80 },
+]
 
 const question = computed(() => state.value?.question)
 const round = computed(() => rounds.value.find((item) => item.id === currentRoundId.value))
@@ -83,6 +98,7 @@ onBeforeUnmount(() => {
   audio.value?.pause()
   window.clearTimeout(refreshTimer)
   window.clearTimeout(leaderboardTimer)
+  window.clearInterval(nicknamePoll)
 })
 
 function noteRevision(value) {
@@ -278,6 +294,8 @@ function onSocketEvent(event) {
 async function openConsole() {
   await refresh()
   await refreshLeaderboards()
+  await refreshNicknames()
+  startNicknamePolling()
   await drawJoinQr()
   if (!socket.value) socket.value = createActivitySocket(eventId, onSocketEvent)
 }
@@ -370,6 +388,81 @@ async function runLeaderboardRefresh() {
 async function refreshAll() {
   await refresh()
   await refreshLeaderboards()
+  await refreshNicknames()
+}
+
+function shortId(value) {
+  return String(value || '').slice(0, 8).toUpperCase() || '未知'
+}
+
+function startNicknamePolling() {
+  if (nicknamePoll) return
+  nicknamePoll = window.setInterval(() => {
+    if (document.visibilityState === 'visible') refreshNicknames()
+  }, 15000)
+}
+
+async function refreshNicknames() {
+  if (!authenticated.value || nicknameLoading.value) return
+  nicknameLoading.value = true
+  try {
+    const [claims, conflicts] = await Promise.all([
+      getNicknameClaims(eventId, hostToken.value),
+      getNicknameConflicts(eventId, hostToken.value),
+    ])
+    nicknameClaims.value = claims || []
+    nicknameConflicts.value = conflicts || []
+  } catch (err) {
+    if (err.response?.status !== 401) {
+      error.value = err.response?.data?.message || '无法获取昵称认领状态'
+    }
+  } finally {
+    nicknameLoading.value = false
+  }
+}
+
+async function handleRebindClaim(claim, participantId) {
+  try {
+    await rebindNicknameClaim(eventId, claim.claimId, participantId, hostToken.value)
+    message.success(`已把「${claim.nickname}」改绑到 ${shortId(participantId)}`)
+    await refreshNicknames()
+  } catch (err) {
+    message.error(err.response?.data?.message || '改绑失败')
+  }
+}
+
+function handleRebindConflict(conflict) {
+  const claim = nicknameClaims.value.find((item) => item.nicknameKey === conflict.nicknameKey)
+  if (!claim) {
+    message.warning('该昵称当前没有认领记录，请让对方直接重试')
+    return
+  }
+  Modal.confirm({
+    title: `把「${claim.nickname}」改绑到身份 ${shortId(conflict.participantId)}？`,
+    content: `原归属 ${shortId(claim.participantId)} 将不能再使用该昵称。`,
+    okText: '改绑',
+    cancelText: '取消',
+    onOk: () => handleRebindClaim(claim, conflict.participantId),
+  })
+}
+
+function handleReleaseClaim(claim) {
+  Modal.confirm({
+    title: `释放昵称「${claim.nickname}」？`,
+    content: '释放后其他参与者可以重新认领该昵称。',
+    okText: '释放',
+    okButtonProps: { danger: true },
+    cancelText: '取消',
+    onOk: async () => {
+      try {
+        await releaseNicknameClaim(eventId, claim.claimId, hostToken.value)
+        message.success('昵称已释放')
+        await refreshNicknames()
+      } catch (err) {
+        message.error(err.response?.data?.message || '释放失败')
+      }
+    },
+  })
 }
 
 async function login() {
@@ -395,6 +488,10 @@ async function logout() {
   socket.value?.deactivate()
   socket.value = null
   audio.value?.pause()
+  window.clearInterval(nicknamePoll)
+  nicknamePoll = 0
+  nicknameClaims.value = []
+  nicknameConflicts.value = []
   hostToken.value = ''
   clearHostToken()
   authenticated.value = false
@@ -669,20 +766,20 @@ function formatDateTime(value) {
             <span>{{ question.difficulty === 'EASY' ? '简单' : question.difficulty === 'MEDIUM' ? '中等' : '困难' }}</span>
           </div>
           <h2 class="question-title preview-title">{{ question.prompt }}</h2>
+          <p v-if="question.author" class="author-line">出题人：{{ question.author }}</p>
           <div class="preview-options">
             <div v-for="(option, index) in question.options" :key="option">
               <span>{{ String.fromCharCode(65 + index) }}</span>{{ option }}
             </div>
           </div>
           <p v-if="question.workName" class="audio-board-meta">作品提示：{{ question.workName }}</p>
-          <p v-if="question.author" class="audio-board-meta">出题人：{{ question.author }}</p>
           <a-alert
             v-if="state.status === 'ANSWER_REVEALED' && question.answerIndex != null"
             class="explanation-alert"
             type="success"
             show-icon
           >
-            <template #message>正确答案：{{ String.fromCharCode(65 + question.answerIndex) }} · {{ question.workName }}<span v-if="question.author"> · 出题人：{{ question.author }}</span></template>
+            <template #message>正确答案：{{ String.fromCharCode(65 + question.answerIndex) }} · {{ question.workName }}</template>
             <template #description>
               <span v-if="question.analysis">{{ question.analysis }}</span>
             </template>
@@ -758,6 +855,52 @@ function formatDateTime(value) {
             <a-empty v-else description="暂无总榜成绩" />
           </a-tab-pane>
         </a-tabs>
+      </a-card>
+
+      <a-card class="host-nicknames">
+        <div class="section-title">
+          <span>昵称认领</span>
+          <a-button size="small" :loading="nicknameLoading" @click="refreshNicknames">
+            <RefreshCw :size="14" /> 刷新
+          </a-button>
+        </div>
+        <p class="muted">昵称在同一活动内唯一。参与者换设备后用自己的名字被拒时，按身份码改绑。</p>
+
+        <div v-if="nicknameConflicts.length" class="nickname-conflicts">
+          <div
+            v-for="conflict in nicknameConflicts"
+            :key="`${conflict.nicknameKey}-${conflict.participantId}`"
+            class="nickname-conflict"
+          >
+            <div class="nickname-conflict-copy">
+              <strong>{{ conflict.nickname }}</strong>
+              <span class="muted">身份码 {{ shortId(conflict.participantId) }} · {{ formatDateTime(conflict.requestedAt) }}</span>
+            </div>
+            <a-button size="small" type="primary" @click="handleRebindConflict(conflict)">改绑到这个身份</a-button>
+          </div>
+        </div>
+        <a-empty v-else description="没有待处理的昵称冲突" :image-style="{ height: '36px' }" />
+
+        <a-table
+          v-if="nicknameClaims.length"
+          class="nickname-table"
+          :columns="nicknameColumns"
+          :data-source="nicknameClaims"
+          :pagination="false"
+          row-key="claimId"
+          size="small"
+          :scroll="{ x: 460 }"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'participantId'">
+              <code>{{ shortId(record.participantId) }}</code>
+            </template>
+            <template v-else-if="column.key === 'actions'">
+              <a-button size="small" @click="handleReleaseClaim(record)">释放</a-button>
+            </template>
+          </template>
+        </a-table>
+        <a-empty v-else description="还没有昵称认领记录" :image-style="{ height: '36px' }" />
       </a-card>
     </div>
   </section>

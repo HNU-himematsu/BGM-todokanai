@@ -16,6 +16,7 @@ backend/
 │   ├── event-online.mp3                    # 线上母带，本地联调；部署环境由 app.audio-url-online 指向 OSS
 │   ├── leaderboards.json                   # 线下轮次快照 (JSON)
 │   ├── online_leaderboard.json             # 线上锁定记录 (JSON)
+│   ├── nickname_claims.json                # 昵称认领记录 (JSON)
 │   └── leaderboard_summary.txt             # 线下榜/线上榜/总榜文本总结 (TXT)
 └── src/main/java/com/jisong/bgm/
     ├── BgmApplication.java                 # Spring Boot 主启动类
@@ -38,6 +39,9 @@ backend/
     │   ├── OnlineLockRequest.java          # 线上锁定请求
     │   ├── OnlineScoreResult.java          # 预览分与锁定结果
     │   ├── OnlineStatusResponse.java       # 线上锁定状态
+    │   ├── NicknameClaim.java              # 昵称认领记录
+    │   ├── NicknameConflict.java           # 待处理昵称冲突
+    │   ├── NicknameRebindRequest.java      # 昵称改绑请求
     │   ├── LeaderboardEntry.java           # 线下排行榜条目
     │   ├── OnlineLeaderboardEntry.java     # 线上积分榜条目
     │   ├── TotalLeaderboardEntry.java      # 总榜条目
@@ -60,6 +64,8 @@ backend/
         ├── OnlineAttemptService.java       # 线上题集、预览、锁定与榜单查询
         ├── TimelineStore.java              # 题库/编排加载、线上题集、版本与校验
         ├── LeaderboardStore.java           # 线下快照、线上记录、总榜与文本生成
+        ├── NicknameClaimStore.java         # 昵称认领、释放、改绑与冲突记录
+        ├── NicknameKeys.java               # 昵称归一化键
         └── HostAuthService.java            # 主持人令牌与密码认证
 ```
 
@@ -102,6 +108,14 @@ backend/
 - 文本总结：输出线下轮次榜、线上积分榜与总榜；汉字宽度按 2、西文字符宽度按 1 对齐。
 - 历史数据兼容：缺少 `participantId` 的线下记录以 `playerId` 作为合并键；缺少 `roundId` 的快照以序号生成轮次键。
 
+### 2.4.1 `NicknameClaimStore`（昵称认领）
+
+- 以 `eventId + nicknameKey` 作为唯一键，记录昵称归属的 `participantId`。
+- `claim` 用于加入与线上锁定：无记录时创建，归属相同放行，归属不同记录冲突并抛出 `NicknameTakenException`。
+- `resolveForLock` 优先返回该身份已有认领，避免锁定请求用另一个昵称覆盖展示名。
+- `release` 与 `rebind` 只由主持人接口调用，写入使用临时文件原子替换。
+- 冲突尝试保存在内存中，按活动过滤，最多保留 200 条，供主持人控制台处理。
+
 ### 2.5 `HostAuthService`（主持人认证）
 
 - 校验登录口令并签发临时会话令牌。
@@ -112,7 +126,9 @@ backend/
 
 - 线下状态流转与玩家答题提交使用同步保护。
 - 线上锁定与线下结算写入使用同步保护。
+- 昵称认领的创建、释放与改绑使用同步保护，并与加入、锁定串行执行。
 - 同一 `participantId` 的线上锁定只允许一条记录。
+- 同一活动内一个归一化昵称只归属一个 `participantId`。
 - 总榜按请求实时聚合，不单独持久化排行结果。
 - 线上预览无持久化副作用。
 
@@ -135,6 +151,7 @@ app:
   audio-url-online: "${APP_AUDIO_URL_ONLINE:https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-cbr192.mp3}"
   leaderboard-file: data/leaderboards.json
   online-leaderboard-file: data/online_leaderboard.json
+  nickname-claims-file: data/nickname_claims.json
   leaderboard-txt-file: data/leaderboard_summary.txt
 ```
 
@@ -152,6 +169,7 @@ app:
 | 主持人认证失败 | `401` | 密码错误、令牌缺失或失效。 |
 | 活动或轮次不存在 | `404` | 路径资源无法解析。 |
 | 题集版本冲突 | `409` | 客户端题集版本与服务端不一致。 |
+| 昵称冲突 | `409` | 昵称已被其他身份认领；加入被拒绝，不创建玩家会话。 |
 | 线上重复锁定 | `409` | 同一参与者已以不同 attempt 锁定。 |
 | 文件读写失败 | `500` | 榜单写入、文本导出或音频读取失败。 |
 
@@ -159,8 +177,8 @@ app:
 
 ## 6. 数据脱敏
 
-- 线下 `ANSWERING` 与 `ANSWER_LOCKED` 下发的题目不含 `answerIndex`、`workName` 与 `author`；`analysis` 作为提示下发。
+- 线下 `ANSWERING` 与 `ANSWER_LOCKED` 下发的题目不含 `answerIndex` 与 `workName`；`author` 与 `analysis` 随题下发。
 - 线上题集下发 `author`，不含答案、解析与作品名；预览与锁定响应不含题目内容。
-- 主持人快照保留 `workName` 与 `author`，仅供控制台展示。
+- 主持人快照保留 `workName` 与 `author`，其中 `workName` 仅供控制台展示。
 
 完整功能与验收标准见 [`../product/dual-mode-development-spec.md`](../product/dual-mode-development-spec.md)。

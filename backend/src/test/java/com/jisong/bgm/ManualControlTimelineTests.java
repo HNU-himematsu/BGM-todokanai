@@ -3,6 +3,7 @@ package com.jisong.bgm;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -12,6 +13,8 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -28,10 +31,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "app.audio-url=http://127.0.0.1/unused-audio.mp3",
         "app.leaderboard-file=target/test-data/manual-leaderboards.json",
         "app.online-leaderboard-file=target/test-data/manual-online-leaderboards.json",
+        "app.nickname-claims-file=target/test-data/manual-nickname-claims.json",
         "app.leaderboard-txt-file=target/test-data/manual-leaderboard-summary.txt"
 })
 @AutoConfigureMockMvc
 class ManualControlTimelineTests {
+    @BeforeEach
+    void clearNicknameClaims() throws Exception {
+        Files.deleteIfExists(Path.of("target/test-data/manual-nickname-claims.json"));
+    }
     private static final String TOKEN_HEADER = "X-Host-Token";
 
     @Autowired

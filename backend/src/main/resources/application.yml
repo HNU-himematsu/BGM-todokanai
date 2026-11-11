@@ -14,4 +14,5 @@ app:
   online-timeline-file: "${APP_ONLINE_TIMELINE_FILE:data/timeline-online.json}"
   leaderboard-file: data/leaderboards.json
   online-leaderboard-file: data/online_leaderboard.json
+  nickname-claims-file: data/nickname_claims.json
   leaderboard-txt-file: data/leaderboard_summary.txt

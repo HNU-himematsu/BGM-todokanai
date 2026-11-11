@@ -650,7 +650,6 @@ function leave() {
               <RotateCcw :size="14" />重播本题
             </a-button>
           </div>
-          <p v-if="question.author" class="author-line">出题人：{{ question.author }}</p>
           <div class="question-audio-control">
             <input
               class="question-audio-range"
@@ -669,6 +668,7 @@ function leave() {
             </span>
           </div>
           <h2 class="question-title">{{ question.prompt }}</h2>
+          <p v-if="question.author" class="author-line">出题人：{{ question.author }}</p>
           <div class="option-grid online-option-grid">
             <button
               v-for="(option, index) in question.options"

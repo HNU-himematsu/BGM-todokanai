@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,6 +16,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -28,10 +31,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "app.audio-url=",
         "app.leaderboard-file=target/test-data/leaderboards.json",
         "app.online-leaderboard-file=target/test-data/online_leaderboard.json",
+        "app.nickname-claims-file=target/test-data/online-nickname-claims.json",
         "app.leaderboard-txt-file=target/test-data/leaderboard_summary.txt"
 })
 @AutoConfigureMockMvc
 class OnlineFlowTests {
+    @BeforeEach
+    void clearNicknameClaims() throws Exception {
+        Files.deleteIfExists(Path.of("target/test-data/online-nickname-claims.json"));
+    }
     @Autowired
     private MockMvc mockMvc;
 

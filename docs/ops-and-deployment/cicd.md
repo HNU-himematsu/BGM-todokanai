@@ -211,6 +211,7 @@ APP_TIMELINE_FILE=/opt/bgm-guess/shared/data/timeline.json
 APP_ONLINE_TIMELINE_FILE=/opt/bgm-guess/shared/data/timeline-online.json
 APP_LEADERBOARD_FILE=/opt/bgm-guess/shared/data/leaderboards.json
 APP_ONLINE_LEADERBOARD_FILE=/opt/bgm-guess/shared/data/online_leaderboard.json
+APP_NICKNAME_CLAIMS_FILE=/opt/bgm-guess/shared/data/nickname_claims.json
 APP_LEADERBOARD_TXT_FILE=/opt/bgm-guess/shared/data/leaderboard_summary.txt
 APP_FRONTEND_ORIGIN=https://game.himematsu.cn
 ```

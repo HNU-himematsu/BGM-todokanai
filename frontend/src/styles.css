@@ -414,13 +414,13 @@ p {
 
 .question-title {
   max-width: 680px;
-  margin: 30px 0 28px;
+  margin: 30px 0 8px;
   font-size: 25px;
   line-height: 1.45;
 }
 
 .question-card .question-title {
-  margin: 18px 0 20px;
+  margin: 18px 0 8px;
 }
 
 .timer {
@@ -592,7 +592,7 @@ p {
 }
 
 .author-line {
-  margin: 0 0 4px;
+  margin: 0 0 14px;
   color: var(--muted);
   font-size: 13px;
   font-weight: 600;
@@ -907,6 +907,51 @@ p {
   grid-column: 1 / -1;
 }
 
+.host-nicknames {
+  grid-column: 1 / -1;
+}
+
+.host-nicknames .section-title {
+  margin-bottom: 10px;
+}
+
+.host-nicknames .muted {
+  margin: 0 0 14px;
+}
+
+.nickname-conflicts {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.nickname-conflict {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(196, 47, 201, 0.18);
+  border-radius: 10px;
+  background: rgba(196, 47, 201, 0.05);
+}
+
+.nickname-conflict-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.nickname-conflict-copy .muted {
+  margin: 0;
+  font-size: 12px;
+}
+
+.nickname-table {
+  margin-top: 12px;
+}
+
 .host-leader-header-right {
   display: flex;
   align-items: center;
@@ -1137,7 +1182,7 @@ p {
 
 .preview-title {
   max-width: 650px;
-  margin: 18px 0;
+  margin: 18px 0 8px;
   font-size: 22px;
 }
 
@@ -1428,7 +1473,7 @@ p {
 }
 
 .online-question-card .question-title {
-  margin: 24px 0;
+  margin: 24px 0 8px;
 }
 
 .online-option-grid .option-button {
@@ -1646,7 +1691,8 @@ p {
   }
 
   .host-players,
-  .host-leaderboard {
+  .host-leaderboard,
+  .host-nicknames {
     grid-column: auto;
   }
 

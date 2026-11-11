@@ -124,3 +124,35 @@ export async function hostAction(eventId, action, token) {
   })
   return data.data
 }
+
+export async function getNicknameClaims(eventId, token) {
+  const { data } = await api.get(`/events/${eventId}/host/nickname-claims`, {
+    headers: { 'X-Host-Token': token },
+  })
+  return data.data
+}
+
+export async function releaseNicknameClaim(eventId, claimId, token) {
+  const { data } = await api.post(
+    `/events/${eventId}/host/nickname-claims/${encodeURIComponent(claimId)}/release`,
+    null,
+    { headers: { 'X-Host-Token': token } },
+  )
+  return data.data
+}
+
+export async function rebindNicknameClaim(eventId, claimId, participantId, token) {
+  const { data } = await api.post(
+    `/events/${eventId}/host/nickname-claims/${encodeURIComponent(claimId)}/rebind`,
+    { participantId },
+    { headers: { 'X-Host-Token': token } },
+  )
+  return data.data
+}
+
+export async function getNicknameConflicts(eventId, token) {
+  const { data } = await api.get(`/events/${eventId}/host/nickname-conflicts`, {
+    headers: { 'X-Host-Token': token },
+  })
+  return data.data
+}

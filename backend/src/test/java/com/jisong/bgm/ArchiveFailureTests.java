@@ -3,6 +3,7 @@ package com.jisong.bgm;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -24,10 +25,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "app.audio-url=http://127.0.0.1/unused-audio.mp3",
         "app.leaderboard-file=pom.xml/archive-blocked.json",
         "app.online-leaderboard-file=target/test-data/archive-failure-online.json",
+        "app.nickname-claims-file=target/test-data/archive-failure-nickname-claims.json",
         "app.leaderboard-txt-file=target/test-data/archive-failure-summary.txt"
 })
 @AutoConfigureMockMvc
 class ArchiveFailureTests {
+    @BeforeEach
+    void clearNicknameClaims() throws Exception {
+        java.nio.file.Files.deleteIfExists(
+                java.nio.file.Path.of("target/test-data/archive-failure-nickname-claims.json"));
+    }
     private static final String TOKEN_HEADER = "X-Host-Token";
 
     @Autowired

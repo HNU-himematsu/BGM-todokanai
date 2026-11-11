@@ -104,7 +104,7 @@ T0 + (item.atMs - round.startMs)
 | `LOAD` | 按 `questionId` 载入题目到待上屏槽位，登记本题音频片段；参与者画面不变。 | 无 |
 | `NEXT` | 消费待上屏题目，题目上屏、开放作答，记录线上 `answerStartMs`。 | `QUESTION_STARTED` |
 | `LOCK` | 关闭当前题作答，记录线上 `answerEndMs`，为未提交线下玩家补记耗时。 | `ANSWER_LOCKED` |
-| `REVEAL` | 公开正确选项、作品名与出题人。 | `ANSWER_REVEALED` |
+| `REVEAL` | 公开正确选项与作品名。 | `ANSWER_REVEALED` |
 | `FINISH` | 结算本轮、写入线下快照与文本总结。 | `ACTIVITY_FINISHED` |
 
 ### 4.3 标准序列
@@ -166,7 +166,7 @@ FINISH
 | `correctOption` | Integer | 0 至 3 | 正确选项下标。 |
 | `workName` | String | 非空 | 作品名；线下揭晓与主持人可见，线上不返回。 |
 | `explanation` | String | 非空 | 提示文本；线下题目上屏后可见，线上不返回。 |
-| `author` | String | 非空 | 出题人署名；线下揭晓、主持人控制台与线上题集均可见。 |
+| `author` | String | 非空 | 出题人署名；题目上屏后展示于题干下方，线下、线上与主持人控制台一致。 |
 | `audioCode` | String | 非空 | 素材核对编号。 |
 
 `audioCode` 用于运营核对音频素材。题目与音频的播放位置关系由 `timeline.json` 的 `LOAD` 条目定义。

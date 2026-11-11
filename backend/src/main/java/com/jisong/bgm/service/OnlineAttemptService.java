@@ -2,6 +2,7 @@ package com.jisong.bgm.service;
 
 import com.jisong.bgm.dto.OnlineAnswer;
 import com.jisong.bgm.dto.OnlineAttemptPayload;
+import com.jisong.bgm.dto.NicknameClaim;
 import com.jisong.bgm.dto.OnlineLeaderboardEntry;
 import com.jisong.bgm.dto.OnlineLeaderboardResponse;
 import com.jisong.bgm.dto.OnlineLockResponse;
@@ -31,15 +32,18 @@ import java.util.stream.Collectors;
 public class OnlineAttemptService {
     private final TimelineStore timelineStore;
     private final LeaderboardStore leaderboardStore;
+    private final NicknameClaimStore nicknameClaimStore;
     private final SimpMessagingTemplate messagingTemplate;
 
     public OnlineAttemptService(
             TimelineStore timelineStore,
             LeaderboardStore leaderboardStore,
+            NicknameClaimStore nicknameClaimStore,
             SimpMessagingTemplate messagingTemplate
     ) {
         this.timelineStore = timelineStore;
         this.leaderboardStore = leaderboardStore;
+        this.nicknameClaimStore = nicknameClaimStore;
         this.messagingTemplate = messagingTemplate;
     }
 
@@ -96,12 +100,14 @@ public class OnlineAttemptService {
         }
 
         Submission submission = validate(eventId, payload);
+        NicknameClaim nicknameClaim = nicknameClaimStore.resolveForLock(
+                submission.eventId, submission.nickname, submission.participantId);
         OnlineScoreResult result = score(submission);
         OnlineScoreRecord record = new OnlineScoreRecord(
                 submission.eventId,
                 submission.attemptId,
                 submission.participantId,
-                submission.nickname,
+                nicknameClaim.nickname(),
                 result.score(),
                 result.answeredCount(),
                 result.correctCount(),

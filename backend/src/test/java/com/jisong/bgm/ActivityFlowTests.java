@@ -3,6 +3,7 @@ package com.jisong.bgm;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.hamcrest.Matchers;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -14,6 +15,8 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -28,11 +31,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "app.audio-url=",
         "app.leaderboard-file=target/test-data/leaderboards.json",
         "app.online-leaderboard-file=target/test-data/online_leaderboard.json",
+        "app.nickname-claims-file=target/test-data/activity-nickname-claims.json",
         "app.leaderboard-txt-file=target/test-data/leaderboard_summary.txt"
 })
 @AutoConfigureMockMvc
 class ActivityFlowTests {
     private static final String TOKEN_HEADER = "X-Host-Token";
+
+    @BeforeEach
+    void clearNicknameClaims() throws Exception {
+        Files.deleteIfExists(Path.of("target/test-data/activity-nickname-claims.json"));
+    }
 
     @Autowired
     private MockMvc mockMvc;
@@ -103,7 +112,7 @@ class ActivityFlowTests {
         assertThat(answering.get("question").get("answerIndex").isNull()).isTrue();
         assertThat(answering.get("question").get("analysis").asText()).isEqualTo("联调第一题解析");
         assertThat(answering.get("question").get("workName").isNull()).isTrue();
-        assertThat(answering.get("question").get("author").isNull()).isTrue();
+        assertThat(answering.get("question").get("author").asText()).isEqualTo("联调出题人甲");
         assertThat(answering.get("canAnswer").asBoolean()).isTrue();
         long audioStart = answering.get("questionAudioStartEpochMs").asLong();
         long audioEnd = answering.get("questionAudioEndEpochMs").asLong();
@@ -115,6 +124,7 @@ class ActivityFlowTests {
         JsonNode anonymous = data(get("/api/events/demo/state"));
         assertThat(anonymous.get("question").get("analysis").isNull()).isTrue();
         assertThat(anonymous.get("question").get("workName").isNull()).isTrue();
+        assertThat(anonymous.get("question").get("author").asText()).isEqualTo("联调出题人甲");
 
         perform(post("/api/events/demo/answers")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -137,6 +147,7 @@ class ActivityFlowTests {
         assertThat(locked.get("status").asText()).isEqualTo("ANSWER_LOCKED");
         assertThat(locked.get("question").get("answerIndex").isNull()).isTrue();
         assertThat(locked.get("question").get("analysis").asText()).isEqualTo("联调第一题解析");
+        assertThat(locked.get("question").get("author").asText()).isEqualTo("联调出题人甲");
         assertThat(locked.get("canAnswer").asBoolean()).isFalse();
 
         perform(post("/api/events/demo/host/reveal").header(TOKEN_HEADER, token));

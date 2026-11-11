@@ -27,7 +27,7 @@ WAITING ──NEXT──> ANSWERING ──LOCK──> ANSWER_LOCKED ──REVEAL
 | `WAITING` | 活动初始化、重置或切换轮次后的就绪状态。允许参与者加入。 |
 | `ANSWERING` | `NEXT` 上屏当前题，开放作答。服务端下发脱敏题目。 |
 | `ANSWER_LOCKED` | `LOCK` 关闭作答，不公布答案。锁卷时为未提交玩家补记耗时。 |
-| `ANSWER_REVEALED` | `REVEAL` 公布正确答案、作品名与出题人；解析作为提示自 `NEXT` 起可见。 |
+| `ANSWER_REVEALED` | `REVEAL` 公布正确答案与作品名；出题人与解析自 `NEXT` 起随题可见。 |
 | `FINISHED` | `FINISH` 结算本轮并归档线下榜单。榜单 JSON 持久化成功后进入该状态；归档失败时保留 `ANSWER_REVEALED` 供主持人重试。拒绝新玩家加入。 |
 
 ### 2.2 轮次与时间轴
@@ -51,9 +51,9 @@ WAITING ──NEXT──> ANSWERING ──LOCK──> ANSWER_LOCKED ──REVEAL
 | 动作 | 语义 | 状态流转 | 广播事件 |
 | :--- | :--- | :--- | :--- |
 | `LOAD` | 预加载题目与音频片段至待上屏槽位 | 状态不变 | 无 |
-| `NEXT` | 待上屏内容上屏、题号递增、下发提示并开放作答 | `WAITING` / `ANSWER_REVEALED` → `ANSWERING` | `QUESTION_STARTED` |
+| `NEXT` | 待上屏内容上屏、题号递增、下发提示与出题人并开放作答 | `WAITING` / `ANSWER_REVEALED` → `ANSWERING` | `QUESTION_STARTED` |
 | `LOCK` | 关闭作答并补记缺席耗时 | `ANSWERING` → `ANSWER_LOCKED` | `ANSWER_LOCKED` |
-| `REVEAL` | 公布正确答案、作品名与出题人 | `ANSWER_LOCKED` → `ANSWER_REVEALED` | `ANSWER_REVEALED` |
+| `REVEAL` | 公布正确答案与作品名 | `ANSWER_LOCKED` → `ANSWER_REVEALED` | `ANSWER_REVEALED` |
 | `FINISH` | 结算本轮、停表并归档线下榜 | 进行态 → `FINISHED` | `ACTIVITY_FINISHED`、`ROUND_ENDED` |
 
 状态守卫：

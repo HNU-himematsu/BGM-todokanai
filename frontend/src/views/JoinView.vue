@@ -1,7 +1,7 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { ArrowRight, ChevronRight, Clock3, Music, Radio, Trophy } from 'lucide-vue-next'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getEvent } from '../services/api'
 import { MODES, parseModeQuery } from '../services/storage'
@@ -18,6 +18,7 @@ const error = ref('')
 const rulesVisible = ref(false)
 const totalBoardVisible = ref(false)
 const eventSummary = ref(null)
+const nicknameInput = ref(null)
 
 const modeQuery = computed(() => parseModeQuery(route.query.mode))
 const eventId = computed(() => String(route.query.event || 'jisong').trim() || 'jisong')
@@ -84,10 +85,30 @@ async function handleConfirmJoin() {
   } catch (err) {
     const text = err.response?.data?.message || '活动暂时无法连接，请稍后再试'
     error.value = text
-    message.error(text)
+    if (err.response?.status === 409) showNicknameConflict()
+    else message.error(text)
   } finally {
     loading.value = false
   }
+}
+
+function identityCode() {
+  const value = String(store.participantId || '')
+  return value ? value.slice(0, 8).toUpperCase() : '未知'
+}
+
+function showNicknameConflict() {
+  Modal.confirm({
+    title: '该昵称已被注册',
+    content: `若这是你上次使用的昵称，请把身份码 ${identityCode()} 告诉主持人。主持人改绑后点击「重试」。`,
+    okText: '重试',
+    cancelText: '换个昵称',
+    onOk: () => handleConfirmJoin(),
+    onCancel: () => {
+      rulesVisible.value = false
+      nextTick(() => nicknameInput.value?.focus())
+    },
+  })
 }
 
 function switchToOnline() {
@@ -122,6 +143,7 @@ function switchToOnline() {
       <form @submit.prevent="handleOpenRules">
         <div class="field-label">你的昵称</div>
         <a-input
+          ref="nicknameInput"
           v-model:value="nickname"
           size="large"
           :maxlength="20"

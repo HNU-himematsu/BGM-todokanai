@@ -176,6 +176,7 @@ function leave() {
         </div>
         <span class="section-kicker" lang="ja">{{ isLocked ? '回答を締め切りました' : isRevealing ? '答え合わせ' : '問題に挑戦' }}</span>
         <h2 class="question-title">{{ question.prompt }}</h2>
+        <p v-if="question.author" class="author-line">出题人：{{ question.author }}</p>
         <div class="question-heading">
           <a-space :size="6">
             <a-tag color="orangered">{{ question.type === 'ATMOSPHERE' ? '氛围题' : '作品题' }}</a-tag>
@@ -220,13 +221,10 @@ function leave() {
             <Send :size="16" />
           </a-button>
         </div>
-        <a-alert v-if="isRevealing && (question.workName || question.author || correctLetter)" class="explanation-alert" type="info" show-icon>
+        <a-alert v-if="isRevealing && (question.workName || correctLetter)" class="explanation-alert" type="info" show-icon>
           <template #message>
             <strong v-if="correctLetter">正确答案：{{ correctLetter }}<span v-if="question.workName"> · {{ question.workName }}</span></strong>
             <strong v-else>{{ question.workName }}</strong>
-          </template>
-          <template #description>
-            <p v-if="question.author" class="author-line">出题人：{{ question.author }}</p>
           </template>
         </a-alert>
         <div v-if="hintText" class="question-hint">
