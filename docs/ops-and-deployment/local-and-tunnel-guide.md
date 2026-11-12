@@ -27,7 +27,7 @@ backend/data/
 └── leaderboard_summary.txt
 ```
 
-`questions.json`、两份编排与两份音频由运营方提供。榜单文件可由服务在首次写入时创建。`event-offline.mp3` 供主持人控制台使用，`event-online.mp3` 供线上参与者使用；两者内容不同，时长分别为 2780.110 秒与 2593.149 秒。
+`questions.json`、两份编排与两份音频由运营方提供。榜单文件可由服务在首次写入时创建。`event-offline.mp3` 供主持人控制台使用，`event-online.mp3` 供线上参与者使用；两者内容不同，时长分别为 2429.278 秒与 2244.491 秒。
 
 ### 2.2 题库
 
@@ -66,7 +66,7 @@ mvn clean compile
 mvn spring-boot:run
 ```
 
-`spring-boot:run` 与 JAR 启动使用同一份 `application.yml`：线下地址取 `app.audio-url` 指向的 OSS 对象 `bgm/event-offline.mp3`，线上题集取 `app.audio-url-online` 指向的 OSS 纯 BGM 对象。`/api/events/{eventId}/audio` 在这些配置下返回 302 跳转，音频流量不经过后端。把 `app.audio-url` 置空时，后端改为从 `backend/data/event-offline.mp3` 以 Range 流输出线下母带。
+`spring-boot:run` 与 JAR 启动使用同一份 `application.yml`。编排同目录的音频文件可读时，`/api/events/{eventId}/audio` 从 `backend/data/event-offline.mp3` 以 Range 流输出线下母带，`?mode=online` 从 `backend/data/event-online.mp3` 输出线上母带。本地文件不可读时，接口返回 302 跳转到 `app.audio-url` 或 `app.audio-url-online` 指向的 OSS 对象。
 
 健康检查：
 
@@ -96,7 +96,7 @@ http://localhost:5173/
 
 Vite 把 `/api` 与 `/ws` 代理到 `http://localhost:8080`。
 
-本地前端与生产构建都使用 `.env` 文件中的 OSS 地址：`.env.development.local` 的 `VITE_AUDIO_URL` 指向 `bgm/event-offline.mp3`，主持人控制台直接从 OSS 加载音频。把该值置空时，主持人控制台回落到 `/api/events/{eventId}/audio`。
+`VITE_AUDIO_URL` 保持为空，主持人控制台请求 `/api/events/{eventId}/audio`，由后端解析本地音频或回落 OSS 地址。填写该值时主持人控制台直接播放该地址，用于临时对照外部对象。
 
 ### 3.3 本地入口
 
@@ -260,17 +260,17 @@ https://xxxx-xxxx-xxxx.trycloudflare.com
 | `app.host-password` | 主持人登录密码。 |
 | `app.timeline-file` | 线下编排文件路径。 |
 | `app.online-timeline-file` | 线上编排文件路径；置空时线上题集取 `app.timeline-file`。 |
-| `app.audio-url` | 线下音频地址；置空时输出编排同目录的本地音频。 |
-| `app.audio-url-online` | 线上音频地址；置空时回落 `app.audio-url`，再回落本地线上音频。 |
+| `app.audio-url` | 线下外链地址；编排同目录的本地音频可读时优先本地流，否则使用该地址。 |
+| `app.audio-url-online` | 线上外链地址；线上编排同目录的本地音频可读时优先本地流，否则使用该地址，再回落 `app.audio-url`。 |
 | `app.leaderboard-file` | 线下快照文件路径。 |
 | `app.online-leaderboard-file` | 线上锁定记录文件路径。 |
 | `app.leaderboard-txt-file` | 文本总结路径。 |
 
-`app.online-leaderboard-file` 缺省为 `data/online_leaderboard.json`，与 `app.leaderboard-file` 使用同一数据目录。两个音频地址在本地联调与生产环境都指向 OSS 对象；置空时回落本地文件。配置契约见 [`../data-and-config/dual-master-audio.md`](../data-and-config/dual-master-audio.md) 第 5 节。
+`app.online-leaderboard-file` 缺省为 `data/online_leaderboard.json`，与 `app.leaderboard-file` 使用同一数据目录。两个音频配置项在本地联调与生产环境都指向 OSS 对象；本地音频可读时优先本地文件，服务端没有本地音频时使用外部地址。配置契约见 [`../data-and-config/dual-master-audio.md`](../data-and-config/dual-master-audio.md) 第 5 节。
 
 ### 7.2 前端参数
 
-`VITE_API_BASE` 缺省为 `/api`。同域部署保持缺省值，使前端、API、音频与 WebSocket 共用一个 origin。主持人控制台的音频地址由 `VITE_AUDIO_URL` 注入，指向线下母带对象。
+`VITE_API_BASE` 缺省为 `/api`。同域部署保持缺省值，使前端、API、音频与 WebSocket 共用一个 origin。`VITE_AUDIO_URL` 缺省为空，主持人控制台的音频地址为 `/api/events/{eventId}/audio`；填写该值后主持人控制台直接播放注入的地址。
 
 ### 7.3 主持人密码
 

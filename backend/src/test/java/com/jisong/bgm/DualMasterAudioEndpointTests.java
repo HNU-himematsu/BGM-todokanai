@@ -23,17 +23,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 @AutoConfigureMockMvc
 class DualMasterAudioEndpointTests {
-    private static final String OFFLINE_URL = "https://cdn.example.com/bgm/event-offline.wav";
-    private static final String ONLINE_URL = "https://cdn.example.com/bgm/event-online.wav";
 
     @Autowired
     private MockMvc mockMvc;
 
     @Test
-    void onlineQuestionSetUsesOnlineAudioAndWindows() throws Exception {
+    void onlineQuestionSetUsesLocalOnlineAudioAndWindows() throws Exception {
         mockMvc.perform(get("/api/events/demo/online/questions"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.audioUrl").value(ONLINE_URL))
+                .andExpect(jsonPath("$.data.audioUrl").value("/api/events/demo/audio?mode=online"))
                 .andExpect(jsonPath("$.data.audioStartMs").value(0))
                 .andExpect(jsonPath("$.data.audioEndMs").value(3000))
                 .andExpect(jsonPath("$.data.questions[0].answerStartMs").value(10))
@@ -41,23 +39,34 @@ class DualMasterAudioEndpointTests {
     }
 
     @Test
-    void offlineAudioEndpointRedirectsToOfflineObject() throws Exception {
+    void offlineAudioEndpointStreamsLocalAudio() throws Exception {
         mockMvc.perform(get("/api/events/demo/audio"))
-                .andExpect(status().isFound())
-                .andExpect(header().string(HttpHeaders.LOCATION, OFFLINE_URL));
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ACCEPT_RANGES, "bytes"))
+                .andExpect(header().doesNotExist(HttpHeaders.LOCATION));
     }
 
     @Test
-    void onlineAudioEndpointRedirectsToOnlineObject() throws Exception {
+    void onlineAudioEndpointStreamsLocalOnlineAudio() throws Exception {
         mockMvc.perform(get("/api/events/demo/audio").param("mode", "online"))
-                .andExpect(status().isFound())
-                .andExpect(header().string(HttpHeaders.LOCATION, ONLINE_URL));
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ACCEPT_RANGES, "bytes"))
+                .andExpect(header().doesNotExist(HttpHeaders.LOCATION));
     }
 
     @Test
-    void unknownAudioModeFallsBackToOfflineObject() throws Exception {
+    void onlineModeRangeRequestReturnsPartialContent() throws Exception {
+        mockMvc.perform(get("/api/events/demo/audio")
+                        .param("mode", "online")
+                        .header(HttpHeaders.RANGE, "bytes=1024-2047"))
+                .andExpect(status().isPartialContent())
+                .andExpect(header().string(HttpHeaders.CONTENT_RANGE, "bytes 1024-2047/128044"));
+    }
+
+    @Test
+    void unknownAudioModeFallsBackToLocalOfflineAudio() throws Exception {
         mockMvc.perform(get("/api/events/demo/audio").param("mode", "hybrid"))
-                .andExpect(status().isFound())
-                .andExpect(header().string(HttpHeaders.LOCATION, OFFLINE_URL));
+                .andExpect(status().isOk())
+                .andExpect(header().doesNotExist(HttpHeaders.LOCATION));
     }
 }

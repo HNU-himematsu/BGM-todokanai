@@ -157,7 +157,7 @@ app:
 
 - 编排文件中的 `audioFile` 相对编排文件所在目录解析。
 - 音频通过 `GET /api/events/{eventId}/audio` 输出，支持 HTTP Range；`mode=online` 输出线上母带。
-- `audio-url` 与 `audio-url-online` 非空时，音频接口返回 302 跳转到对应对象；`online-timeline-file` 为空时线上题集取 `timeline.json`。
+- 编排同目录的音频文件可读时，音频接口以 Range 流输出本地文件，线下地址为 `/api/events/{eventId}/audio`，线上地址为 `/api/events/{eventId}/audio?mode=online`。本地文件不可读且 `audio-url` 或 `audio-url-online` 非空时，音频接口返回 302 跳转到对应对象；`online-timeline-file` 为空时线上题集取 `timeline.json`。
 - 线上题集与锁定接口的完整字段见 [`api-spec.md`](api-spec.md)。
 
 ## 5. 异常映射

@@ -11,7 +11,7 @@
 - 主持人访问 `/host`，输入主持人密码进入控制台。
 - 控制台按轮次播放含轮首播报的成品母带，每次开播以当前播放位置作为时间轴零点。
 - 服务端按 `timeline.json` 派发 `LOAD`、`NEXT`、`LOCK`、`REVEAL`、`FINISH` 动作，参与者页面与主持人控制台通过 STOMP 广播保持同步。
-- 四轮各 10 题，共 40 题；每轮开头先播放轮首播报，首题在播报结束后上屏。
+- 四轮各 10 题，共 40 题；每轮首题与轮首播报同时开始，题间播报在下一题上屏时播放。
 - 中途加入的参与者自加入时刻起作答；锁卷时未提交的题目按参与时长补记耗时。
 - 每轮结束写入该轮榜单快照，用于现场评奖；轮次榜与累计分数在结算前不对外公开。
 
@@ -88,11 +88,11 @@ tools/                   母带合成与移动端流程预览工具
 | 变量 | 缺省 | 说明 |
 | :--- | :--- | :--- |
 | `VITE_PUBLIC_BASE_URL` | 当前页面 origin | 二维码与加入地址使用的外网地址 |
-| `VITE_AUDIO_URL` | OSS 线下母带 | 主持人控制台播放的音频地址；置空时由后端流式输出编排目录中的本地音频 |
+| `VITE_AUDIO_URL` | 空 | 主持人控制台直连的外部音频地址；留空时请求 `/api/events/{eventId}/audio`，由后端优先输出编排目录中的本地音频，本地缺失时跳转 OSS |
 | `VITE_API_BASE` | 空 | 前后端不同域时填写接口前缀 |
 | `VITE_WS_BASE` | 空 | 前后端不同域时填写 WebSocket 前缀 |
 
-`frontend/.env.production` 保存生产域名与线下母带地址，`npm run build` 时注入。
+`frontend/.env.production` 保存生产域名；`npm run build` 注入 `VITE_PUBLIC_BASE_URL`，`VITE_AUDIO_URL` 保持为空。
 
 ### 6.2 后端配置
 
@@ -101,15 +101,15 @@ tools/                   母带合成与移动端流程预览工具
 | `server.port` | `8080` | 后端监听端口，只对 Nginx 暴露 |
 | `app.frontend-origin` | `http://localhost:5173` | WebSocket 允许的跨域来源 |
 | `app.host-password` | `123456` | 主持人控制台密码 |
-| `app.audio-url` | OSS `bgm/event-offline.mp3` | 线下母带地址 |
-| `app.audio-url-online` | OSS `bgm/event-online-cbr192.mp3` | 线上母带地址 |
+| `app.audio-url` | OSS `bgm/event-offline.mp3` | 线下外链地址；本地音频可读时优先本地流 |
+| `app.audio-url-online` | OSS `bgm/event-online-cbr192.mp3` | 线上外链地址；本地音频可读时优先本地流 |
 | `app.timeline-file` | `data/timeline.json` | 线下编排文件 |
 | `app.online-timeline-file` | `data/timeline-online.json` | 线上编排文件 |
 | `app.leaderboard-file` | `data/leaderboards.json` | 线下榜单文件 |
 | `app.online-leaderboard-file` | `data/online_leaderboard.json` | 线上榜单文件 |
 | `app.leaderboard-txt-file` | `data/leaderboard_summary.txt` | 结算文本摘要文件 |
 
-两个音频地址置空时，后端改为输出编排同目录的本地音频文件，用于没有外网的对象存储联调。
+编排同目录的音频文件可读时，后端以 Range 流输出本地文件；本地文件不可读时使用两个外链地址。该顺序同时用于本地联调与不含音频文件的服务端部署。
 
 ### 6.3 服务器环境变量
 
@@ -185,7 +185,7 @@ Nginx（game.himematsu.cn）
               systemd: bgm-guess
                     │
                     └── /opt/bgm-guess/shared/data（编排、题库、榜单）
-音频：浏览器直接向阿里云 OSS 请求 MP3，后端只负责 302 跳转地址
+音频：后端优先流式输出本地母带；服务端没有本地音频时返回 302，由浏览器直接向阿里云 OSS 请求 MP3
 ```
 
 ### 8.2 目录布局
@@ -252,7 +252,7 @@ bash /opt/bgm-guess/bin/activate-release.sh <previous-release-id>
 | Secret | `SSH_PORT` | `33` |
 | Secret | `SSH_PRIVATE_KEY` | OpenSSH 格式私钥 |
 | Variable | `PUBLIC_BASE_URL` | `https://game.himematsu.cn` |
-| Variable | `AUDIO_URL` | `https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3` |
+| Variable | `AUDIO_URL` | 保留的变量名，构建流程不读取 |
 
 `main` 推送自动发布在服务器初始化与 Secrets 配置完成后启用。
 
@@ -260,12 +260,12 @@ bash /opt/bgm-guess/bin/activate-release.sh <previous-release-id>
 
 | 用途 | 对象 | 规格 |
 | :--- | :--- | :--- |
-| 线下母带 | `bgm/event-offline.mp3` | 66,724,510 字节，2780.110 秒，MP3 CBR 192 kbps |
-| 线上母带 | `bgm/event-online-cbr192.mp3` | 62,233,783 字节，2593.000 秒，MP3 CBR 192 kbps |
+| 线下母带 | `bgm/event-offline.mp3` | 新版本地 58,304,095 字节，2429.278 秒，MP3 CBR 192 kbps |
+| 线上母带 | `bgm/event-online-cbr192.mp3` | 新版本地 53,869,130 字节，2244.491 秒，MP3 CBR 192 kbps |
 
-两个对象均为公共读，`Content-Type` 为 `audio/mpeg`，支持 Range 请求，普通请求返回 `200`、Range 请求返回 `206`。两个对象均带 `Cache-Control: public, max-age=31536000, immutable`，替换音频时使用新对象名并同步 `APP_AUDIO_URL`、`APP_AUDIO_URL_ONLINE` 与 `VITE_AUDIO_URL`。
+两个对象均为公共读，`Content-Type` 为 `audio/mpeg`，支持 Range 请求，普通请求返回 `200`、Range 请求返回 `206`。两个对象均带 `Cache-Control: public, max-age=31536000, immutable`。OSS 当前对象为 2026-11-06 已发布版本；新版音频上传并切换地址前，线上对象只配套旧编排。替换音频时使用新对象名并同步 `APP_AUDIO_URL` 与 `APP_AUDIO_URL_ONLINE`。
 
-服务器不保存音频文件；`/api/events/{eventId}/audio` 返回线下对象跳转，`?mode=online` 返回线上对象跳转。
+服务器不保存音频文件；`/api/events/{eventId}/audio` 返回线下对象跳转，`?mode=online` 返回线上对象跳转。本地开发运行时这两个接口输出编排目录中的本地母带。
 
 ## 10. 验收清单
 
@@ -274,7 +274,7 @@ bash /opt/bgm-guess/bin/activate-release.sh <previous-release-id>
 - 主持人登录密码为 `123456`，控制台二维码指向 `https://game.himematsu.cn/?mode=offline`。
 - `/api/events/jisong/audio` 返回 `302` 到线下母带，`?mode=online` 返回 `302` 到线上母带。
 - `/api/events/jisong/online/questions` 返回 40 题，`audioUrl` 为线上母带地址。
-- 主持人控制台 `<audio>` 的 `src` 为线下母带地址，四轮区间为 0/562355、562355/1341690、1341690/2054605、2054605/2780110。
+- 主持人控制台 `<audio>` 的 `src` 为线下母带地址，四轮区间为 0/562469、562469/1259149、1259149/1871684、1871684/2429278。
 - `/ws` 完成 WebSocket Upgrade，参与者页面可收到状态广播。
 - 手机端可播放、可拖动进度，锁卷与揭晓表现正常。
 - 重启 `bgm-guess` 后榜单记录仍可读取。

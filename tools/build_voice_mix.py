@@ -15,6 +15,7 @@ import tempfile
 import wave
 import zipfile
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree as ET
@@ -426,6 +427,173 @@ def build_source_rounds(
     return result
 
 
+def detect_silence_intervals(path: Path) -> list[tuple[int, int]]:
+    result = run_command(
+        [
+            "ffmpeg",
+            "-hide_banner",
+            "-nostats",
+            "-i",
+            str(path),
+            "-af",
+            "silencedetect=noise=-55dB:d=0.8",
+            "-f",
+            "null",
+            "-",
+        ],
+        code=2,
+    )
+    text = result.stderr.decode("utf-8", "replace")
+    starts = [int(round(float(value) * 1000)) for value in re.findall(r"silence_start: ([\d.]+)", text)]
+    ends = [int(round(float(value) * 1000)) for value in re.findall(r"silence_end: ([\d.]+)", text)]
+    if len(starts) != len(ends):
+        raise ToolError(3, f"静音检测结果不完整：{path}")
+    return list(zip(starts, ends))
+
+
+def detect_source_rounds(
+    script_rounds: list[ScriptRound],
+    qids_by_round: list[list[str]],
+    source: Path,
+    *,
+    window_ms: int = 8000,
+) -> list[SourceRound]:
+    silences = detect_silence_intervals(source)
+    total_ms = media_duration_ms(source)
+    bases: list[int] = []
+    base = 0
+    for script_round in script_rounds:
+        bases.append(base)
+        base += script_round.end_ms - script_round.start_ms
+
+    onsets: list[list[int]] = []
+    for round_index, script_round in enumerate(script_rounds):
+        row: list[int] = []
+        for question_index, question in enumerate(script_round.questions):
+            predicted = bases[round_index] + (question.audio_start_ms - script_round.start_ms)
+            if round_index == 0 and question_index == 0:
+                row.append(0)
+                continue
+            candidates = [end for _, end in silences if abs(end - predicted) <= window_ms]
+            if not candidates:
+                raise ToolError(3, f"无法定位第 {question.number} 题音乐起点（预测 {predicted} ms）")
+            row.append(min(candidates, key=lambda value: abs(value - predicted)))
+        onsets.append(row)
+
+    round_starts = [row[0] for row in onsets]
+    for previous, current in zip(round_starts, round_starts[1:]):
+        if current <= previous:
+            raise ToolError(3, "按音频检测的轮次起点未严格递增")
+
+    result: list[SourceRound] = []
+    for round_index, script_round in enumerate(script_rounds):
+        next_round_start = round_starts[round_index + 1] if round_index + 1 < len(round_starts) else total_ms
+        questions: list[SourceQuestion] = []
+        for question_index, (question, qid) in enumerate(zip(script_round.questions, qids_by_round[round_index])):
+            next_onset = (
+                onsets[round_index][question_index + 1]
+                if question_index + 1 < len(script_round.questions)
+                else next_round_start
+            )
+            candidates = [(start, end) for start, end in silences if abs(end - next_onset) <= 250]
+            if not candidates:
+                raise ToolError(3, f"无法定位第 {question.number} 题音乐终点（下一题起点 {next_onset} ms）")
+            music_end = min(candidates, key=lambda item: abs(item[1] - next_onset))[0]
+            original_gap = next_onset - music_end
+            if original_gap < 0:
+                raise ToolError(3, f"第 {question.number} 题音乐终点晚于下一题起点")
+            actual_duration = music_end - onsets[round_index][question_index]
+            expected_duration = question.audio_end_ms - question.audio_start_ms
+            if abs(actual_duration - expected_duration) > window_ms:
+                raise ToolError(
+                    3,
+                    f"第 {question.number} 题音乐时长与编排偏差过大："
+                    f"实际 {actual_duration} ms，编排 {expected_duration} ms",
+                )
+            questions.append(
+                SourceQuestion(
+                    number=question.number,
+                    qid=qid,
+                    round_index=round_index,
+                    question_index=question_index,
+                    source_music_start=onsets[round_index][question_index],
+                    source_music_end=music_end,
+                    source_next_music_start=next_onset,
+                    original_gap=original_gap,
+                    lock_offset=question.lock_ms - question.audio_end_ms,
+                    reveal_offset=question.reveal_ms - question.lock_ms,
+                )
+            )
+        result.append(
+            SourceRound(
+                index=round_index,
+                name=script_round.name,
+                source_start=round_starts[round_index],
+                source_end=next_round_start,
+                questions=questions,
+            )
+        )
+    return result
+
+
+def build_online_timeline(
+    script_rounds: list[ScriptRound],
+    source_rounds: list[SourceRound],
+    template: dict[str, Any],
+    *,
+    audio_file: str | None = None,
+) -> dict[str, Any]:
+    rounds: list[dict[str, Any]] = []
+    for script_round, source_round, timeline_round in zip(
+        script_rounds, source_rounds, template["rounds"]
+    ):
+        items: list[dict[str, Any]] = []
+        for question_index, question in enumerate(source_round.questions):
+            next_start = (
+                source_round.questions[question_index + 1].source_music_start
+                if question_index + 1 < len(source_round.questions)
+                else source_round.source_end
+            )
+            audio_start = source_round.source_start if question_index == 0 else question.source_music_start
+            load_at = question.source_music_start if question_index == 0 else question.source_music_start - 1000
+            next_at = question.source_music_start + (1 if question_index == 0 else 0)
+            lock_at = next_start - 3000
+            reveal_at = lock_at + 1000
+            if not (audio_start <= next_at < lock_at < reveal_at <= next_start):
+                raise ToolError(3, f"第 {question.number} 题的在线时间窗无效")
+            items.append(
+                {
+                    "atMs": load_at,
+                    "action": "LOAD",
+                    "questionId": question.qid,
+                    "audioStartMs": audio_start,
+                    "audioEndMs": next_start,
+                }
+            )
+            items.append({"atMs": next_at, "action": "NEXT"})
+            items.append({"atMs": lock_at, "action": "LOCK"})
+            items.append({"atMs": reveal_at, "action": "REVEAL"})
+        items.append({"atMs": source_round.source_end, "action": "FINISH"})
+        for previous, current in zip(items, items[1:]):
+            if current["atMs"] <= previous["atMs"]:
+                raise ToolError(3, f"{script_round.name} 的在线条目时刻未严格递增")
+        rounds.append(
+            {
+                "id": timeline_round["id"],
+                "name": timeline_round["name"],
+                "startMs": source_round.source_start,
+                "endMs": source_round.source_end,
+                "items": items,
+            }
+        )
+    return {
+        "eventId": template["eventId"],
+        "eventName": template["eventName"],
+        "audioFile": audio_file or template["audioFile"],
+        "rounds": rounds,
+    }
+
+
 @dataclass
 class AudioSegment:
     kind: str
@@ -441,6 +609,7 @@ class SlotInfo:
     end_ms: int
     clip_duration_ms: int
     clip_name: str
+    voice_start_ms: int
     trailing_ms: int
 
 @dataclass
@@ -524,14 +693,16 @@ def build_mix_plan(
     voice_durations: dict[str, int],
     *,
     zero_insert: bool,
+    voice_anchor: str = "next",
 ) -> MixPlan:
+    if voice_anchor not in ("previous", "next"):
+        raise ToolError(2, f"未知播报锚点：{voice_anchor}")
     opening_duration = voice_durations[OPENING_FILE]
     closing_duration = voice_durations[CLOSING_FILE]
     segments: list[AudioSegment] = []
     slots: list[SlotInfo] = []
     round_mixes: list[RoundMix] = []
     global_insert = 0
-    first_question = True
 
     for round_index, (script_round, source_round) in enumerate(zip(script_rounds, source_rounds)):
         timeline_round = timeline["rounds"][round_index]
@@ -542,7 +713,7 @@ def build_mix_plan(
             raise ToolError(3, f"{script_round.name} 与上一轮未首尾相接")
         cumulative = global_insert
 
-        if round_index == 0 and not zero_insert:
+        if not zero_insert:
             opening_length = opening_duration + LEAD_MS + TAIL_MS
             segments.append(AudioSegment("silence", LEAD_MS))
             segments.append(AudioSegment("voice", opening_duration, voice_name=OPENING_FILE))
@@ -550,10 +721,11 @@ def build_mix_plan(
             slots.append(
                 SlotInfo(
                     kind="opening",
-                    start_ms=0,
-                    end_ms=opening_length,
+                    start_ms=round_start_out,
+                    end_ms=round_start_out + opening_length,
                     clip_duration_ms=opening_duration,
                     clip_name=OPENING_FILE,
+                    voice_start_ms=round_start_out + LEAD_MS,
                     trailing_ms=TAIL_MS,
                 )
             )
@@ -569,6 +741,8 @@ def build_mix_plan(
             insertion = 0 if zero_insert else max(0, slot_length - source_question.original_gap)
             new_gap = source_question.original_gap + insertion
             remainder = new_gap - slot_length
+            slot_start = new_music_end
+            slot_end = new_music_end + new_gap
 
             if not zero_insert:
                 if remainder < 0:
@@ -580,27 +754,36 @@ def build_mix_plan(
                         source_start_ms=source_question.source_music_start,
                     )
                 )
-                segments.append(AudioSegment("silence", LEAD_MS))
-                segments.append(AudioSegment("voice", clip_duration, voice_name=clip_name))
-                segments.append(AudioSegment("silence", TAIL_MS))
-                if remainder > 0:
-                    segments.append(AudioSegment("silence", remainder))
+                if voice_anchor == "next":
+                    leading_silence = remainder + LEAD_MS
+                    voice_start = slot_start + leading_silence
+                    segments.append(AudioSegment("silence", leading_silence))
+                    segments.append(AudioSegment("voice", clip_duration, voice_name=clip_name))
+                    segments.append(AudioSegment("silence", TAIL_MS))
+                else:
+                    voice_start = slot_start + LEAD_MS
+                    segments.append(AudioSegment("silence", LEAD_MS))
+                    segments.append(AudioSegment("voice", clip_duration, voice_name=clip_name))
+                    segments.append(AudioSegment("silence", TAIL_MS))
+                    if remainder > 0:
+                        segments.append(AudioSegment("silence", remainder))
                 slots.append(
                     SlotInfo(
                         kind="boundary",
-                        start_ms=new_music_end,
-                        end_ms=new_music_end + new_gap,
+                        start_ms=slot_start,
+                        end_ms=slot_end,
                         clip_duration_ms=clip_duration,
                         clip_name=clip_name,
+                        voice_start_ms=voice_start,
                         trailing_ms=TAIL_MS,
                     )
                 )
+            else:
+                voice_start = slot_start + LEAD_MS
 
             load_at = new_music_start if question_index == 0 else new_music_start - 1000
             next_at = new_music_start + (1 if question_index == 0 else 0)
-            lock_at = new_music_end + source_question.lock_offset
-            reveal_at = lock_at + source_question.reveal_offset
-            audio_start = 0 if first_question else new_music_start
+            audio_start = round_start_out if question_index == 0 else new_music_start
             question_mixes.append(
                 QuestionMix(
                     round_index=round_index,
@@ -622,16 +805,15 @@ def build_mix_plan(
                     reveal_offset=source_question.reveal_offset,
                     load_at=load_at,
                     next_at=next_at,
-                    lock_at=lock_at,
-                    reveal_at=reveal_at,
+                    lock_at=0,
+                    reveal_at=0,
                     audio_start=audio_start,
                     audio_end=0,
-                    slot_start=new_music_end,
-                    slot_end=new_music_end + new_gap,
+                    slot_start=slot_start,
+                    slot_end=slot_end,
                 )
             )
             cumulative += insertion
-            first_question = False
 
         round_end_out = source_round.source_end + cumulative
         if round_index == len(script_rounds) - 1 and not zero_insert:
@@ -645,17 +827,38 @@ def build_mix_plan(
                     end_ms=round_end_out + closing_length,
                     clip_duration_ms=closing_duration,
                     clip_name=CLOSING_FILE,
+                    voice_start_ms=round_end_out,
                     trailing_ms=CLOSING_TAIL_MS,
                 )
             )
             round_end_out += closing_length
             cumulative += closing_length
 
+        announcer_windows = voice_anchor == "next" and not zero_insert
+        if announcer_windows:
+            for question_index, question in enumerate(question_mixes):
+                if question_index == 0:
+                    question.audio_start = round_start_out
+                else:
+                    previous = question_mixes[question_index - 1]
+                    question.audio_start = previous.slot_start + previous.remainder
+                question.load_at = (
+                    question.audio_start
+                    if question_index == 0
+                    else question.audio_start - 1000
+                )
+                question.next_at = question.audio_start + (1 if question_index == 0 else 0)
+
         for question_index, question in enumerate(question_mixes):
-            if question_index + 1 < len(question_mixes):
-                question.audio_end = question_mixes[question_index + 1].new_music_start
+            if announcer_windows and question_index + 1 < len(question_mixes):
+                next_start = question_mixes[question_index + 1].audio_start
+            elif question_index + 1 < len(question_mixes):
+                next_start = question_mixes[question_index + 1].new_music_start
             else:
-                question.audio_end = round_end_out
+                next_start = round_end_out
+            question.audio_end = next_start
+            question.lock_at = next_start - 3000
+            question.reveal_at = question.lock_at + 1000
 
         for question_index, question in enumerate(question_mixes):
             if not (question.load_at < question.next_at < question.lock_at < question.reveal_at):
@@ -670,10 +873,19 @@ def build_mix_plan(
             elif question.reveal_at >= round_end_out:
                 raise ToolError(3, f"第 {question.number} 题 REVEAL 未早于 FINISH")
             if not zero_insert:
-                clip_end = question.slot_start + LEAD_MS + question.clip_duration_ms
-                if clip_end + TAIL_MS > question.slot_end:
+                if voice_anchor == "next":
+                    voice_end = question.slot_end - TAIL_MS
+                    music_limit = (
+                        question_mixes[question_index + 1].new_music_start
+                        if question_index + 1 < len(question_mixes)
+                        else round_end_out
+                    )
+                else:
+                    voice_end = question.slot_start + LEAD_MS + question.clip_duration_ms
+                    music_limit = question.audio_end
+                if voice_end + TAIL_MS > question.slot_end:
                     raise ToolError(6, f"第 {question.number} 题播报尾部留白不足")
-                if clip_end + TAIL_MS > question.audio_end:
+                if question.slot_end > music_limit:
                     raise ToolError(6, f"第 {question.number} 题播报进入下一题音乐")
 
         round_mixes.append(
@@ -973,7 +1185,7 @@ def validate_master(master_wav: Path, plan: MixPlan) -> None:
                     f"第 {question.number} 题音乐起点处无有效音频（{level:.1f} dBFS）",
                 )
     for slot in plan.slots:
-        presence_start = slot.start_ms + (LEAD_MS if slot.kind != "closing" else 0)
+        presence_start = slot.voice_start_ms
         level = max_dbfs(master_wav, presence_start, slot.clip_duration_ms)
         if level <= -20.0:
             raise ToolError(
@@ -1110,7 +1322,7 @@ def write_report(
             "",
             "## 逐题槽位",
             "",
-            "| 题号 | id | 音乐区间 | 原空档 | 播报 | 片段 | 槽长 | 插入 | 新空档 | 槽后余量 |",
+            "| 题号 | id | 音乐区间 | 原空档 | 播报 | 片段 | 槽长 | 插入 | 新空档 | 槽前余量 |",
             "| ---: | :--- | :--- | ---: | :--- | ---: | ---: | ---: | ---: | ---: |",
         ]
     )
@@ -1155,8 +1367,16 @@ def install_outputs(
     output_audio: Path,
     output_timeline: Path,
     audio_file: str,
+    online_timeline: Path | None = None,
+    online_audio: Path | None = None,
 ) -> Path:
-    backup_dir = data_dir.parent / "data-backup"
+    backup_dir = data_dir.parent / f"data-backup-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+    suffix = 1
+    while backup_dir.exists():
+        backup_dir = data_dir.parent / (
+            f"data-backup-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{suffix}"
+        )
+        suffix += 1
     try:
         shutil.copytree(data_dir, backup_dir, dirs_exist_ok=True)
     except OSError as exc:
@@ -1170,8 +1390,22 @@ def install_outputs(
         temporary_files.extend([audio_temp, timeline_temp])
         shutil.copy2(output_audio, audio_temp)
         shutil.copy2(output_timeline, timeline_temp)
+        if online_timeline is not None:
+            online_target = data_dir / "timeline-online.json"
+            online_temp = data_dir / "timeline-online.json.tmp"
+            temporary_files.append(online_temp)
+            shutil.copy2(online_timeline, online_temp)
+        if online_audio is not None:
+            online_audio_target = data_dir / "event-online.mp3"
+            online_audio_temp = data_dir / "event-online.mp3.tmp"
+            temporary_files.append(online_audio_temp)
+            shutil.copy2(online_audio, online_audio_temp)
         os.replace(audio_temp, audio_target)
         os.replace(timeline_temp, timeline_target)
+        if online_timeline is not None:
+            os.replace(online_temp, online_target)
+        if online_audio is not None:
+            os.replace(online_audio_temp, online_audio_target)
     except OSError as exc:
         for path in temporary_files:
             try:
@@ -1192,6 +1426,37 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--zero-insert", action="store_true", help="强制插入量为 0，只做时间轴自检")
     parser.add_argument("--install", action="store_true", help="校验通过后替换 backend/data 下的文件")
     parser.add_argument("--gain-db", type=float, default=None, help="播报统一增益")
+    parser.add_argument(
+        "--voice-anchor",
+        choices=("previous", "next"),
+        default="next",
+        help="播报归属：next 把播报计入下一题音频窗口，previous 计入上一题音频窗口",
+    )
+    parser.add_argument(
+        "--align-audio",
+        action="store_true",
+        help="按源音频实际出声点与静音区间重建音乐边界，忽略编排文件中累积偏差的时间码",
+    )
+    parser.add_argument(
+        "--online-template",
+        default=None,
+        help="线上编排模板 timeline-online.json；提供时按实际音频生成线上编排",
+    )
+    parser.add_argument(
+        "--online-audio-file",
+        default="event-online.mp3",
+        help="线上编排 audioFile 字段的取值",
+    )
+    parser.add_argument(
+        "--online-audio",
+        default=None,
+        help="线上音频源文件；提供且启用 --install 时替换 backend/data/event-online.mp3",
+    )
+    parser.add_argument(
+        "--online-out",
+        default=None,
+        help="线上编排输出路径，缺省为 <out-dir>/timeline-online.next.json",
+    )
     return parser
 
 
@@ -1223,8 +1488,29 @@ def main(argv: list[str] | None = None) -> int:
         script_rounds = parse_script(script_path)
         timeline = load_timeline(timeline_path)
         qids_by_round = timeline_question_ids(timeline, script_rounds)
-        source_rounds = build_source_rounds(script_rounds, qids_by_round)
+        source_rounds = (
+            detect_source_rounds(script_rounds, qids_by_round, source)
+            if args.align_audio
+            else build_source_rounds(script_rounds, qids_by_round)
+        )
         voice_durations = read_voice_durations(voice_dir)
+
+        online_output: Path | None = None
+        if args.online_template:
+            online_template = load_timeline(Path(args.online_template))
+            online_timeline = build_online_timeline(
+                script_rounds,
+                source_rounds,
+                online_template,
+                audio_file=args.online_audio_file,
+            )
+            online_output = (
+                Path(args.online_out)
+                if args.online_out
+                else out_dir / "timeline-online.next.json"
+            )
+            write_json(online_output, online_timeline)
+            print(f"线上时间轴：{online_output}")
 
         if args.zero_insert:
             if args.install:
@@ -1235,6 +1521,7 @@ def main(argv: list[str] | None = None) -> int:
                 timeline,
                 voice_durations,
                 zero_insert=True,
+                voice_anchor=args.voice_anchor,
             )
             output_timeline = out_dir / "timeline.next.json"
             write_json(output_timeline, plan.timeline)
@@ -1261,6 +1548,7 @@ def main(argv: list[str] | None = None) -> int:
             timeline,
             voice_durations,
             zero_insert=False,
+            voice_anchor=args.voice_anchor,
         )
         audio_file = timeline["audioFile"]
         output_audio = out_dir / audio_file
@@ -1282,7 +1570,12 @@ def main(argv: list[str] | None = None) -> int:
         backup_dir = None
         if args.install:
             backup_dir = install_outputs(
-                timeline_path.parent, output_audio, output_timeline, audio_file
+                timeline_path.parent,
+                output_audio,
+                output_timeline,
+                audio_file,
+                online_timeline=online_output,
+                online_audio=Path(args.online_audio) if args.online_audio else None,
             )
         print(f"生成完成：{output_audio}")
         print(f"时间轴：{output_timeline}")

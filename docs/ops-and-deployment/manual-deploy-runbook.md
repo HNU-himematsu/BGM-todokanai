@@ -52,12 +52,11 @@ Move-Item backend\data-backup\leaderboards.json, backend\data-backup\online_lead
 
 ## 3. 构建发布包
 
-前端构建注入正式域名与线下音频对象地址：
+前端构建注入正式域名：
 
 ```powershell
 cd frontend
 $env:VITE_PUBLIC_BASE_URL = 'https://game.himematsu.cn'
-$env:VITE_AUDIO_URL = 'https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3'
 npm run build
 cd ..
 ```
@@ -276,7 +275,7 @@ curl.exe -sS https://game.himematsu.cn/api/events/jisong/online/questions
 
 - `https://game.himematsu.cn/` 显示参与者入口。
 - `https://game.himematsu.cn/host` 刷新返回页面而不是 404。
-- 主持人登录后 `<audio>` 的 `src` 为 OSS 线下对象，点击开始后声音与进度条同时前进。
+- 主持人登录后 `<audio>` 的 `src` 为 `/api/events/jisong/audio`，该请求返回 302 到 OSS 线下对象，点击开始后声音与进度条同时前进。
 - 手机通过二维码打开线上页面，音频可播放、暂停与拖动。
 - 主持人页面二维码指向 `https://game.himematsu.cn`。
 
@@ -308,6 +307,6 @@ curl -fsS http://127.0.0.1:8080/api/health
 | 浏览器返回 Nginx 默认页或跳转主站 | `grep -rn "game.himematsu.cn" /etc/nginx/`，删除旧重定向 server block |
 | HTTPS 证书名称不匹配 | `certbot certonly --webroot -w /var/www/certbot -d game.himematsu.cn` 重新签发 |
 | `/api/health` 返回 502 | `systemctl status bgm-guess`、`journalctl -u bgm-guess -n 100` |
-| 主持人页面无声音 | 浏览器开发者工具查看 `<audio>` 的 `src`；确认 OSS 对象 `HEAD` 为 `200` |
+| 主持人页面无声音 | 浏览器开发者工具查看 `<audio>` 的 `src` 与重定向目标；确认 OSS 对象 `HEAD` 为 `200` |
 | 刷新 `/host` 出现 404 | Nginx 缺少 `try_files $uri $uri/ /index.html` |
-| 服务启动报音频文件不可读 | `APP_AUDIO_URL` 与 `APP_AUDIO_URL_ONLINE` 非空，音频由 OSS 提供 |
+| 服务启动报音频文件不可读 | 服务端未放置本地音频且 `APP_AUDIO_URL`、`APP_AUDIO_URL_ONLINE` 未注入 |

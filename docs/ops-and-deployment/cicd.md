@@ -67,7 +67,7 @@
 - Node.js 22 执行 `npm ci` 与 `npm run build`。
 - Java 17 执行 `mvn -B -ntp verify`。
 
-前端构建注入 `VITE_PUBLIC_BASE_URL` 与 `VITE_AUDIO_URL`，默认值分别为 `https://game.himematsu.cn` 与 `https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3`。`VITE_AUDIO_URL` 指向线下母带，只影响主持人控制台；线上参与者由后端 `app.audio-url-online` 下发音频地址。
+前端构建注入 `VITE_PUBLIC_BASE_URL`，缺省为 `https://game.himematsu.cn`。`VITE_AUDIO_URL` 不参与构建，主持人控制台请求 `/api/events/{eventId}/audio`，由后端按本地优先、外链回落的顺序解析；线上参与者由后端 `OnlineQuestionSet.audioUrl` 下发音频地址。
 
 ### 4.2 发布
 
@@ -116,9 +116,9 @@ Nginx 对 `/assets/` 返回 `Cache-Control: public, max-age=31536000, immutable`
 | 名称 | 内容 |
 | :--- | :--- |
 | `PUBLIC_BASE_URL` | 参与者访问地址，例如 `https://game.himematsu.cn` |
-| `AUDIO_URL` | 线下音频对象地址，例如 `https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3` |
+| `AUDIO_URL` | 保留的变量名，构建流程不读取；线下音频对象地址由服务器环境变量 `APP_AUDIO_URL` 提供 |
 
-`PUBLIC_BASE_URL` 缺省时使用 `https://game.himematsu.cn`，`AUDIO_URL` 缺省时使用本文第 4.1 节的 OSS 地址。线上音频对象地址由服务器环境变量 `APP_AUDIO_URL_ONLINE` 提供，不经前端构建注入。
+`PUBLIC_BASE_URL` 缺省时使用 `https://game.himematsu.cn`。线下与线上音频对象地址分别由服务器环境变量 `APP_AUDIO_URL` 与 `APP_AUDIO_URL_ONLINE` 提供，不经前端构建注入。
 
 ### 5.3 Production Environment
 

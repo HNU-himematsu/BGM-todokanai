@@ -100,38 +100,54 @@ public class TimelineStore {
     }
 
     public String audioUrl() {
+        if (audioPath != null && Files.isReadable(audioPath)) {
+            return localAudioUrl();
+        }
         if (!isBlank(audioUrl)) {
             return audioUrl;
         }
-        return "/api/events/" + timeline.eventId() + "/audio";
+        return localAudioUrl();
     }
 
     public String onlineAudioUrl() {
+        if (onlineAudioPath != null && Files.isReadable(onlineAudioPath)) {
+            return localOnlineAudioUrl();
+        }
         if (!isBlank(onlineAudioUrl)) {
             return onlineAudioUrl;
         }
         if (!isBlank(audioUrl)) {
             return audioUrl;
         }
-        return "/api/events/" + timeline.eventId() + "/audio?mode=online";
+        return localOnlineAudioUrl();
     }
 
     public void requireAudioReadable() {
+        if (audioPath != null && Files.isReadable(audioPath)) {
+            return;
+        }
         if (!isBlank(audioUrl)) {
             return;
         }
-        if (audioPath == null || !Files.isReadable(audioPath)) {
-            throw new ResourceNotFoundException("音频文件不可读：" + audioPath);
-        }
+        throw new ResourceNotFoundException("音频文件不可读：" + audioPath);
     }
 
     public void requireOnlineAudioReadable() {
+        if (onlineAudioPath != null && Files.isReadable(onlineAudioPath)) {
+            return;
+        }
         if (!isBlank(onlineAudioUrl) || !isBlank(audioUrl)) {
             return;
         }
-        if (onlineAudioPath == null || !Files.isReadable(onlineAudioPath)) {
-            throw new ResourceNotFoundException("线上音频文件不可读：" + onlineAudioPath);
-        }
+        throw new ResourceNotFoundException("线上音频文件不可读：" + onlineAudioPath);
+    }
+
+    private String localAudioUrl() {
+        return "/api/events/" + timeline.eventId() + "/audio";
+    }
+
+    private String localOnlineAudioUrl() {
+        return "/api/events/" + timeline.eventId() + "/audio?mode=online";
     }
 
     public Question question(String questionId) {

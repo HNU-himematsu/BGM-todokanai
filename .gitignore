@@ -53,7 +53,7 @@ backend/data/*.mp3
 backend/data/*.m4a
 backend/data/*.ogg
 backend/data/*.flac
-backend/data-backup/
+backend/data-backup*/
 
 # ========== Local Build Cache ==========
 # Maven local repository configured in backend/maven-settings.xml

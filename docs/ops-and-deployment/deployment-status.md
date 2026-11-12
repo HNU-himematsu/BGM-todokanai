@@ -1,19 +1,20 @@
 # 部署状态与上线清单
 
-记录日期：2026-11-11
+记录日期：2026-11-12
 
 本文记录当前代码、服务器、OSS 与发布流水线的状态，以及上线前的剩余步骤。
 
 ## 1. 代码状态
 
 - 前端为 Vue 3 + Vite 7，后端为 Spring Boot 3.5.5，构建目标为 Java 17。
-- 生产环境使用 OSS 直连音频；本地联调可通过空值切换到编排目录中的本地音频。
-- 线下母带为 `bgm/event-offline.mp3`，由 `app.audio-url` 提供；线上母带为 `bgm/event-online-cbr192.mp3`，由 `app.audio-url-online` 提供。
-- 线上题集返回 `app.audio-url-online` 的地址；`/api/events/{eventId}/audio` 返回 302 跳转到线下对象，`/api/events/{eventId}/audio?mode=online` 返回 302 跳转到线上对象。
-- `VITE_AUDIO_URL` 指向线下对象，主持人控制台直接播放该地址。
-- `app.audio-url` 为空时，后端使用线下编排同目录的本地音频；`app.audio-url-online` 为空时依次回落 `app.audio-url` 与本地线上音频。
-- 本地联调母带位于 `backend/data/event-offline.mp3`，时长 2780.110 秒，192 kbps CBR；该文件不进入版本库。
-- 后端测试共 50 项，覆盖本地音频 Range、外部音频 URL、无本地音频启动、线上答题流程、双母带加载与交叉校验、音频模式跳转、昵称认领与冲突处理以及榜单兼容。
+- 编排同目录的本地音频可读时优先以 Range 流输出；服务端没有本地音频时使用 OSS 对象。
+- 线下母带为 `bgm/event-offline.mp3`，由 `app.audio-url` 提供；线上母带为 `bgm/event-online-cbr192.mp3`，由 `app.audio-url-online` 提供；本地联调分别读取 `backend/data/event-offline.mp3` 与 `backend/data/event-online.mp3`。
+- 本地音频可读时，线上题集 `audioUrl` 为 `/api/events/{eventId}/audio?mode=online`，`/api/events/{eventId}/audio` 输出线下本地流。本地音频缺失时，题集 `audioUrl` 取 `app.audio-url-online`，两个音频接口分别返回 302 跳转到线下与线上对象。
+- `VITE_AUDIO_URL` 缺省为空，主持人控制台请求 `/api/events/{eventId}/audio` 并由后端解析音频来源；填写该值时主持人控制台直接播放该地址。
+- `app.audio-url` 与 `app.audio-url-online` 为空时，后端只使用编排同目录的本地音频；本地文件缺失时音频接口返回素材错误。
+- 本地联调母带位于 `backend/data/event-offline.mp3`，时长 2429.278 秒，58,304,095 字节，MD5 `33E02A32F5FBE15FC8D180E83E7BD70E`，192 kbps CBR；该文件不进入版本库。
+- 本地线上母带位于 `backend/data/event-online.mp3`，时长 2244.491 秒，53,869,130 字节，MD5 `AEE6304CC699D65E65E06DAAAC6650A9`，192 kbps CBR，内容与 `music/bgm-music.mp3` 相同。
+- 后端测试共 54 项，覆盖本地音频 Range、本地优先与外链回落、无本地音频启动、线上答题流程、双母带加载与交叉校验、音频模式分支、昵称认领与冲突处理以及榜单兼容。
 - 双母带与双编排的后端实现覆盖配置、加载、交叉校验、音频模式分支与线上题集；配置契约见 [`../data-and-config/dual-master-audio.md`](../data-and-config/dual-master-audio.md) 第 5 节，测试清单见该文档第 8 节。
 - 前端生产构建通过。
 
@@ -33,7 +34,9 @@
 - 主站 `himematsu.cn` 与 `www.himematsu.cn` 继续使用 `/etc/letsencrypt/live/himematsu.cn/` 证书，未受子域变更影响。
 - `https://game.himematsu.cn/`、`/host` 与 `/api/health` 返回 `200`；`/api/events/jisong/audio` 返回 `302` 跳转到 OSS 线下对象；`/ws` 完成 WebSocket Upgrade。\n- 线上加入接口写入 `shared/data/nickname_claims.json` 正常，空表内容为 `[]`。
 
-## 3. OSS 状态
+## 3. OSS 状态（已发布版本）
+
+以下为 2026-11-06 已发布对象的现状。仓库与本地数据已更新为新版音频与编排，OSS 尚未替换；新版对象上传前，线上环境继续使用本节所述对象与旧编排。
 
 线上对象为纯 BGM 母带，由 `music/bgm-music.mp3` 单次重编码为 CBR 192 kbps 后上传：
 
@@ -99,7 +102,7 @@ OSS 配置的完整说明见 [`oss-audio.md`](oss-audio.md)。
 
 - `.github/workflows/ci.yml` 在拉取请求与手动触发时构建前端并验证后端。
 - `.github/workflows/deploy.yml` 通过手动触发执行发布或回滚。
-- 前端构建注入 `VITE_AUDIO_URL`，缺省指向线下对象 `bgm/event-offline.mp3`。
+- 前端构建不注入 `VITE_AUDIO_URL`，主持人控制台通过后端音频入口取值。
 - 后端 `app.audio-url` 缺省指向线下对象，`app.audio-url-online` 缺省指向线上对象；`APP_AUDIO_URL` 与 `APP_AUDIO_URL_ONLINE` 可覆盖两个地址。
 - 发布任务使用 `production` environment。
 - 发布用户 `deploy`、sudoers 规则与服务器目录已由 `deploy/bootstrap-server.sh` 初始化；GitHub Secrets 与 Variables 待配置。
@@ -116,12 +119,13 @@ CI/CD 的完整说明见 [`cicd.md`](cicd.md)；不依赖 GitHub Actions 的手�
 3. 在服务器执行 `deploy/bootstrap-server.sh`，创建 `bgm`、`deploy` 用户与目录结构。
 4. 将 `timeline.json`、`timeline-online.json` 与 `questions.json` 放入 `/opt/bgm-guess/shared/data`。榜单文件由服务首次写入时创建，该目录不放置音频文件。
 5. 编辑 `/etc/bgm-guess/bgm-guess.env`，填写 `APP_HOST_PASSWORD`、`APP_AUDIO_URL`、`APP_AUDIO_URL_ONLINE` 与 `APP_ONLINE_TIMELINE_FILE`。
-6. 使用 `VITE_PUBLIC_BASE_URL` 与 `VITE_AUDIO_URL` 构建前端。
-7. 使用 Java 17 构建后端 JAR。
-8. 上传首个 release，切换 `current`，启动 `bgm-guess`。
-9. 为 `game.himematsu.cn` 签发证书并启用 `deploy/nginx-game.conf.example`。
-10. 配置 GitHub Secrets 与发布用户，手动运行一次 `Deploy`。
-11. 完成验收后，按需启用 `main` 推送自动发布。
+6. 上传新版 `bgm/event-offline.mp3` 与线上纯 BGM 对象，确认普通请求返回 `200`、Range 请求返回 `206`。
+7. 设置 `VITE_PUBLIC_BASE_URL` 并构建前端，`VITE_AUDIO_URL` 保持为空。
+8. 使用 Java 17 构建后端 JAR。
+9. 上传 release，切换 `current`，启动 `bgm-guess`。
+10. 为 `game.himematsu.cn` 签发证书并启用 `deploy/nginx-game.conf.example`。
+11. 配置 GitHub Secrets 与发布用户，手动运行一次 `Deploy`。
+12. 完成验收后，按需启用 `main` 推送自动发布。
 
 ## 6. 验收清单
 
@@ -130,10 +134,12 @@ CI/CD 的完整说明见 [`cicd.md`](cicd.md)；不依赖 GitHub Actions 的手�
 - [ ] `https://game.himematsu.cn/?mode=offline` 进入线下入口。
 - [ ] `https://game.himematsu.cn/api/health` 返回健康信息。
 - [ ] `https://game.himematsu.cn/api/events/jisong/online/questions` 返回 40 题，`audioUrl` 为 `bgm/event-online-cbr192.mp3` 的对象地址。
-- [ ] 主持人页面 `<audio>` 的 `src` 为 `bgm/event-offline.mp3` 的对象地址。
+- [ ] 主持人页面 `<audio>` 的 `src` 为 `/api/events/jisong/audio`，该请求返回 302 跳转到线下对象。
 - [ ] 两个 OSS 对象的 `HEAD` 返回 `200`。
 - [ ] 两个 OSS 对象的 Range 请求返回 `206`。
-- [ ] 主持人控制台四轮区间为 0/562355、562355/1341690、1341690/2054605、2054605/2780110，每轮开始先播放轮首播报。
+- [ ] 主持人控制台四轮区间为 0/562469、562469/1259149、1259149/1871684、1871684/2429278，每轮开始首题立即上屏并同时播放轮首播报。
+- [ ] 线上题集末题 `audioEndMs` 为 2244491，线下末题 `audioEndMs` 为 2429278。
+- [ ] 两个 OSS 对象与 `backend/data/event-offline.mp3`、`backend/data/event-online.mp3` 的 MD5 一致。
 - [ ] 线上 40 题逐题定位偏差不超过 0.5 秒，无「倒计时在走、声音空白」的题目。
 - [ ] `/opt/bgm-guess/shared/data` 中没有音频文件，播放仍正常。
 - [ ] 手机可播放并拖动进度。

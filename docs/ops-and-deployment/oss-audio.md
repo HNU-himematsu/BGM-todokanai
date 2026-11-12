@@ -19,20 +19,21 @@ app:
   audio-url-online: "${APP_AUDIO_URL_ONLINE:https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-cbr192.mp3}"
 ```
 
-| 配置项 | 作用对象 | 为空时的行为 |
+| 配置项 | 作用对象 | 解析顺序 |
 | :--- | :--- | :--- |
-| `app.audio-url` | 主持人控制台、`/api/events/{eventId}/audio` | 输出本地线下音频，入口仍为 `/api/events/{eventId}/audio` |
-| `app.audio-url-online` | 线上题集 `OnlineQuestionSet.audioUrl` | 回落 `app.audio-url`；两者均为空时使用 `/api/events/{eventId}/audio?mode=online` |
+| `app.audio-url` | 主持人控制台、`/api/events/{eventId}/audio` | 编排同目录的本地音频可读时使用 `/api/events/{eventId}/audio` 本地流；否则使用该外部地址；两者都不可用时接口返回素材错误 |
+| `app.audio-url-online` | 线上题集 `OnlineQuestionSet.audioUrl` | 线上编排同目录的本地音频可读时使用 `/api/events/{eventId}/audio?mode=online` 本地流；否则使用该外部地址；为空时回落 `app.audio-url`；三者都不可用时接口返回素材错误 |
+
+服务端目录中不存在音频文件时，接口使用两个外部地址，适用于不含音频文件的部署形态。
 
 前端构建变量：
 
 ```text
-VITE_AUDIO_URL=https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3
+# 缺省留空，主持人控制台请求 /api/events/{eventId}/audio
+VITE_AUDIO_URL=
 ```
 
-`VITE_AUDIO_URL` 只用于主持人控制台。线上参与者的音频地址始终由后端 `OnlineQuestionSet.audioUrl` 返回。
-
-`VITE_AUDIO_URL` 与 `app.audio-url` 指向同一个线下对象。两处不一致时，主持人直接播放与后端跳转会分叉。
+`VITE_AUDIO_URL` 只用于主持人控制台。留空时主持人控制台请求 `/api/events/{eventId}/audio`，音频来源由后端按本地优先、外链回落的顺序解析。填写该值时主持人控制台直接播放该地址，绕过后端解析。线上参与者的音频地址始终由后端 `OnlineQuestionSet.audioUrl` 返回。
 
 `timeline.json` 与 `timeline-online.json` 的 `audioFile` 保持文件名，不写 OSS 地址。外部地址由两个配置项提供。
 
@@ -51,7 +52,9 @@ VITE_AUDIO_URL=https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline
 | Cache-Control | `public, max-age=31536000, immutable` | `public, max-age=31536000, immutable` |
 | 传输协议 | HTTPS | HTTPS |
 
-线上对象为纯 BGM 母带，由 `music/bgm-music.mp3` 单次重编码为 CBR 192 kbps 后上传，用于消除 VBR 文件的定位偏差；线下对象为含播报母带，由 `work/event-offline.mp3` 上传。首次发布使用固定对象名 `bgm/event-offline.mp3`；音频内容变化时上传带版本后缀的新对象，例如 `event-offline-v2.mp3`，并同步切换 `APP_AUDIO_URL` 与 `VITE_AUDIO_URL`，避免浏览器与 CDN 命中旧缓存。
+线上对象为纯 BGM 母带，由 `music/bgm-music.mp3` 单次重编码为 CBR 192 kbps 后上传，用于消除 VBR 文件的定位偏差；线下对象为含播报母带，由 `work/event-offline.mp3` 上传。首次发布使用固定对象名 `bgm/event-offline.mp3`；音频内容变化时上传带版本后缀的新对象，例如 `event-offline-v2.mp3`，并同步切换 `APP_AUDIO_URL`，避免浏览器与 CDN 命中旧缓存。
+
+表中数值为 2026-11-06 已发布对象。仓库与本地数据已更新：新版线上文件 `backend/data/event-online.mp3` 为 2244.491 秒、53,869,130 字节；新版线下文件 `backend/data/event-offline.mp3` 为 2429.278 秒、58,304,095 字节。新版对象上传并切换地址前，OSS 上的对象只配套旧编排。
 
 ### 3.1 CORS
 
@@ -77,18 +80,25 @@ OSS 跨域规则：
 
 ## 4. 上传音频
 
-线下对象已上传，源文件为 `work/event-offline.mp3`，MD5 为 `33688E3C8AFB41BC5D898CDAE15E1A48`。OSS 记录的对象大小为 66,724,510 字节，与源文件一致。分片上传产生的 ETag 带分片后缀（`88FEAA824926B8E444A3662F575AD210-8`），与 MD5 不相等属于正常现象。
+已发布线下对象源文件为旧版 `work/event-offline.mp3`，MD5 为 `33688E3C8AFB41BC5D898CDAE15E1A48`，对象大小为 66,724,510 字节。分片上传产生的 ETag 带分片后缀（`88FEAA824926B8E444A3662F575AD210-8`），与 MD5 不相等属于正常现象。
+
+新版线下对象取 `work/rebuild/event-offline.mp3`，MD5 为 `33E02A32F5FBE15FC8D180E83E7BD70E`，大小 58,304,095 字节；新版线上对象取 `music/bgm-music.mp3`，MD5 为 `AEE6304CC699D65E65E06DAAAC6650A9`，大小 53,869,130 字节。
 
 覆盖上传可使用 ossutil：
 
 ```bash
-ossutil cp work/event-offline.mp3 \
-  oss://himematsu/bgm/event-offline.mp3 \
+ossutil cp work/rebuild/event-offline.mp3 \
+  oss://himematsu/bgm/event-offline-v2.mp3 \
+  --meta Content-Type:audio/mpeg \
+  --meta Cache-Control:public,max-age=31536000,immutable
+
+ossutil cp music/bgm-music.mp3 \
+  oss://himematsu/bgm/event-online-v2.mp3 \
   --meta Content-Type:audio/mpeg \
   --meta Cache-Control:public,max-age=31536000,immutable
 ```
 
-线上对象的源文件为 `work/event-online-cbr192.mp3`，编码参数与上传步骤见 [`audio-seek-quality.md`](../data-and-config/audio-seek-quality.md) 6.1 节。
+版本化对象上传后，把 `APP_AUDIO_URL` 与 `APP_AUDIO_URL_ONLINE` 切到新对象名。
 
 也可以在 OSS 控制台上传对象，并设置对象 ACL、Content-Type 与 Cache-Control。
 
@@ -110,7 +120,7 @@ curl -I -H 'Range: bytes=0-1023' https://himematsu.oss-cn-guangzhou.aliyuncs.com
 - 在 OSS 控制台删除对象或对象历史版本。
 - 为子账号授予目标前缀的 `oss:DeleteObject` 权限后使用 `ossutil rm`。
 
-对象覆盖上传不需要删除权限。需要保留回滚能力时，使用新对象名上传，再切换 `app.audio-url` 与 `VITE_AUDIO_URL`。
+对象覆盖上传不需要删除权限。需要保留回滚能力时，使用新对象名上传，再切换 `app.audio-url`。
 
 ## 5. 发布流程
 
@@ -122,11 +132,7 @@ curl -I -H 'Range: bytes=0-1023' https://himematsu.oss-cn-guangzhou.aliyuncs.com
    APP_AUDIO_URL_ONLINE=https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-cbr192.mp3
    ```
 
-3. 构建前端时设置：
-
-   ```bash
-   VITE_AUDIO_URL=https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3 npm run build
-   ```
+3. 构建前端。`VITE_AUDIO_URL` 保持为空，主持人控制台通过 `/api/events/{eventId}/audio` 取值。
 
 4. 重新构建并发布后端 JAR。
 5. 重启 `bgm-guess`。
@@ -144,11 +150,11 @@ curl -I -H 'Range: bytes=0-1023' https://himematsu.oss-cn-guangzhou.aliyuncs.com
 curl -I https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-cbr192.mp3
 ```
 
-- 线上题集响应中的 `audioUrl` 为线上对象地址，长度 62,233,783。
-- 主持人页面 `<audio>` 的 `src` 为线下对象地址。
+- 线上题集响应中的 `audioUrl` 在服务端没有本地音频时为线上对象地址，长度 62,233,783。
+- 主持人页面 `<audio>` 的 `src` 为 `/api/events/jisong/audio`。
 - 两个对象均返回 `200`，Range 请求返回 `206`。
 - 手机可播放、暂停、拖动进度，切题定位与本地音频一致。
-- `/api/events/jisong/audio` 在外部音频配置下返回跳转到线下对象的响应。
+- `/api/events/jisong/audio` 在服务端没有本地音频时返回跳转到线下对象的响应。
 - `/opt/bgm-guess/shared/data` 中没有音频文件，播放仍正常。
 
 ## 7. 私有 Bucket
@@ -166,7 +172,7 @@ curl -I https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-cbr192.
 | 能播放但拖动失败 | OSS Range 支持、CORS 暴露 `Content-Range` 与 `Accept-Ranges` |
 | 浏览器拦截 | HTTPS 页面引用 HTTP 音频、CORS 来源不匹配 |
 | 换了音频仍播放旧内容 | 对象名未变更、CDN 缓存、`Cache-Control` 过长 |
-| 主持人有声音、参与者没有 | `app.audio-url` 与 `VITE_AUDIO_URL` 不一致，或线上题集未重新发布 |
+| 主持人有声音、参与者没有 | `app.audio-url-online` 指向的对象不可读，或线上题集未重新发布 |
 | 线上听到主持人播报 | `app.audio-url-online` 仍指向线下对象 |
-| 线下没有轮首播报 | `timeline.json` 与 `event-offline.mp3` 不匹配，或前端仍指向旧对象 |
-| 后端启动仍报音频不可读 | `APP_AUDIO_URL` 未注入，`app.audio-url` 为空 |
+| 线下没有轮首播报 | `timeline.json` 与所播放母带不是同一版本 |
+| 后端启动仍报音频不可读 | 本地音频不存在且 `APP_AUDIO_URL` 未注入，`app.audio-url` 为空 |

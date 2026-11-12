@@ -251,7 +251,7 @@ Range: bytes=0-1048575
 
 响应：
 
-- 对应模式配置外部地址时返回 `302 Found`，`Location` 为 OSS 对象地址，不经过应用服务器转发音频。
+- 本地音频不可读且对应模式配置了外部地址时返回 `302 Found`，`Location` 为 OSS 对象地址，不经过应用服务器转发音频。
 - 无 `Range` 时返回 `200 OK` 和完整音频。
 - 有效 `Range` 时返回 `206 Partial Content`、`Content-Range`、`Accept-Ranges: bytes` 与对应字节片段。
 - 单个 Range 请求按请求区间返回完整片段；开放式区间返回至文件末尾。多区间请求返回第一个区间。
@@ -288,7 +288,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
   "data": {
     "eventId": "jisong",
     "eventName": "旮旯原声之届不到的 BGM",
-    "audioUrl": "https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-cbr192.mp3",
+    "audioUrl": "/api/events/jisong/audio?mode=online",
     "questionSetVersion": "b3f1f5f4b4d07b8f0d9f0d5c2a3e5c1f0e9c8a7b6d5e4f3a2b1c0d9e8f7a6b5c",
     "audioStartMs": 0,
     "audioEndMs": 90000,
@@ -329,7 +329,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
 | :--- | :--- | :--- |
 | `eventId` | String | 活动标识。 |
 | `eventName` | String | 活动名称。 |
-| `audioUrl` | String | 线上音频地址，取 `app.audio-url-online`，可直接赋给音频元素的 `src`；该值为空时回落 `app.audio-url`。 |
+| `audioUrl` | String | 线上音频地址，可直接赋给音频元素的 `src`。线上编排同目录的本地音频可读时为 `/api/events/{eventId}/audio?mode=online`；本地文件不可读时取 `app.audio-url-online`，该值为空时再回落 `app.audio-url`。 |
 | `questionSetVersion` | String | 线上题集版本，SHA-256 小写十六进制字符串。 |
 | `audioStartMs` | Long | 第一道线上题目的音频起点。 |
 | `audioEndMs` | Long | 最后一道线上题目的音频终点。 |

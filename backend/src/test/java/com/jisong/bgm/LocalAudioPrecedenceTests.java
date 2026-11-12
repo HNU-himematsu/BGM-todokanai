@@ -7,6 +7,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -17,28 +18,35 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "app.online-timeline-file=",
         "app.audio-url-online=",
         "app.audio-url=https://cdn.example.com/bgm/event-test.wav",
-        "app.leaderboard-file=target/test-data/leaderboards.json",
-        "app.online-leaderboard-file=target/test-data/online_leaderboard.json",
-        "app.leaderboard-txt-file=target/test-data/leaderboard_summary.txt"
+        "app.leaderboard-file=target/test-data/local-audio-leaderboards.json",
+        "app.online-leaderboard-file=target/test-data/local-audio-online_leaderboard.json",
+        "app.leaderboard-txt-file=target/test-data/local-audio-leaderboard_summary.txt"
 })
 @AutoConfigureMockMvc
-class ExternalAudioUrlTests {
-    private static final String AUDIO_URL = "https://cdn.example.com/bgm/event-test.wav";
+class LocalAudioPrecedenceTests {
 
     @Autowired
     private MockMvc mockMvc;
 
     @Test
-    void onlineQuestionSetUsesExternalAudioUrl() throws Exception {
+    void onlineQuestionSetUsesLocalAudioWhenFileIsReadable() throws Exception {
         mockMvc.perform(get("/api/events/demo/online/questions"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.audioUrl").value(AUDIO_URL));
+                .andExpect(jsonPath("$.data.audioUrl").value("/api/events/demo/audio?mode=online"));
     }
 
     @Test
-    void audioEndpointRedirectsToExternalAudioUrl() throws Exception {
+    void audioEndpointStreamsLocalAudioInsteadOfRedirecting() throws Exception {
         mockMvc.perform(get("/api/events/demo/audio"))
-                .andExpect(status().isFound())
-                .andExpect(header().string(HttpHeaders.LOCATION, AUDIO_URL));
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ACCEPT_RANGES, "bytes"))
+                .andExpect(header().doesNotExist(HttpHeaders.LOCATION));
+    }
+
+    @Test
+    void rangeRequestReturnsPartialContentFromLocalAudio() throws Exception {
+        mockMvc.perform(get("/api/events/demo/audio").header(HttpHeaders.RANGE, "bytes=0-1023"))
+                .andExpect(status().isPartialContent())
+                .andExpect(header().string(HttpHeaders.CONTENT_RANGE, startsWith("bytes 0-1023/")));
     }
 }

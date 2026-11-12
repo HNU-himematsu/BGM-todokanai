@@ -8,14 +8,14 @@
 
 | 模式 | 母带 | 本地文件 | 时长 | 末题 `audioEndMs` |
 | :--- | :--- | :--- | ---: | ---: |
-| 线上 | MP3 VBR，纯 BGM | `backend/data/event-online.mp3` | 2593.149 秒 | 2593000 |
-| 线下 | MP3 CBR 192 kbps，含播报 | `backend/data/event-offline.mp3` | 2780.110 秒 | 2780110 |
+| 线上 | MP3 CBR 192 kbps，纯 BGM | `backend/data/event-online.mp3` | 2244.491 秒 | 2244491 |
+| 线下 | MP3 CBR 192 kbps，含播报 | `backend/data/event-offline.mp3` | 2429.278 秒 | 2429278 |
 
-线上部署使用 OSS 对象 `bgm/event-online-cbr192.mp3`，由 `music/bgm-music.mp3` 单次重编码为 CBR 192 kbps，内容与 `event-online.mp3` 相同；线下部署使用 OSS 对象 `bgm/event-offline.mp3`。双母带的运行形态见 [`dual-master-audio.md`](dual-master-audio.md)。
+线上部署使用 OSS 对象 `bgm/event-online-cbr192.mp3`。已发布对象为旧编曲的 VBR 重编码（2593.000 秒）；仓库与本地新版 `event-online.mp3` 为 2244.491 秒、CBR 192 kbps。线下部署使用 OSS 对象 `bgm/event-offline.mp3`；已发布对象为 2780.110 秒的旧母带，本地新版为 2429.278 秒。新版对象上传前，OSS 上的对象只配套旧编排。双母带的运行形态见 [`dual-master-audio.md`](dual-master-audio.md)。
 
 适用场景：
 
-- 线上模式点击「下一题」后，音频定位到下一题 `answerStartMs`；线上母带为 VBR，定位精度是上线前的必测项。
+- 线上模式点击「下一题」后，音频定位到下一题 `answerStartMs`；已发布的 VBR 对象把定位精度列为上线前必测项，新版本地 CBR 母带按 9.3 节抽检。
 - 线下主持人开始播放、拖动进度时，音频定位到轮次区间；线下母带为 CBR，定位精度由编码参数保证并逐题抽检。
 - 新素材导入时，判断音频是否满足单文件编排的可定位性要求。
 
@@ -49,6 +49,8 @@
 - 浏览器把 `currentTime` 换算成字节偏移。MP3 的换算依据是 Xing/Info 帧头的 TOC（100 项，每项对应百分之一时长）与平均码率。TOC 精度与文件中码率的一致性共同决定落点误差；码率差异越大，TOC 的 256 级量化换算成时间的误差越大。
 
 ## 4. 素材实测
+
+以下 4.1 至 4.7 为已发布旧对象的实测记录，用于说明 VBR 定位问题；新版本地文件为 CBR 192 kbps。
 
 测量对象：VBR 混拼原始文件，备份于 `work/event-demo-vbr-original-20261030.mp3`（42,272,879 字节）。
 
@@ -141,7 +143,7 @@ Xing 头与 TOC 均存在，TOC 数值与帧表不一致，最大偏差 35.9 秒
 
 ### 4.8 CBR 成品实测
 
-测量对象：由 `music/bgm-music.mp3` 单次编码的基底母带 `work/event-demo-cbr192.mp3`（62,233,783 字节），不含主持人播报。
+测量对象：旧编曲由 `music/bgm-music.mp3` 单次编码的基底母带 `work/event-demo-cbr192.mp3`（62,233,783 字节），不含主持人播报。
 
 | 项目 | 实测值 |
 | :--- | :--- |
@@ -159,7 +161,7 @@ Xing 头与 TOC 均存在，TOC 数值与帧表不一致，最大偏差 35.9 秒
 
 定位测量方法：headless Chrome 经 CDP 逐题设置 `currentTime`，`seeked` 后用 `captureStream()` 接 `AnalyserNode`，每 100 毫秒记录 `[currentTime, 电平]`，采样 6 秒；素材侧以 `silencedetect=noise=-30dB:d=0.2` 给出每题的首次出声时刻。电平判据取 -30 dB，避开 8 位时域采样在 -48 dB 附近的量化底噪。
 
-### 4.9 线上母带（VBR 对象）
+### 4.9 旧线上对象（VBR）
 
 4.1～4.7 的测量对象为 `work/event-demo-vbr-original-20261030.mp3`。上线初期的 OSS 对象 `姬松活动/bgm-music.mp3` 与该文件在 510 秒处逐样本一致，尾部多 5 帧、约 149 毫秒编码尾垫，4.4 的 TOC 偏差结论对该对象成立。该对象保留为线上音频的回滚对象。
 
@@ -178,22 +180,24 @@ Xing 头与 TOC 均存在，TOC 数值与帧表不一致，最大偏差 35.9 秒
 
 ### 4.10 线下母带（CBR 成品）
 
-`backend/data/event-offline.mp3` 由第一轮母带与三段轮首播报合成，编码参数为 CBR 192 kbps。
+本地 `backend/data/event-offline.mp3` 为 2429.278 秒、58,304,095 字节，编码参数为 CBR 192 kbps。已发布 OSS 对象为 2780.110 秒的旧母带，新版上传前只配套旧编排。
 
 | 项目 | 期望值 |
 | :--- | :--- |
-| 时长 | 容器 2780.110 秒，与末题 `audioEndMs`（2780110）相差不超过 100 毫秒 |
+| 时长 | 容器 2429.278 秒，与末题 `audioEndMs`（2429278）相差不超过 100 毫秒 |
 | 码率 | 全部帧 192 kbps |
 | 采样率 / 声道 | 44100 Hz / 2 |
-| 体积 | 约 66.7 MB |
+| 体积 | 约 58.3 MB |
 | 静音结构 | 每题音乐终点后接播报槽与余量静音；播报片段结束后静音不少于 400 毫秒 |
 | 定位 | 按 9.3 节方法对线下编排重跑 40 题的 `answerStartMs`，偏差不超过 0.5 秒 |
 
 合成规则、槽位表与生成流程见 [`announcer-voice.md`](announcer-voice.md) 与 [`dual-master-audio.md`](dual-master-audio.md) 第 4 节。
 
-### 4.11 线上成品对象（CBR 192 kbps）
+### 4.11 已发布线上对象（CBR 192 kbps）
 
 `bgm/event-online-cbr192.mp3` 由 `music/bgm-music.mp3` 按 6.1 节参数单次编码生成，替代 4.9 的 VBR 对象。
+
+新版本地 `backend/data/event-online.mp3` 为 2244.491 秒、53,869,130 字节；上传为新对象后按本节方法复测。
 
 | 项目 | 实测值 |
 | :--- | :--- |
@@ -223,7 +227,7 @@ A/B 定位实测：headless Chrome 播放在同一本地 HTTP 服务下，对四
 | :--- | :--- | :--- |
 | 码率 | CBR，或全文件最高与最低码率之比不超过 2 | A |
 | 字节与时间的对应关系 | 线性，误差不超过 0.5 秒 | A |
-| TOC | 与帧表一致；100 项 × 8 位 TOC 在 2780.1 秒全长上每级约 10.9 秒，字节位置偏差不超过 1.3 级，落点精度以定位实测为准 | A |
+| TOC | 与帧表一致；100 项 × 8 位 TOC 在 2429.3 秒全长上每级约 9.6 秒，字节位置偏差不超过 1.3 级，落点精度以定位实测为准 | A |
 | 题间静音 | 每题音频片段尾部静音不超过 1.0 秒 | B |
 | 定位效果 | 定位到任一 `answerStartMs` 后，出声时刻与该时刻素材内容一致，偏差不超过 0.5 秒 | A、B |
 
@@ -236,7 +240,7 @@ ffmpeg -y -i "music\bgm-music.mp3" -c:a libmp3lame -b:a 192k -ar 44100 -ac 2 -t 
 ```
 
 - 输入取 `music/bgm-music.mp3`，即题集混拼前的源素材；该命令生成基底母带，用于测量与 A/B 对照。最终成品由源素材直接合成并单次编码，见 [`announcer-voice.md`](announcer-voice.md) 第 7 节。
-- `-t 2593.000` 把基底母带裁到插入播报前的末题 `audioEndMs = 2593000`；源素材时长 2593.149 秒，末段 149 毫秒不入基底母带。
+- `-t 2593.000` 对应旧编曲，把基底母带裁到插入播报前的末题 `audioEndMs = 2593000`；源素材时长 2593.149 秒，末段 149 毫秒不入基底母带。新版线上母带直接使用 2244.491 秒的 `music/bgm-music.mp3`，不裁剪。
 - 体积：约 62 MB（192 kbps × 2593 秒），原文件约 42 MB。
 - 时长：容器时长 2593.000 秒，帧表 2593.071 秒（99266 帧），与插入播报前的末题 `audioEndMs` 相差 71 毫秒，满足 100 毫秒容差。
 - 代价：相对源素材的一次有损编码。
@@ -269,10 +273,10 @@ ffmpeg -y -i "music\bgm-music.mp3" -c:a libmp3lame -b:a 192k -ar 44100 -ac 2 -t 
 1. 备份 `backend/data/event-online.mp3`、`backend/data/event-offline.mp3` 与 `backend/data/timeline.json` 到 `work/`。
 2. 按 6.1 节参数由 `music/bgm-music.mp3` 生成基底母带 `work/event-demo-cbr192.mp3`，用于测量与 A/B 对照；线下母带按 [`dual-master-audio.md`](dual-master-audio.md) 第 4.5 节生成 `backend/data/event-offline.mp3`，编码参数一致。
 3. 用 9.1 节脚本校验两个文件的帧数、时长、码率极差、TOC 误差。
-4. 按 9.3 节方法逐题定位，线上覆盖 2593000 毫秒编排的 40 题 `answerStartMs`，线下覆盖 2780110 毫秒编排的 40 题 `answerStartMs`，确认出声时刻与素材内容一致。
+4. 按 9.3 节方法逐题定位，线上覆盖 2244491 毫秒编排的 40 题 `answerStartMs`，线下覆盖 2429278 毫秒编排的 40 题 `answerStartMs`，确认出声时刻与素材内容一致。
 5. 替换文件并重启后端，确认 `GET /api/events/jisong/audio` 与 `GET /api/events/jisong/audio?mode=online` 均返回 `206`、`Content-Range` 覆盖完整区间、`Accept-Ranges: bytes`；部署环境两个地址为 OSS 302 跳转，直接对对象地址验证 Range。
 6. 按第 8 节逐项验收。
-7. 线上对象于 2026-11-06 完成切换：`bgm/event-online-cbr192.mp3` 已上传并生效，`APP_AUDIO_URL_ONLINE` 指向该对象，40 题定位复测全部通过。
+7. 已发布对象于 2026-11-06 完成切换：`bgm/event-online-cbr192.mp3` 已上传并生效，`APP_AUDIO_URL_ONLINE` 指向该对象，40 题定位复测全部通过。新版对象需按同一流程上传后复测。
 
 ## 8. 验收指标
 
@@ -281,7 +285,7 @@ ffmpeg -y -i "music\bgm-music.mp3" -c:a libmp3lame -b:a 192k -ar 44100 -ac 2 -t 
 3. 逐题定位：线上、线下各 40 题分别定位到所属编排的 `answerStartMs`，采样 6 秒；浏览器首次出声时刻与素材在该时刻的实际出声时刻相差不超过 0.5 秒，且不出现超过 0.5 秒的多余连续静音。
 4. 线上流程：完整走完 40 题，无「倒计时在走、声音空白」的题目。
 5. 线下流程：主持人开始播放、逐题「下一题」、轮次切换三种操作均即时出声；手动下一题后音频位置与新题起点一致。
-6. 服务端：两个音频入口的 `Range` 请求均返回 `206`，`Content-Range` 覆盖请求区间，`Accept-Ranges: bytes`；外部地址配置时返回 302 指向对应对象。
+6. 服务端：两个音频入口的 `Range` 请求均返回 `206`，`Content-Range` 覆盖请求区间，`Accept-Ranges: bytes`；本地音频缺失且配置外部地址时返回 302 指向对应对象。
 
 ## 9. 诊断复现
 

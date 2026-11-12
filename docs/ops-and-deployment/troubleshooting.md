@@ -106,7 +106,7 @@
 1. 确认手机媒体音量与静音开关。
 2. 确认页面处于前台并已加载音频元数据。
 3. 由用户直接点击开始或继续按钮。
-4. 检查线上题集接口的 `audioUrl` 是否为线上对象地址；`/api/events/{eventId}/audio` 返回 302 到线下对象，`/api/events/{eventId}/audio?mode=online` 返回 302 到线上对象。
+4. 检查线上题集接口的 `audioUrl`：本地音频可读时为 `/api/events/{eventId}/audio?mode=online`，本地缺失时为线上对象地址；`/api/events/{eventId}/audio` 在本地缺失时返回 302 到线下对象。
 5. 直接请求 OSS 对象，检查状态码、`Content-Type` 与对象 ACL。
 6. 检查音频文件是否可被该浏览器解码。
 7. 使用开发者工具 Network 面板查看 OSS Range 请求是否成功。

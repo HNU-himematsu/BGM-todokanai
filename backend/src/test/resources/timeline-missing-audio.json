@@ -1,0 +1,41 @@
+{
+  "eventId": "demo",
+  "eventName": "编排联调演示",
+  "audioFile": "missing-audio.wav",
+  "rounds": [
+    {
+      "id": "round-1",
+      "name": "联调轮次",
+      "startMs": 0,
+      "endMs": 3600,
+      "items": [
+        {"atMs": 0, "action": "LOAD", "questionId": "t-01", "audioStartMs": 0, "audioEndMs": 2000},
+        {"atMs": 100, "action": "NEXT"},
+        {"atMs": 1500, "action": "LOCK"},
+        {"atMs": 1600, "action": "REVEAL"},
+        {"atMs": 1700, "action": "LOAD", "questionId": "t-02", "audioStartMs": 2000, "audioEndMs": 3600},
+        {"atMs": 2100, "action": "NEXT"},
+        {"atMs": 3200, "action": "LOCK"},
+        {"atMs": 3300, "action": "REVEAL"},
+        {"atMs": 3400, "action": "FINISH"}
+      ]
+    },
+    {
+      "id": "round-2",
+      "name": "联调备用轮次",
+      "startMs": 4000,
+      "endMs": 7600,
+      "items": [
+        {"atMs": 4000, "action": "LOAD", "questionId": "t-01", "audioStartMs": 4000, "audioEndMs": 5000},
+        {"atMs": 4100, "action": "NEXT"},
+        {"atMs": 4900, "action": "LOCK"},
+        {"atMs": 4950, "action": "REVEAL"},
+        {"atMs": 5000, "action": "LOAD", "questionId": "t-02", "audioStartMs": 5000, "audioEndMs": 6000},
+        {"atMs": 5100, "action": "NEXT"},
+        {"atMs": 5900, "action": "LOCK"},
+        {"atMs": 5950, "action": "REVEAL"},
+        {"atMs": 6000, "action": "FINISH"}
+      ]
+    }
+  ]
+}
