@@ -73,6 +73,14 @@ a {
   border-color: var(--accent-dark) !important;
 }
 
+/* 按钮内联 SVG 使用 flex 居中，避免按基线对齐导致图标偏上。 */
+.ant-btn:has(> svg) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
 .ant-input:focus,
 .ant-input-focused {
   border-color: var(--accent) !important;
@@ -204,10 +212,17 @@ p {
   display: flex;
   flex-direction: column;
   padding: 24px 20px 20px;
-  border-radius: 14px;
+  border-radius: 0 !important;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.16);
   border: 1px solid var(--line);
   overflow: hidden;
+}
+
+/* 规则弹窗整体使用直角，弹窗内的容器、按钮与提示条不设置圆角。 */
+.rules-modal .ant-btn,
+.rules-modal .ant-alert,
+.rules-modal .ant-modal-close {
+  border-radius: 0 !important;
 }
 
 .rules-modal .ant-modal-close {
@@ -267,7 +282,7 @@ p {
   padding: 12px 14px;
   background: var(--soft);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .rule-icon {
@@ -279,7 +294,7 @@ p {
   background: var(--accent-light);
   color: var(--accent);
   border: 1px solid var(--accent-line);
-  border-radius: 8px;
+  border-radius: 0;
   margin-top: 2px;
 }
 
@@ -571,24 +586,24 @@ p {
   margin-top: 22px;
 }
 
+/* 提示块与计分规则块共用视觉规范：浅灰底、3px 主色左边线、直角。 */
 .question-hint {
   display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  margin-top: 22px;
-  padding: 12px 14px;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 18px;
+  padding: 14px 16px;
   border-left: 3px solid var(--accent);
-  border-radius: 8px;
-  background: var(--accent-light);
+  background: var(--soft);
   color: var(--ink);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.7;
 }
 
 .question-hint-label {
-  flex: none;
-  color: var(--accent-dark);
-  font-weight: 600;
+  color: var(--accent);
+  font-size: 11px;
+  letter-spacing: 0.08em;
 }
 
 .author-line {
