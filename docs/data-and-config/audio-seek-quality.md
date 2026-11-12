@@ -11,7 +11,7 @@
 | 线上 | MP3 CBR 192 kbps，纯 BGM | `backend/data/event-online.mp3` | 2244.491 秒 | 2244491 |
 | 线下 | MP3 CBR 192 kbps，含播报 | `backend/data/event-offline.mp3` | 2429.278 秒 | 2429278 |
 
-线上部署使用 OSS 对象 `bgm/event-online-cbr192.mp3`。已发布对象为旧编曲的 VBR 重编码（2593.000 秒）；仓库与本地新版 `event-online.mp3` 为 2244.491 秒、CBR 192 kbps。线下部署使用 OSS 对象 `bgm/event-offline.mp3`；已发布对象为 2780.110 秒的旧母带，本地新版为 2429.278 秒。新版对象上传前，OSS 上的对象只配套旧编排。双母带的运行形态见 [`dual-master-audio.md`](dual-master-audio.md)。
+线上部署使用 OSS 对象 `bgm/event-online-v2.mp3`（2244.491 秒、CBR 192 kbps），线下部署使用 `bgm/event-offline-v2.mp3`（2429.278 秒、CBR 192 kbps）。两个对象于 2026-11-12 上传并投入生产；2026-11-06 的旧对象保留为回滚对象。双母带的运行形态见 [`dual-master-audio.md`](dual-master-audio.md)。
 
 适用场景：
 
@@ -180,7 +180,7 @@ Xing 头与 TOC 均存在，TOC 数值与帧表不一致，最大偏差 35.9 秒
 
 ### 4.10 线下母带（CBR 成品）
 
-本地 `backend/data/event-offline.mp3` 为 2429.278 秒、58,304,095 字节，编码参数为 CBR 192 kbps。已发布 OSS 对象为 2780.110 秒的旧母带，新版上传前只配套旧编排。
+本地 `backend/data/event-offline.mp3` 为 2429.278 秒、58,304,095 字节，编码参数为 CBR 192 kbps。生产对象 `bgm/event-offline-v2.mp3` 与该文件一致。
 
 | 项目 | 期望值 |
 | :--- | :--- |
@@ -276,7 +276,7 @@ ffmpeg -y -i "music\bgm-music.mp3" -c:a libmp3lame -b:a 192k -ar 44100 -ac 2 -t 
 4. 按 9.3 节方法逐题定位，线上覆盖 2244491 毫秒编排的 40 题 `answerStartMs`，线下覆盖 2429278 毫秒编排的 40 题 `answerStartMs`，确认出声时刻与素材内容一致。
 5. 替换文件并重启后端，确认 `GET /api/events/jisong/audio` 与 `GET /api/events/jisong/audio?mode=online` 均返回 `206`、`Content-Range` 覆盖完整区间、`Accept-Ranges: bytes`；部署环境两个地址为 OSS 302 跳转，直接对对象地址验证 Range。
 6. 按第 8 节逐项验收。
-7. 已发布对象于 2026-11-06 完成切换：`bgm/event-online-cbr192.mp3` 已上传并生效，`APP_AUDIO_URL_ONLINE` 指向该对象，40 题定位复测全部通过。新版对象需按同一流程上传后复测。
+7. v2 对象于 2026-11-12 完成切换：`bgm/event-online-v2.mp3` 已上传并生效，`APP_AUDIO_URL_ONLINE` 指向该对象。逐题定位按 9.3 节抽检。
 
 ## 8. 验收指标
 

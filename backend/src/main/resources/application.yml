@@ -8,8 +8,8 @@ spring:
 app:
   frontend-origin: http://localhost:5173
   host-password: "123456"
-  audio-url: "${APP_AUDIO_URL:https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3}"
-  audio-url-online: "${APP_AUDIO_URL_ONLINE:https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-cbr192.mp3}"
+  audio-url: "${APP_AUDIO_URL:https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline-v2.mp3}"
+  audio-url-online: "${APP_AUDIO_URL_ONLINE:https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-v2.mp3}"
   timeline-file: "${APP_TIMELINE_FILE:data/timeline.json}"
   online-timeline-file: "${APP_ONLINE_TIMELINE_FILE:data/timeline-online.json}"
   leaderboard-file: data/leaderboards.json

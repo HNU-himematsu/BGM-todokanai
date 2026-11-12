@@ -147,8 +147,8 @@ app:
   host-password: "123456"
   timeline-file: data/timeline.json
   online-timeline-file: data/timeline-online.json
-  audio-url: "${APP_AUDIO_URL:https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3}"
-  audio-url-online: "${APP_AUDIO_URL_ONLINE:https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-cbr192.mp3}"
+  audio-url: "${APP_AUDIO_URL:https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline-v2.mp3}"
+  audio-url-online: "${APP_AUDIO_URL_ONLINE:https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-v2.mp3}"
   leaderboard-file: data/leaderboards.json
   online-leaderboard-file: data/online_leaderboard.json
   nickname-claims-file: data/nickname_claims.json

@@ -101,8 +101,8 @@ tools/                   母带合成与移动端流程预览工具
 | `server.port` | `8080` | 后端监听端口，只对 Nginx 暴露 |
 | `app.frontend-origin` | `http://localhost:5173` | WebSocket 允许的跨域来源 |
 | `app.host-password` | `123456` | 主持人控制台密码 |
-| `app.audio-url` | OSS `bgm/event-offline.mp3` | 线下外链地址；本地音频可读时优先本地流 |
-| `app.audio-url-online` | OSS `bgm/event-online-cbr192.mp3` | 线上外链地址；本地音频可读时优先本地流 |
+| `app.audio-url` | OSS `bgm/event-offline-v2.mp3` | 线下外链地址；本地音频可读时优先本地流 |
+| `app.audio-url-online` | OSS `bgm/event-online-v2.mp3` | 线上外链地址；本地音频可读时优先本地流 |
 | `app.timeline-file` | `data/timeline.json` | 线下编排文件 |
 | `app.online-timeline-file` | `data/timeline-online.json` | 线上编排文件 |
 | `app.leaderboard-file` | `data/leaderboards.json` | 线下榜单文件 |
@@ -117,8 +117,8 @@ tools/                   母带合成与移动端流程预览工具
 
 ```text
 APP_HOST_PASSWORD=123456
-APP_AUDIO_URL=https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3
-APP_AUDIO_URL_ONLINE=https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-cbr192.mp3
+APP_AUDIO_URL=https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline-v2.mp3
+APP_AUDIO_URL_ONLINE=https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-v2.mp3
 APP_TIMELINE_FILE=/opt/bgm-guess/shared/data/timeline.json
 APP_ONLINE_TIMELINE_FILE=/opt/bgm-guess/shared/data/timeline-online.json
 APP_LEADERBOARD_FILE=/opt/bgm-guess/shared/data/leaderboards.json
@@ -260,10 +260,10 @@ bash /opt/bgm-guess/bin/activate-release.sh <previous-release-id>
 
 | 用途 | 对象 | 规格 |
 | :--- | :--- | :--- |
-| 线下母带 | `bgm/event-offline.mp3` | 新版本地 58,304,095 字节，2429.278 秒，MP3 CBR 192 kbps |
-| 线上母带 | `bgm/event-online-cbr192.mp3` | 新版本地 53,869,130 字节，2244.491 秒，MP3 CBR 192 kbps |
+| 线下母带 | `bgm/event-offline-v2.mp3` | 58,304,095 字节，2429.278 秒，MP3 CBR 192 kbps |
+| 线上母带 | `bgm/event-online-v2.mp3` | 53,869,130 字节，2244.491 秒，MP3 CBR 192 kbps |
 
-两个对象均为公共读，`Content-Type` 为 `audio/mpeg`，支持 Range 请求，普通请求返回 `200`、Range 请求返回 `206`。两个对象均带 `Cache-Control: public, max-age=31536000, immutable`。OSS 当前对象为 2026-11-06 已发布版本；新版音频上传并切换地址前，线上对象只配套旧编排。替换音频时使用新对象名并同步 `APP_AUDIO_URL` 与 `APP_AUDIO_URL_ONLINE`。
+两个对象于 2026-11-12 上传，均为公共读，`Content-Type` 为 `audio/mpeg`，支持 Range 请求，普通请求返回 `200`、Range 请求返回 `206`。两个对象均带 `Cache-Control: public, max-age=31536000, immutable`。生产环境的 `APP_AUDIO_URL` 与 `APP_AUDIO_URL_ONLINE` 指向 `bgm/event-offline-v2.mp3` 与 `bgm/event-online-v2.mp3`；音频对象与配套编排在同一发布步骤切换。
 
 服务器不保存音频文件；`/api/events/{eventId}/audio` 返回线下对象跳转，`?mode=online` 返回线上对象跳转。本地开发运行时这两个接口输出编排目录中的本地母带。
 

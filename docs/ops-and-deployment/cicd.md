@@ -205,8 +205,8 @@ sudo chmod 750 /opt/bgm-guess/shared/data
 
 ```text
 APP_HOST_PASSWORD=<主持人密码>
-APP_AUDIO_URL=https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3
-APP_AUDIO_URL_ONLINE=https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-cbr192.mp3
+APP_AUDIO_URL=https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline-v2.mp3
+APP_AUDIO_URL_ONLINE=https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-v2.mp3
 APP_TIMELINE_FILE=/opt/bgm-guess/shared/data/timeline.json
 APP_ONLINE_TIMELINE_FILE=/opt/bgm-guess/shared/data/timeline-online.json
 APP_LEADERBOARD_FILE=/opt/bgm-guess/shared/data/leaderboards.json

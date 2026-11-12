@@ -241,8 +241,8 @@ python tools\build_voice_mix.py `
 app:
   timeline-file: "${APP_TIMELINE_FILE:data/timeline.json}"
   online-timeline-file: "${APP_ONLINE_TIMELINE_FILE:data/timeline-online.json}"
-  audio-url: "${APP_AUDIO_URL:https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3}"
-  audio-url-online: "${APP_AUDIO_URL_ONLINE:https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-cbr192.mp3}"
+  audio-url: "${APP_AUDIO_URL:https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline-v2.mp3}"
+  audio-url-online: "${APP_AUDIO_URL_ONLINE:https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-v2.mp3}"
 ```
 
 | 配置项 | 缺省 | 说明 |
@@ -384,8 +384,10 @@ app:
 | :--- | :--- | ---: | :--- |
 | `backend/data/event-online.mp3` | 本地新版，纯 BGM | 53,869,130 字节 | `AEE6304CC699D65E65E06DAAAC6650A9` |
 | `backend/data/event-offline.mp3` | 本地新版，含播报 | 58,304,095 字节 | `33E02A32F5FBE15FC8D180E83E7BD70E` |
-| `bgm/event-online-cbr192.mp3` | OSS 已发布版本，待替换 | 62,233,783 字节 | `CF242A2CAF35D8AEB0A13A0AB687BA78` |
-| `bgm/event-offline.mp3` | OSS 已发布版本，待替换 | 66,724,510 字节 | `33688E3C8AFB41BC5D898CDAE15E1A48` |
+| `bgm/event-online-v2.mp3` | OSS 生产版本 | 53,869,130 字节 | `AEE6304CC699D65E65E06DAAAC6650A9` |
+| `bgm/event-offline-v2.mp3` | OSS 生产版本 | 58,304,095 字节 | `33E02A32F5FBE15FC8D180E83E7BD70E` |
+| `bgm/event-online-cbr192.mp3` | 旧线上对象，保留 | 62,233,783 字节 | `CF242A2CAF35D8AEB0A13A0AB687BA78` |
+| `bgm/event-offline.mp3` | 旧线下对象，保留 | 66,724,510 字节 | `33688E3C8AFB41BC5D898CDAE15E1A48` |
 | `bgm/event-demo.mp3` | 保留，用于回滚 | 64,309,541 字节 | `5f429dd0678259341c93d5673e9f5c6d` |
 
 ### 9.2 发布顺序

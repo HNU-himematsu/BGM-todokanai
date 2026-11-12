@@ -15,8 +15,8 @@
 
 ```yaml
 app:
-  audio-url: "${APP_AUDIO_URL:https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3}"
-  audio-url-online: "${APP_AUDIO_URL_ONLINE:https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-cbr192.mp3}"
+  audio-url: "${APP_AUDIO_URL:https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline-v2.mp3}"
+  audio-url-online: "${APP_AUDIO_URL_ONLINE:https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-v2.mp3}"
 ```
 
 | 配置项 | 作用对象 | 解析顺序 |
@@ -43,18 +43,19 @@ VITE_AUDIO_URL=
 | :--- | :--- | :--- |
 | Bucket | `himematsu` | `himematsu` |
 | Region | `oss-cn-guangzhou` | `oss-cn-guangzhou` |
-| 对象路径 | `bgm/event-online-cbr192.mp3` | `bgm/event-offline.mp3` |
-| 对象 URL | `https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-cbr192.mp3` | `https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3` |
-| 大小 | 62,233,783 字节 | 66,724,510 字节 |
-| 时长 | 2593.000 秒 | 2780.110 秒 |
+| 对象路径 | `bgm/event-online-v2.mp3` | `bgm/event-offline-v2.mp3` |
+| 对象 URL | `https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-v2.mp3` | `https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline-v2.mp3` |
+| 大小 | 53,869,130 字节 | 58,304,095 字节 |
+| 时长 | 2244.491 秒 | 2429.278 秒 |
+| MD5 | `AEE6304CC699D65E65E06DAAAC6650A9` | `33E02A32F5FBE15FC8D180E83E7BD70E` |
 | 访问权限 | 公共读 | 公共读 |
 | Content-Type | `audio/mpeg` | `audio/mpeg` |
 | Cache-Control | `public, max-age=31536000, immutable` | `public, max-age=31536000, immutable` |
 | 传输协议 | HTTPS | HTTPS |
 
-线上对象为纯 BGM 母带，由 `music/bgm-music.mp3` 单次重编码为 CBR 192 kbps 后上传，用于消除 VBR 文件的定位偏差；线下对象为含播报母带，由 `work/event-offline.mp3` 上传。首次发布使用固定对象名 `bgm/event-offline.mp3`；音频内容变化时上传带版本后缀的新对象，例如 `event-offline-v2.mp3`，并同步切换 `APP_AUDIO_URL`，避免浏览器与 CDN 命中旧缓存。
+线上对象为纯 BGM 母带，源文件为 `music/bgm-music.mp3`；线下对象为含播报母带，源文件为 `backend/data/event-offline.mp3`。两个对象均使用 MP3 CBR 192 kbps、44.1 kHz、双声道编码。对象名带 `-v2` 版本后缀，避免浏览器与 CDN 命中历史缓存。
 
-表中数值为 2026-11-06 已发布对象。仓库与本地数据已更新：新版线上文件 `backend/data/event-online.mp3` 为 2244.491 秒、53,869,130 字节；新版线下文件 `backend/data/event-offline.mp3` 为 2429.278 秒、58,304,095 字节。新版对象上传并切换地址前，OSS 上的对象只配套旧编排。
+表中对象于 2026-11-12 分片上传。生产环境的 `APP_AUDIO_URL` 与 `APP_AUDIO_URL_ONLINE` 指向 `bgm/event-offline-v2.mp3` 与 `bgm/event-online-v2.mp3`；音频对象与对应编排在同一发布步骤切换。
 
 ### 3.1 CORS
 
@@ -80,19 +81,24 @@ OSS 跨域规则：
 
 ## 4. 上传音频
 
-已发布线下对象源文件为旧版 `work/event-offline.mp3`，MD5 为 `33688E3C8AFB41BC5D898CDAE15E1A48`，对象大小为 66,724,510 字节。分片上传产生的 ETag 带分片后缀（`88FEAA824926B8E444A3662F575AD210-8`），与 MD5 不相等属于正常现象。
+`bgm/event-offline-v2.mp3` 与 `bgm/event-online-v2.mp3` 于 2026-11-12 分片上传。匿名 `HEAD` 请求返回 `200`，`Content-Length` 与本地文件一致；Range `bytes=0-1023` 返回 `206`；完整下载后的 MD5 与本地文件一致。分片上传产生的 ETag 带分片后缀，与 MD5 不相等属于正常现象。
 
-新版线下对象取 `work/rebuild/event-offline.mp3`，MD5 为 `33E02A32F5FBE15FC8D180E83E7BD70E`，大小 58,304,095 字节；新版线上对象取 `music/bgm-music.mp3`，MD5 为 `AEE6304CC699D65E65E06DAAAC6650A9`，大小 53,869,130 字节。
+对象校验值：
+
+| 对象 | ETag | MD5 |
+| :--- | :--- | :--- |
+| `bgm/event-offline-v2.mp3` | `17DF38F2D7E0255C67B181C102E19EF2-7` | `33E02A32F5FBE15FC8D180E83E7BD70E` |
+| `bgm/event-online-v2.mp3` | `E8C7D0FFB3BA42849080333C3D48AA39-7` | `AEE6304CC699D65E65E06DAAAC6650A9` |
 
 覆盖上传可使用 ossutil：
 
 ```bash
-ossutil cp work/rebuild/event-offline.mp3 \
+ossutil cp backend/data/event-offline.mp3 \
   oss://himematsu/bgm/event-offline-v2.mp3 \
   --meta Content-Type:audio/mpeg \
   --meta Cache-Control:public,max-age=31536000,immutable
 
-ossutil cp music/bgm-music.mp3 \
+ossutil cp backend/data/event-online.mp3 \
   oss://himematsu/bgm/event-online-v2.mp3 \
   --meta Content-Type:audio/mpeg \
   --meta Cache-Control:public,max-age=31536000,immutable
@@ -105,10 +111,10 @@ ossutil cp music/bgm-music.mp3 \
 上传后检查：
 
 ```bash
-curl -I https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3
-curl -I -H 'Range: bytes=0-1023' https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3
-curl -I https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-cbr192.mp3
-curl -I -H 'Range: bytes=0-1023' https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-cbr192.mp3
+curl -I https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline-v2.mp3
+curl -I -H 'Range: bytes=0-1023' https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline-v2.mp3
+curl -I https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-v2.mp3
+curl -I -H 'Range: bytes=0-1023' https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-v2.mp3
 ```
 
 预期状态码分别为 `200` 与 `206`。
@@ -124,12 +130,12 @@ curl -I -H 'Range: bytes=0-1023' https://himematsu.oss-cn-guangzhou.aliyuncs.com
 
 ## 5. 发布流程
 
-1. 上传线下母带到 OSS，确认对象可读；确认线上对象 `bgm/event-online-cbr192.mp3` 返回 `200`。
+1. 上传线下母带到 OSS，确认对象可读；确认线上对象 `bgm/event-online-v2.mp3` 返回 `200`。
 2. 在 `/etc/bgm-guess/bgm-guess.env` 增加：
 
    ```text
-   APP_AUDIO_URL=https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3
-   APP_AUDIO_URL_ONLINE=https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-cbr192.mp3
+   APP_AUDIO_URL=https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline-v2.mp3
+   APP_AUDIO_URL_ONLINE=https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-v2.mp3
    ```
 
 3. 构建前端。`VITE_AUDIO_URL` 保持为空，主持人控制台通过 `/api/events/{eventId}/audio` 取值。
@@ -145,12 +151,12 @@ curl -I -H 'Range: bytes=0-1023' https://himematsu.oss-cn-guangzhou.aliyuncs.com
 
 ```bash
 curl -sS https://game.himematsu.cn/api/events/jisong/online/questions
-curl -I https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3
-curl -I -H 'Range: bytes=0-1023' https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline.mp3
-curl -I https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-cbr192.mp3
+curl -I https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline-v2.mp3
+curl -I -H 'Range: bytes=0-1023' https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-offline-v2.mp3
+curl -I https://himematsu.oss-cn-guangzhou.aliyuncs.com/bgm/event-online-v2.mp3
 ```
 
-- 线上题集响应中的 `audioUrl` 在服务端没有本地音频时为线上对象地址，长度 62,233,783。
+- 线上题集响应中的 `audioUrl` 在服务端没有本地音频时为线上对象地址，长度 53,869,130。
 - 主持人页面 `<audio>` 的 `src` 为 `/api/events/jisong/audio`。
 - 两个对象均返回 `200`，Range 请求返回 `206`。
 - 手机可播放、暂停、拖动进度，切题定位与本地音频一致。
