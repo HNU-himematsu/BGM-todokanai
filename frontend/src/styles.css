@@ -204,10 +204,17 @@ p {
   display: flex;
   flex-direction: column;
   padding: 24px 20px 20px;
-  border-radius: 14px;
+  border-radius: 0 !important;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.16);
   border: 1px solid var(--line);
   overflow: hidden;
+}
+
+/* 规则弹窗整体使用直角，弹窗内的容器、按钮与提示条不设置圆角。 */
+.rules-modal .ant-btn,
+.rules-modal .ant-alert,
+.rules-modal .ant-modal-close {
+  border-radius: 0 !important;
 }
 
 .rules-modal .ant-modal-close {
@@ -267,7 +274,7 @@ p {
   padding: 12px 14px;
   background: var(--soft);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .rule-icon {
@@ -279,7 +286,7 @@ p {
   background: var(--accent-light);
   color: var(--accent);
   border: 1px solid var(--accent-line);
-  border-radius: 8px;
+  border-radius: 0;
   margin-top: 2px;
 }
 
