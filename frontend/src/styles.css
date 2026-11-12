@@ -586,14 +586,14 @@ p {
   margin-top: 22px;
 }
 
-/* 提示块与计分规则块共用视觉规范：浅灰底、3px 主色左边线、直角。 */
+/* 提示块与计分规则块共用视觉规范：浅灰底、1px 下边线、直角。 */
 .question-hint {
   display: flex;
   flex-direction: column;
   gap: 5px;
   margin-top: 18px;
   padding: 14px 16px;
-  border-left: 3px solid var(--accent);
+  border-bottom: 1px solid var(--line);
   background: var(--soft);
   color: var(--ink);
   font-size: 13px;
@@ -1588,7 +1588,7 @@ p {
 .scoring-rules {
   margin-top: 18px;
   padding: 14px 16px;
-  border-left: 3px solid var(--accent);
+  border-bottom: 1px solid var(--line);
   background: var(--soft);
 }
 
