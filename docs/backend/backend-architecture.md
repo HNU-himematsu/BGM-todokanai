@@ -178,7 +178,7 @@ app:
 ## 6. 数据脱敏
 
 - 线下 `ANSWERING` 与 `ANSWER_LOCKED` 下发的题目不含 `answerIndex` 与 `workName`；`author` 与 `analysis` 随题下发。
-- 线上题集下发 `author`，不含答案、解析与作品名；预览与锁定响应不含题目内容。
+- 线上题集下发 `author` 与 `explanation`，不含答案与作品名；预览与锁定响应不含题目内容。
 - 主持人快照保留 `workName` 与 `author`，其中 `workName` 仅供控制台展示。
 
 完整功能与验收标准见 [`../product/dual-mode-development-spec.md`](../product/dual-mode-development-spec.md)。

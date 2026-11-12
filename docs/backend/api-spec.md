@@ -302,6 +302,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
         "difficulty": "MEDIUM",
         "options": ["《CLANNAD》", "《白色相簿2》", "《命运石之门》", "《千恋＊万花》"],
         "author": "Munch",
+        "explanation": "党争、三角恋、下雪天",
         "audioStartMs": 0,
         "audioEndMs": 15000,
         "answerStartMs": 1000,
@@ -315,6 +316,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
         "difficulty": "EASY",
         "options": ["放学后的海边散步", "最终决战前夜", "密室推理现场", "热闹的祭典舞台"],
         "author": "Munch",
+        "explanation": "无",
         "audioStartMs": 15000,
         "audioEndMs": 30000,
         "answerStartMs": 15000,
@@ -346,6 +348,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
 | `type` | String | `WORK` 或 `ATMOSPHERE`。 |
 | `difficulty` | String | `EASY`、`MEDIUM` 或 `HARD`。 |
 | `author` | String | 出题人署名。 |
+| `explanation` | String | 提示文本，题目开放作答期间展示；文本为空或为「无」时前端不显示提示块。 |
 | `options` | String[] | 四个选项。 |
 | `audioStartMs` | Long | 本题音频片段起点。 |
 | `audioEndMs` | Long | 本题音频片段终点。 |
@@ -354,7 +357,7 @@ Content-Disposition: inline; filename="leaderboard_summary.txt"
 
 脱敏规则：
 
-- 响应不得包含 `correctOption`、`workName`、`explanation`；`author` 随题下发。
+- 响应不得包含 `correctOption` 与 `workName`；`author` 与 `explanation` 随题下发。
 - 响应不得包含逐题正确性、得分或排名。
 - 题目数组不得包含重复 `id`，并覆盖题库全部 `id`。
 - 相邻题目的 `audioEndMs` 与下一题的 `audioStartMs` 相等。

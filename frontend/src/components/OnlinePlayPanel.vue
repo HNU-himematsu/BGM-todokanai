@@ -66,6 +66,10 @@ const difficultyLabel = computed(() => ({
   MEDIUM: '中等',
   HARD: '困难',
 }[question.value?.difficulty] || ''))
+const hintText = computed(() => {
+  const text = question.value?.explanation?.trim()
+  return text && text !== '无' && text !== '無' ? text : ''
+})
 const questionWindowCopy = computed(() => {
   if (online.isWindowOpen) return '本题开放作答，提交前可修改选项'
   if (online.currentIndex >= 0 && lastQuestion.value && online.audioPositionMs >= lastQuestion.value.audioEndMs) {
@@ -724,6 +728,10 @@ function leave() {
                 <ArrowRight v-if="!completing" :size="16" />
               </a-button>
             </a-space>
+          </div>
+          <div v-if="hintText" class="question-hint">
+            <span class="question-hint-label">提示</span>
+            <span>{{ hintText }}</span>
           </div>
         </a-card>
 

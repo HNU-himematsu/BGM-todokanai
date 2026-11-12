@@ -52,7 +52,7 @@
 - 请求：`GET /api/events/{eventId}/online/questions`。
 - 服务端从 `timeline-online.json` 生成拉平题集，按 `questionId` 去重；该文件缺省时取 `timeline.json`。
 - 响应包含 `questionSetVersion`、`totalQuestions`、`audioUrl` 与题目数组。
-- 题目数组包含 `author`，不包含 `correctOption`、`workName`、`explanation`。
+- 题目数组包含 `author` 与 `explanation`，不包含 `correctOption` 与 `workName`。
 
 ### 2.3 线上本地推进
 
@@ -108,7 +108,7 @@
 - 编排中的时间字段均为音频绝对毫秒位置。
 - 线下主持人将音频定位到 `round.startMs`，服务端以启动时刻为零点。
 - 线上浏览器从第一题 `audioStartMs` 连续播放到最后一题 `audioEndMs`；题目在 `answerStartMs` 上屏、`answerEndMs` 锁定。
-- 线上已选答案后点击「下一题」时，浏览器定位到下一题 `answerStartMs`，音频继续播放；该定位不改变音频素材契约。
+- 线上通过题号、上一题或下一题切换题目时，浏览器定位到目标题 `audioStartMs`，并按切换前的播放状态继续或保持暂停；该定位不改变音频素材契约。
 - 线上音频连续播放，题目之间无空白段。
 - 音频缺失或不可读时，接口返回错误，页面显示不可开始状态。
 
@@ -122,7 +122,7 @@
 ## 6. 数据脱敏与安全
 
 - 线下 `ANSWERING` 与 `ANSWER_LOCKED` 状态下发的题目不含正确答案与作品名；出题人与解析作为提示自 `ANSWERING` 起下发。`ANSWER_REVEALED` 与 `FINISHED` 状态下发答案与作品名。
-- 线上题集与预览/锁定响应始终不含正确答案、解析与作品名。
+- 线上题集下发 `author` 与 `explanation`，不含正确答案与作品名；预览与锁定响应不含题目内容。
 - 线上分数由服务端根据提交答案重新计算；客户端提交的分数不参与计算。
 - 线上本地进度可被用户修改；服务端以锁定请求中的答案判分。计时公平性由浏览器本地执行，服务端不提供防篡改计时。
 - 主持人接口要求 `X-Host-Token`。

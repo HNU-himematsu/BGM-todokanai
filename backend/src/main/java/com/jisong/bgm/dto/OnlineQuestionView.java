@@ -13,6 +13,7 @@ public record OnlineQuestionView(
         Difficulty difficulty,
         List<String> options,
         String author,
+        String explanation,
         long audioStartMs,
         long audioEndMs,
         long answerStartMs,

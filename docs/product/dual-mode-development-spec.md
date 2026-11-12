@@ -78,7 +78,7 @@
 | `options` | String[] | 长度 4 | 四个选项。 |
 | `correctOption` | Integer | 0 至 3 | 正确选项下标。 |
 | `workName` | String | 非空 | 作品名称，线上模式不得下发。 |
-| `explanation` | String | 非空 | 提示文本，线下题目上屏后展示，线上模式不得下发。 |
+| `explanation` | String | 非空 | 提示文本，题目上屏后展示；文本为「无」时前端不显示提示块。 |
 | `author` | String | 非空 | 出题人署名，题目上屏后展示于题干下方；线下题卡、主持人控制台与线上题卡一致。 |
 | `audioCode` | String | 非空 | 音频素材编号，用于素材核对。 |
 
@@ -135,12 +135,14 @@
 | `type` | String | 题型。 |
 | `difficulty` | String | 难度。 |
 | `options` | String[] | 四个选项。 |
+| `author` | String | 出题人署名。 |
+| `explanation` | String | 提示文本；文本为「无」时前端不显示提示块。 |
 | `audioStartMs` | Long | 本题音频起点。 |
 | `audioEndMs` | Long | 本题音频终点。 |
 | `answerStartMs` | Long | 本题开放作答时刻。 |
 | `answerEndMs` | Long | 本题关闭作答时刻。 |
 
-线上题目对象不得包含 `correctOption`、`workName`、`explanation`。
+线上题目对象不得包含 `correctOption` 与 `workName`。
 
 ### 4.4 线上题集版本
 
@@ -253,7 +255,7 @@ questionId, audioStartMs, audioEndMs, answerStartMs, answerEndMs
    - 参与者可拖动当前题音频进度条或重播当前题音频。
    - 音频自然到达当前题 `audioEndMs` 时自动切到下一题；最后一题播放结束后进入结果预览。
    - 未答题按 0 分处理。
-   - 不显示正确答案、解析、作品名或逐题对错。
+   - 不显示正确答案、作品名或逐题对错；解析作为提示展示。
 7. 最后一题任意时刻显示「结束答题」；点击后停止音频，状态进入 `RESULT_READY`。
 8. 页面提交全部已选答案到预览接口，显示总分。
 9. 结果页提供「重试」与「锁定分数」。
@@ -602,7 +604,7 @@ questionId, audioStartMs, audioEndMs, answerStartMs, answerEndMs
 
 ## 14. 安全与数据保护
 
-- 线上题目响应只包含题干、选项、题型、难度、出题人与音频时间字段，不包含正确答案、解析与作品名。
+- 线上题目响应包含题干、选项、题型、难度、出题人、提示与音频时间字段，不包含正确答案与作品名。
 - 线上预览与锁定均由服务端计算分数；客户端提交的分数不参与计算。
 - 本地进度可被用户修改；服务端以锁定请求中的答案重新判分。计时公平性由浏览器本地执行，服务端不提供防篡改计时。
 - `participantId` 是浏览器生成的合并键，不是认证凭据。清除站点数据后生成新标识，可能形成新的线上锁定记录。

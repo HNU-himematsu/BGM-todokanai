@@ -235,21 +235,21 @@ function switchToOnline() {
             <div class="rule-icon"><Music :size="20" /></div>
             <div class="rule-content">
               <div class="rule-title">1. 连续播放音频</div>
-              <p class="rule-desc">开始后按题集顺序连续播放音频，题目随播放位置自动上屏；已选答案后可点击「下一题」按顺序推进，最后一题可结束答题，不能暂停、任意跳题或回看。</p>
+              <p class="rule-desc">开始后按题集顺序连续播放音频，题目随播放位置自动上屏；可点击题号或「上一题」「下一题」切题，可拖动当前题进度条与重播本题；页面切到后台时音频暂停并保存进度。</p>
             </div>
           </div>
           <div class="rule-item">
             <div class="rule-icon"><Clock3 :size="20" /></div>
             <div class="rule-content">
-              <div class="rule-title">2. 每道题限时选择</div>
-              <p class="rule-desc">题目开放期间可修改选项，结束时刻自动锁定；未作答题目按 0 分处理。</p>
+              <div class="rule-title">2. 每题开放作答</div>
+              <p class="rule-desc">题目在对应音频区间内开放，开放期间可修改选项；未作答题目按 0 分处理。</p>
             </div>
           </div>
           <div class="rule-item">
             <div class="rule-icon"><Trophy :size="20" /></div>
             <div class="rule-content">
               <div class="rule-title">3. 预览与锁定</div>
-              <p class="rule-desc">全部音频结束后显示预览分。锁定后成绩进入线上榜与总榜，且不能重试。</p>
+              <p class="rule-desc">全部音频结束后显示预览分；可重试或锁定成绩，锁定后成绩进入线上榜与总榜，且不能重试。</p>
             </div>
           </div>
         </template>

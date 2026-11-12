@@ -199,6 +199,7 @@ FINISH
   "difficulty": "MEDIUM",
   "options": ["《CLANNAD》", "《白色相簿2》", "《命运石之门》", "《千恋＊万花》"],
   "author": "Munch",
+  "explanation": "党争、三角恋、下雪天",
   "audioStartMs": 0,
   "audioEndMs": 15000,
   "answerStartMs": 1000,
@@ -210,7 +211,6 @@ FINISH
 
 - `correctOption`
 - `workName`
-- `explanation`
 - 逐题得分与榜单信息
 
 ### 6.3 题集覆盖

@@ -62,6 +62,7 @@ public class OnlineAttemptService {
                     question.difficulty(),
                     question.options(),
                     question.author(),
+                    question.explanation(),
                     window.audioStartMs(),
                     window.audioEndMs(),
                     window.answerStartMs(),
