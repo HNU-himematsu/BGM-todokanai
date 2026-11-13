@@ -195,27 +195,18 @@ function switchToOnline() {
     </section>
 
     <footer class="site-footer">
-      <div class="site-footer-main">
-        <div class="site-footer-brand">
-          <span class="site-footer-kicker">{{ SITE_CONTENT.brand.organization }}</span>
-          <strong class="site-footer-title">{{ SITE_CONTENT.brand.eventName }}</strong>
-          <span class="site-footer-sub">{{ SITE_CONTENT.brand.subtitle }}</span>
-        </div>
-        <dl class="site-footer-credits" aria-label="制作署名">
-          <div v-for="credit in SITE_CONTENT.credits" :key="credit.role">
-            <dt>{{ credit.role }}：</dt>
-            <dd>{{ credit.name }}</dd>
-          </div>
-        </dl>
-        <div class="site-footer-authors">
-          <span class="site-footer-label">出题人</span>
-          <p>{{ SITE_CONTENT.questionAuthors.join(' · ') }}</p>
-        </div>
-      </div>
-      <div class="site-footer-sign">
-        <span>{{ qqGroup.name }} {{ qqGroupNumberDisplay }}</span>
-        <strong>{{ SITE_CONTENT.brand.sign }}</strong>
-      </div>
+      <p class="site-footer-line">
+        <span v-for="credit in SITE_CONTENT.credits" :key="credit.role" class="site-footer-credit">
+          <span class="site-footer-role">{{ credit.role }}</span>{{ credit.name }}
+        </span>
+        <span class="site-footer-authors">
+          <span class="site-footer-role">出题人</span>{{ SITE_CONTENT.questionAuthors.join(' · ') }}
+        </span>
+        <a class="site-footer-qq" :href="qqGroup.joinUrl" target="_blank" rel="noopener">
+          <span class="site-footer-role">群号</span>{{ qqGroupNumberDisplay }}
+        </a>
+        <span class="site-footer-sign">{{ SITE_CONTENT.brand.sign }}</span>
+      </p>
     </footer>
 
     <a-modal
