@@ -2,11 +2,11 @@ export const SITE_CONTENT = {
   brand: {
     organization: '海带姬松书院',
     eventName: '旮旯原声之届不到的 BGM',
-    subtitle: '姬松学院 · 百团猜歌互动',
+    subtitle: '姬松书院 · 百团猜歌互动',
     sign: '海带姬松书院 出品',
   },
   qqGroup: {
-    name: '姬松学院交流群',
+    name: '姬松书院交流群',
     number: '712226480',
   },
   credits: [

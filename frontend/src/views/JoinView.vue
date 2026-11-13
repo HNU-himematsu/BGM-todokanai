@@ -1,6 +1,6 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
-import { ArrowRight, ChevronRight, Clock3, Copy, Music, Radio, Trophy, Users } from 'lucide-vue-next'
+import { ArrowRight, ChevronRight, Clock3, Music, Radio, Trophy } from 'lucide-vue-next'
 import { message, Modal } from 'ant-design-vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getEvent } from '../services/api'
@@ -17,8 +17,6 @@ const qqGroupNumber = qqGroup.number.trim()
 const qqGroupNumberDisplay = computed(() => (
   qqGroupNumber ? qqGroupNumber.replace(/(\d{3})(?=\d)/g, '$1 ') : '待公布'
 ))
-const copied = ref(false)
-let copyResetTimer = 0
 const nickname = ref(store.nickname)
 const loading = ref(false)
 const eventLoading = ref(false)
@@ -123,32 +121,6 @@ function switchToOnline() {
   router.push({ path: '/online', query: { event: eventId.value } })
 }
 
-async function copyQQGroup() {
-  if (!qqGroupNumber) return
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(qqGroupNumber)
-    } else {
-      const field = document.createElement('textarea')
-      field.value = qqGroupNumber
-      field.setAttribute('readonly', '')
-      field.style.position = 'fixed'
-      field.style.opacity = '0'
-      document.body.appendChild(field)
-      field.select()
-      document.execCommand('copy')
-      field.remove()
-    }
-    copied.value = true
-    message.success('群号已复制')
-    window.clearTimeout(copyResetTimer)
-    copyResetTimer = window.setTimeout(() => {
-      copied.value = false
-    }, 2000)
-  } catch {
-    message.error('复制失败，请手动选择群号')
-  }
-}
 </script>
 
 <template>
@@ -157,26 +129,6 @@ async function copyQQGroup() {
       <div class="join-copy">
         <span class="title-kicker" lang="ja">届かないメロディー</span>
         <h1><span class="title-line">旮旯原声之</span><br /><span class="title-line">届不到的</span><br /><span class="title-line"><em>BGM</em></span></h1>
-        <div class="join-community">
-          <div class="join-community-head">
-            <span class="join-community-icon"><Users :size="14" /></span>
-            <span class="join-community-kicker">{{ qqGroup.name }}</span>
-            <span class="join-community-tag">QQ</span>
-          </div>
-          <div class="join-community-row">
-            <span class="join-community-label">群号</span>
-            <strong class="join-community-number">{{ qqGroupNumberDisplay }}</strong>
-            <button
-              type="button"
-              class="join-community-copy"
-              :disabled="!qqGroupNumber"
-              @click="copyQQGroup"
-            >
-              <Copy :size="13" />
-              {{ copied ? '已复制' : '复制群号' }}
-            </button>
-          </div>
-        </div>
       </div>
 
       <a-card class="join-panel" :bordered="true">

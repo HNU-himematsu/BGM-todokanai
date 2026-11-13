@@ -180,97 +180,6 @@ p {
   font-style: normal;
 }
 
-.join-community {
-  max-width: 460px;
-  margin-top: 36px;
-  padding-top: 18px;
-  border-top: 1px solid var(--line);
-}
-
-.join-community-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.join-community-icon {
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-  flex: 0 0 22px;
-  border: 1px solid var(--accent-line);
-  border-radius: 2px;
-  color: var(--accent);
-}
-
-.join-community-kicker {
-  color: #4e4e4e;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-}
-
-.join-community-tag {
-  margin-left: auto;
-  padding: 1px 5px;
-  border: 1px solid var(--accent-line);
-  border-radius: 2px;
-  color: var(--accent);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-}
-
-.join-community-row {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin-top: 8px;
-}
-
-.join-community-label {
-  color: var(--muted);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-}
-
-.join-community-number {
-  color: var(--accent-dark);
-  font-size: clamp(24px, 2.6vw, 32px);
-  font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: 0.06em;
-  font-variant-numeric: tabular-nums;
-  user-select: text;
-}
-
-.join-community-copy {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  margin-left: auto;
-  padding: 4px 8px;
-  border: 1px solid var(--accent-line);
-  border-radius: 2px;
-  background: var(--accent-light);
-  color: var(--accent-dark);
-  font: inherit;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.join-community-copy:hover:not(:disabled) {
-  border-color: var(--accent-mid);
-  background: #ffffff;
-}
-
-.join-community-copy:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
 .join-note {
   display: flex;
   gap: 8px;
@@ -1949,11 +1858,6 @@ p {
     font-size: clamp(40px, 7vw, 64px);
   }
 
-  .join-community {
-    max-width: none;
-    margin-top: 22px;
-  }
-
   .site-footer {
     margin: 0 20px 28px;
   }
@@ -2014,30 +1918,6 @@ p {
     letter-spacing: -0.035em;
   }
 
-  .join-community {
-    margin-top: 20px;
-    padding-top: 13px;
-  }
-
-  .join-community-row {
-    gap: 8px;
-  }
-
-  .join-community-label {
-    white-space: nowrap;
-  }
-
-  .join-community-number {
-    font-size: 22px;
-    letter-spacing: 0.02em;
-  }
-
-  .join-community-copy {
-    padding: 4px 8px;
-    font-size: 11px;
-    white-space: nowrap;
-  }
-
   .site-footer {
     margin: 0 18px 24px;
     padding-top: 16px;
@@ -2083,21 +1963,6 @@ p {
     margin-top: 16px;
     padding-top: 12px;
   }
-
-@media (max-width: 380px) {
-  .join-community-row {
-    flex-wrap: wrap;
-    row-gap: 6px;
-  }
-
-  .join-community-number {
-    font-size: 19px;
-  }
-
-  .join-community-copy {
-    margin-left: 0;
-  }
-}
 
   .topline h1,
   .host-header h1 {
