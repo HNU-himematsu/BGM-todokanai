@@ -1,16 +1,24 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
-import { ArrowRight, ChevronRight, Clock3, Music, Radio, Trophy } from 'lucide-vue-next'
+import { ArrowRight, ChevronRight, Clock3, Copy, Music, Radio, Trophy, Users } from 'lucide-vue-next'
 import { message, Modal } from 'ant-design-vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getEvent } from '../services/api'
 import { MODES, parseModeQuery } from '../services/storage'
 import { useActivityStore } from '../stores/activity'
 import TotalLeaderboardModal from '../components/TotalLeaderboardModal.vue'
+import { SITE_CONTENT } from '../site-content'
 
 const router = useRouter()
 const route = useRoute()
 const store = useActivityStore()
+const qqGroup = SITE_CONTENT.qqGroup
+const qqGroupNumber = qqGroup.number.trim()
+const qqGroupNumberDisplay = computed(() => (
+  qqGroupNumber ? qqGroupNumber.replace(/(\d{3})(?=\d)/g, '$1 ') : '待公布'
+))
+const copied = ref(false)
+let copyResetTimer = 0
 const nickname = ref(store.nickname)
 const loading = ref(false)
 const eventLoading = ref(false)
@@ -114,16 +122,64 @@ function showNicknameConflict() {
 function switchToOnline() {
   router.push({ path: '/online', query: { event: eventId.value } })
 }
+
+async function copyQQGroup() {
+  if (!qqGroupNumber) return
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(qqGroupNumber)
+    } else {
+      const field = document.createElement('textarea')
+      field.value = qqGroupNumber
+      field.setAttribute('readonly', '')
+      field.style.position = 'fixed'
+      field.style.opacity = '0'
+      document.body.appendChild(field)
+      field.select()
+      document.execCommand('copy')
+      field.remove()
+    }
+    copied.value = true
+    message.success('群号已复制')
+    window.clearTimeout(copyResetTimer)
+    copyResetTimer = window.setTimeout(() => {
+      copied.value = false
+    }, 2000)
+  } catch {
+    message.error('复制失败，请手动选择群号')
+  }
+}
 </script>
 
 <template>
-  <section class="join-layout">
-    <div class="join-copy">
-      <span class="title-kicker" lang="ja">届かないメロディー</span>
-      <h1><span class="title-line">旮旯原声之</span><br /><span class="title-line">届不到的</span><br /><span class="title-line"><em>BGM</em></span></h1>
-    </div>
+  <div class="join-page">
+    <section class="join-layout">
+      <div class="join-copy">
+        <span class="title-kicker" lang="ja">届かないメロディー</span>
+        <h1><span class="title-line">旮旯原声之</span><br /><span class="title-line">届不到的</span><br /><span class="title-line"><em>BGM</em></span></h1>
+        <div class="join-community">
+          <div class="join-community-head">
+            <span class="join-community-icon"><Users :size="14" /></span>
+            <span class="join-community-kicker">{{ qqGroup.name }}</span>
+            <span class="join-community-tag">QQ</span>
+          </div>
+          <div class="join-community-row">
+            <span class="join-community-label">群号</span>
+            <strong class="join-community-number">{{ qqGroupNumberDisplay }}</strong>
+            <button
+              type="button"
+              class="join-community-copy"
+              :disabled="!qqGroupNumber"
+              @click="copyQQGroup"
+            >
+              <Copy :size="13" />
+              {{ copied ? '已复制' : '复制群号' }}
+            </button>
+          </div>
+        </div>
+      </div>
 
-    <a-card class="join-panel" :bordered="true">
+      <a-card class="join-panel" :bordered="true">
       <div class="mode-badge-row">
         <a-tag :color="isOffline ? 'processing' : 'default'" class="mode-badge">
           {{ isOffline ? '线下模式' : '线上模式' }}
@@ -183,7 +239,32 @@ function switchToOnline() {
         </span>
         <ChevronRight :size="16" class="leaderboard-entry-arrow" />
       </button>
-    </a-card>
+      </a-card>
+    </section>
+
+    <footer class="site-footer">
+      <div class="site-footer-main">
+        <div class="site-footer-brand">
+          <span class="site-footer-kicker">{{ SITE_CONTENT.brand.organization }}</span>
+          <strong class="site-footer-title">{{ SITE_CONTENT.brand.eventName }}</strong>
+          <span class="site-footer-sub">{{ SITE_CONTENT.brand.subtitle }}</span>
+        </div>
+        <dl class="site-footer-credits" aria-label="制作署名">
+          <div v-for="credit in SITE_CONTENT.credits" :key="credit.role">
+            <dt>{{ credit.role }}：</dt>
+            <dd>{{ credit.name }}</dd>
+          </div>
+        </dl>
+        <div class="site-footer-authors">
+          <span class="site-footer-label">出题人</span>
+          <p>{{ SITE_CONTENT.questionAuthors.join(' · ') }}</p>
+        </div>
+      </div>
+      <div class="site-footer-sign">
+        <span>{{ qqGroup.name }} {{ qqGroupNumberDisplay }}</span>
+        <strong>{{ SITE_CONTENT.brand.sign }}</strong>
+      </div>
+    </footer>
 
     <a-modal
       v-model:open="rulesVisible"
@@ -276,5 +357,5 @@ function switchToOnline() {
       :event-name="eventSummary?.name || eventId"
       :participant-id="store.participantId"
     />
-  </section>
+  </div>
 </template>

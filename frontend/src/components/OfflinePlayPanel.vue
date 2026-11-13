@@ -1,6 +1,6 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { Check, Clock3, Eye, LogOut, Radio, Send, Trophy } from 'lucide-vue-next'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { Check, ChevronDown, Clock3, Eye, LogOut, Radio, Send, Trophy } from 'lucide-vue-next'
 import { message } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
 import { getLeaderboard, submitAnswer } from '../services/api'
@@ -46,6 +46,10 @@ const correctLetter = computed(() => {
 const hintText = computed(() => {
   const text = question.value?.analysis?.trim()
   return text && text !== '无' && text !== '無' ? text : ''
+})
+const hintExpanded = ref(false)
+watch(() => question.value?.id, () => {
+  hintExpanded.value = false
 })
 const displayQuestionNo = computed(() => Math.max(0, (state.value?.currentQuestionIndex ?? -1) + 1))
 const progressPercent = computed(() => {
@@ -228,8 +232,20 @@ function leave() {
           </template>
         </a-alert>
         <div v-if="hintText" class="question-hint">
-          <span class="question-hint-label">提示</span>
-          <span>{{ hintText }}</span>
+          <button
+            type="button"
+            class="question-hint-toggle"
+            :aria-expanded="hintExpanded"
+            @click="hintExpanded = !hintExpanded"
+          >
+            <span class="question-hint-label">提示</span>
+            <ChevronDown
+              :size="15"
+              class="question-hint-chevron"
+              :class="{ expanded: hintExpanded }"
+            />
+          </button>
+          <p v-if="hintExpanded" class="question-hint-text">{{ hintText }}</p>
         </div>
       </a-card>
 

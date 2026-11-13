@@ -78,7 +78,7 @@
 | `options` | String[] | 长度 4 | 四个选项。 |
 | `correctOption` | Integer | 0 至 3 | 正确选项下标。 |
 | `workName` | String | 非空 | 作品名称，线上模式不得下发。 |
-| `explanation` | String | 非空 | 提示文本，题目上屏后展示；文本为「无」时前端不显示提示块。 |
+| `explanation` | String | 非空 | 提示文本，题目上屏后以折叠块展示；文本为「无」时前端不显示提示块。 |
 | `author` | String | 非空 | 出题人署名，题目上屏后展示于题干下方；线下题卡、主持人控制台与线上题卡一致。 |
 | `audioCode` | String | 非空 | 音频素材编号，用于素材核对。 |
 
@@ -136,7 +136,7 @@
 | `difficulty` | String | 难度。 |
 | `options` | String[] | 四个选项。 |
 | `author` | String | 出题人署名。 |
-| `explanation` | String | 提示文本；文本为「无」时前端不显示提示块。 |
+| `explanation` | String | 提示文本，前端默认收起、点击展开；文本为「无」时前端不显示提示块。 |
 | `audioStartMs` | Long | 本题音频起点。 |
 | `audioEndMs` | Long | 本题音频终点。 |
 | `answerStartMs` | Long | 本题开放作答时刻。 |

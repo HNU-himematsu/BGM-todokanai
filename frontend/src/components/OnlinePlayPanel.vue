@@ -1,6 +1,6 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { ArrowLeft, ArrowRight, Clock3, Headphones, LogOut, Music2, RefreshCw, RotateCcw, ShieldCheck } from 'lucide-vue-next'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { ArrowLeft, ArrowRight, ChevronDown, Clock3, Headphones, LogOut, Music2, RefreshCw, RotateCcw, ShieldCheck } from 'lucide-vue-next'
 import { message } from 'ant-design-vue'
 import { useRoute, useRouter } from 'vue-router'
 import { MODES } from '../services/storage'
@@ -69,6 +69,10 @@ const difficultyLabel = computed(() => ({
 const hintText = computed(() => {
   const text = question.value?.explanation?.trim()
   return text && text !== '无' && text !== '無' ? text : ''
+})
+const hintExpanded = ref(false)
+watch(() => question.value?.id, () => {
+  hintExpanded.value = false
 })
 const questionWindowCopy = computed(() => {
   if (online.isWindowOpen) return '本题开放作答，提交前可修改选项'
@@ -730,8 +734,20 @@ function leave() {
             </a-space>
           </div>
           <div v-if="hintText" class="question-hint">
-            <span class="question-hint-label">提示</span>
-            <span>{{ hintText }}</span>
+            <button
+              type="button"
+              class="question-hint-toggle"
+              :aria-expanded="hintExpanded"
+              @click="hintExpanded = !hintExpanded"
+            >
+              <span class="question-hint-label">提示</span>
+              <ChevronDown
+                :size="15"
+                class="question-hint-chevron"
+                :class="{ expanded: hintExpanded }"
+              />
+            </button>
+            <p v-if="hintExpanded" class="question-hint-text">{{ hintText }}</p>
           </div>
         </a-card>
 
